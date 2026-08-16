@@ -9,6 +9,7 @@
   "dependencies": {
     "@reindeer/core-api": "file:../../packages/reindeer-core-api",
     "@reindeer/core-data": "file:../../packages/reindeer-core-data",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "@reindeer/exchange": "file:../../packages/reindeer-exchange"
   }
 }

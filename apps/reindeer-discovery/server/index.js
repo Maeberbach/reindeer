@@ -505,3 +505,178 @@ app.get('/api/owner/stats', ownerAuth, (req, res) => {
 
 const PORT = process.env.PORT || 3220;
 app.listen(PORT, () => console.log(`Reindeer: Discovery listening on :${PORT}`));
+
+// ─── Owner: import .reindeer bundle ───────────────────────────
+//
+// Accepts a .reindeer bundle (zip) from Registry or any compatible source.
+// Parses it with @reindeer/exchange, loads items/rooms/categories/photos
+// into Discovery's database. Re-importing the same item_id updates in place.
+app.post('/api/owner/import', ownerAuth, express.raw({ type: 'application/octet-stream', limit: '800mb' }), async (req, res) => {
+  try {
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      return res.status(400).json({ message: 'No bundle bytes received.' });
+    }
+    const { readBundle } = await import('@reindeer/exchange');
+    const { envelope, files, problems } = readBundle(req.body);
+
+    const ctx = { scopeId: SCOPE_ID, actorId: 'owner' };
+    const result = { created: 0, updated: 0, rooms: 0, categories: 0, photos: 0, problems: [...problems] };
+
+    // Map rooms by name (create if missing)
+    const roomByName = new Map();
+    for (const r of envelope.rooms || []) {
+      let room = db.prepare('SELECT * FROM rooms WHERE scope_id = ? AND name = ?').get(SCOPE_ID, r.name);
+      if (!room) {
+        const roomId = r.id || crypto.randomUUID();
+        db.prepare('INSERT INTO rooms (room_id, scope_id, name, is_custom, walkthrough_state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+          .run(roomId, SCOPE_ID, r.name, r.is_custom ? 1 : 0, 'started', new Date().toISOString(), new Date().toISOString());
+        room = db.prepare('SELECT * FROM rooms WHERE room_id = ?').get(roomId);
+      }
+      roomByName.set(r.name.toLowerCase(), room);
+      result.rooms++;
+    }
+
+    // Map categories by name (create if missing)
+    const catByName = new Map();
+    for (const c of envelope.categories || []) {
+      let cat = db.prepare('SELECT * FROM categories WHERE scope_id = ? AND name = ?').get(SCOPE_ID, c.name);
+      if (!cat) {
+        const catId = c.id || crypto.randomUUID();
+        db.prepare('INSERT INTO categories (category_id, scope_id, name, is_custom, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+          .run(catId, SCOPE_ID, c.name, c.is_custom ? 1 : 0, new Date().toISOString(), new Date().toISOString());
+        cat = db.prepare('SELECT * FROM categories WHERE category_id = ?').get(catId);
+      }
+      catByName.set(c.name.toLowerCase(), cat);
+      result.categories++;
+    }
+
+    // Insert/update items
+    for (const src of envelope.items || []) {
+      const existing = db.prepare('SELECT * FROM items WHERE item_id = ? AND scope_id = ?').get(src.item_id, SCOPE_ID);
+      const room = src.room_name ? roomByName.get(src.room_name.toLowerCase()) : null;
+      const cat = src.category_name ? catByName.get(src.category_name.toLowerCase()) : null;
+
+      const now = new Date().toISOString();
+      if (existing) {
+        db.prepare(`UPDATE items SET title=?, category_id=?, room_id=?, description=?, story=?, quantity=?, condition=?,
+          value_estimate_cents=?, value_basis=?, high_value_flag=?, owner_high_value=?, owner_high_value_reason=?,
+          owner_important_comment=?, review_state='kept', updated_at=? WHERE item_id=? AND scope_id=?`)
+          .run(src.title, cat?.category_id || null, room?.room_id || null, src.description || '', src.story || '',
+               src.quantity || 1, src.condition || 'unknown', src.value_estimate_cents || null, src.value_basis || 'unknown',
+               src.high_value_flag ? 1 : 0, src.owner_high_value ? 1 : 0, src.owner_high_value_reason || '',
+               src.owner_important_comment || '', now, src.item_id, SCOPE_ID);
+        result.updated++;
+      } else {
+        db.prepare(`INSERT INTO items (item_id, scope_id, origin_app, origin_item_id, title, category_id, room_id,
+          description, story, quantity, condition, identifiers, value_estimate_cents, value_basis,
+          high_value_flag, owner_high_value, owner_high_value_reason, owner_important_comment, ownership_tag,
+          ai_confidence, review_state, print_state, export_state, created_at, updated_at)
+          VALUES (?, ?, 'inventory', ?, ?, ?, ?, ?, ?, ?, ?, '{}', ?, ?, ?, ?, ?, ?, NULL, 'kept', 'unprinted', 'never', ?, ?)`)
+          .run(src.item_id, SCOPE_ID, src.origin_item_id || src.item_id, src.title, cat?.category_id || null,
+               room?.room_id || null, src.description || '', src.story || '', src.quantity || 1,
+               src.condition || 'unknown', src.value_estimate_cents || null, src.value_basis || 'unknown',
+               src.high_value_flag ? 1 : 0, src.owner_high_value ? 1 : 0, src.owner_high_value_reason || '',
+               src.owner_important_comment || '', '', now, now);
+        result.created++;
+      }
+
+      // Import photos
+      for (const p of src.photos || []) {
+        const photoData = files.get(p.file);
+        if (!photoData) { result.problems.push(`Missing photo ${p.file}`); continue; }
+        const photoId = crypto.randomUUID();
+        const fileName = `${photoId}_${p.file.split('/').pop()}`;
+
+        // Save photo to media store
+        const mediaDir = path.join(DATA_DIR, 'media');
+        const fs = await import('node:fs');
+        fs.mkdirSync(mediaDir, { recursive: true });
+        fs.writeFileSync(path.join(mediaDir, fileName), photoData);
+
+        db.prepare(`INSERT OR REPLACE INTO item_photos (photo_id, item_id, scope_id, role, crop_bbox, file_name, mime_type, byte_size, sha256, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+          .run(photoId, src.item_id, SCOPE_ID, p.role || 'primary', p.crop_bbox || null, fileName,
+               'image/jpeg', photoData.length, p.sha256 || null, now);
+        result.photos++;
+      }
+    }
+
+    res.json(result);
+  } catch (e) {
+    console.error('Import error:', e);
+    res.status(500).json({ message: e.message || 'Import failed' });
+  }
+});
+
+// ─── Owner: load sample data (for testing) ────────────────────
+app.post('/api/owner/sample-data', ownerAuth, (req, res) => {
+  const ctx = { scopeId: SCOPE_ID, actorId: 'owner' };
+  const now = new Date().toISOString();
+
+  const rooms = ['Living Room', 'Kitchen', 'Master Bedroom', 'Garage', 'Study', 'Dining Room'];
+  const categories = ['Furniture', 'Artwork', 'Jewelry', 'Books', 'Tools', 'Kitchenware', 'Electronics', 'Collectibles'];
+
+  // Create rooms
+  const roomIds = {};
+  for (const name of rooms) {
+    let room = db.prepare('SELECT * FROM rooms WHERE scope_id = ? AND name = ?').get(SCOPE_ID, name);
+    if (!room) {
+      const id = crypto.randomUUID();
+      db.prepare('INSERT INTO rooms (room_id, scope_id, name, is_custom, walkthrough_state, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?, ?)')
+        .run(id, SCOPE_ID, name, 'started', now, now);
+      room = db.prepare('SELECT * FROM rooms WHERE room_id = ?').get(id);
+    }
+    roomIds[name] = room.room_id;
+  }
+
+  // Create categories
+  const catIds = {};
+  for (const name of categories) {
+    let cat = db.prepare('SELECT * FROM categories WHERE scope_id = ? AND name = ?').get(SCOPE_ID, name);
+    if (!cat) {
+      const id = crypto.randomUUID();
+      db.prepare('INSERT INTO categories (category_id, scope_id, name, is_custom, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?)')
+        .run(id, SCOPE_ID, name, now, now);
+      cat = db.prepare('SELECT * FROM categories WHERE category_id = ?').get(id);
+    }
+    catIds[name] = cat.category_id;
+  }
+
+  const samples = [
+    { title: 'Oak Grandfather Clock', room: 'Living Room', cat: 'Furniture', desc: 'Tall mahogany grandfather clock, family heirloom from 1890.', story: 'Grandpa Herman bought this in Germany before immigrating. It has chimed in the living room for four generations.' },
+    { title: 'Wedding China Set', room: 'Dining Room', cat: 'Kitchenware', desc: '12-place setting of Lenox porcelain, gold trim.', story: 'Received as a wedding gift in 1972. Used every Thanksgiving and Christmas dinner.' },
+    { title: 'Fishing Rod Collection', room: 'Garage', cat: 'Tools', desc: 'Five vintage bamboo fly rods in canvas case.', story: 'Uncle Fritz\'s collection. He taught everyone to fish with these on Lake Michigan.' },
+    { title: 'Oil Painting - Alpine Scene', room: 'Living Room', cat: 'Artwork', desc: 'Original oil painting, 24x36, gilded frame.', story: 'Purchased on our honeymoon in Switzerland. The vendor said it was painted by a local artist in the 1950s.' },
+    { title: 'Leather-Bound Encyclopedia Set', room: 'Study', cat: 'Books', desc: 'Complete 1958 Encyclopedia Britannica, 24 volumes.', story: 'Dad read these cover to cover. They sat on the study shelf as long as anyone can remember.' },
+    { title: 'Pearl Necklace', room: 'Master Bedroom', cat: 'Jewelry', desc: 'Strand of cultured pearls with gold clasp.', story: 'Grandmother\'s graduation gift in 1945. Worn at every family wedding since.' },
+    { title: 'Cast Iron Skillet', room: 'Kitchen', cat: 'Kitchenware', desc: 'Griswold #8 cast iron skillet, well-seasoned.', story: 'Great-grandma\'s skillet. Sunday breakfast was made in this every week for 60 years.' },
+    { title: 'Vintage Record Player', room: 'Living Room', cat: 'Electronics', desc: 'Technics SL-1200 turntable with dust cover.', story: 'Dad\'s pride and joy. He played jazz records on it every Sunday morning.' },
+    { title: 'Hand-Knitted Quilt', room: 'Master Bedroom', cat: 'Collectibles', desc: 'Patchwork quilt, queen size, hand-stitched.', story: 'Made by Great-Aunt Martha in the 1930s. Each square is from a different family member\'s clothing.' },
+    { title: 'Antique Writing Desk', room: 'Study', cat: 'Furniture', desc: 'Roll-top oak desk with brass hardware.', story: 'The desk where every important family letter was written for three generations.' },
+    { title: 'Silver Tea Service', room: 'Dining Room', cat: 'Kitchenware', desc: 'Five-piece silver plated tea set with tray.', story: 'Wedding gift from Aunt Mildred. Used for Easter tea every year.' },
+    { title: 'Hand-Carved Chess Set', room: 'Study', cat: 'Collectibles', desc: 'Walnut and maple chess set, hand-carved pieces.', story: 'Carved by Grandpa during long winters. He taught everyone to play on this set.' },
+    { title: 'Brass Compass', room: 'Study', cat: 'Collectibles', desc: 'Marine brass compass in wooden case.', story: 'Great-grandfather\'s compass from his days as a merchant sailor in the 1880s.' },
+    { title: 'Crystal Decanter Set', room: 'Dining Room', cat: 'Collectibles', desc: 'Cut crystal decanter with six glasses.', story: 'Given as a retirement gift. Used for brandy after every family dinner.' },
+    { title: 'Garden Tools Set', room: 'Garage', cat: 'Tools', desc: 'Vintage garden fork, spade, and pruners with wooden handles.', story: 'Grandma maintained her legendary rose garden with these tools for 40 years.' },
+    { title: 'First Edition Hemingway', room: 'Study', cat: 'Books', desc: 'The Old Man and the Sea, first edition with dust jacket.', story: 'Found at a yard sale for $2. Dad knew it was special and kept it on the top shelf.' },
+    { title: 'Persian Area Rug', room: 'Living Room', cat: 'Furniture', desc: 'Handwoven Persian rug, 9x12, deep reds and blues.', story: 'Bought on our trip to Istanbul. The merchant said it was made in Tabriz.' },
+    { title: 'Vintage Camera', room: 'Study', cat: 'Collectibles', desc: 'Leica IIIc rangefinder camera with leather case.', story: 'Mom documented the entire family history with this camera from 1955 to 1990.' },
+    { title: 'Copper Pot Set', room: 'Kitchen', cat: 'Kitchenware', desc: 'Set of three copper saucepans, tin-lined.', story: 'Brought from the old country. Grandma cooked every family meal with these.' },
+    { title: 'Pocket Watch', room: 'Master Bedroom', cat: 'Jewelry', desc: 'Gold Waltham pocket watch with chain.', story: 'Great-grandfather carried this every day for 50 years. Still keeps perfect time.' },
+  ];
+
+  const result = { created: 0, updated: 0, total: samples.length };
+  for (const s of samples) {
+    const itemId = crypto.randomUUID();
+    db.prepare(`INSERT INTO items (item_id, scope_id, origin_app, title, category_id, room_id,
+      description, story, quantity, condition, identifiers, value_estimate_cents, value_basis,
+      high_value_flag, owner_high_value, owner_high_value_reason, owner_important_comment, ownership_tag,
+      ai_confidence, review_state, print_state, export_state, created_at, updated_at)
+      VALUES (?, ?, 'inventory', ?, ?, ?, ?, ?, 1, 'good', '{}', NULL, 'unknown', 0, 0, '', '', '', NULL, 'kept', 'unprinted', 'never', ?, ?)`)
+      .run(itemId, SCOPE_ID, s.title, catIds[s.cat] || null, roomIds[s.room] || null,
+           s.desc, s.story, now, now);
+    result.created++;
+  }
+
+  res.json(result);
+});

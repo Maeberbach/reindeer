@@ -394,6 +394,30 @@
 
     <div id="ownerStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:20px"></div>
 
+    <div id="importSection" style="margin-bottom:24px">
+      <div class="section-label">Import Inventory Data</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+        <div class="card" style="padding:16px;text-align:center;cursor:pointer;border:2px dashed var(--border);transition:border-color 0.2s" 
+             onclick="document.getElementById('bundleFileInput').click()"
+             onmouseover="this.style.borderColor='var(--accent)'" 
+             onmouseout="this.style.borderColor='var(--border)'">
+          <div style="font-size:2rem;margin-bottom:8px">📦</div>
+          <b>Upload .reindeer Bundle</b>
+          <p style="font-size:0.8rem;color:var(--muted);margin-top:4px">Import from Registry export</p>
+        </div>
+        <div class="card" style="padding:16px;text-align:center;cursor:pointer;border:2px dashed var(--border);transition:border-color 0.2s"
+             onclick="loadSampleData()"
+             onmouseover="this.style.borderColor='var(--accent)'"
+             onmouseout="this.style.borderColor='var(--border)'">
+          <div style="font-size:2rem;margin-bottom:8px">🧪</div>
+          <b>Load Sample Data</b>
+          <p style="font-size:0.8rem;color:var(--muted);margin-top:4px">20 practice items for testing</p>
+        </div>
+      </div>
+      <input type="file" id="bundleFileInput" accept=".reindeer" style="display:none" />
+      <div id="importResult" hidden style="margin-top:12px;padding:12px;border-radius:8px"></div>
+    </div>
+
     <div class="section-label">Heirs</div>
     <div id="heirList"></div>
 

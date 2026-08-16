@@ -161,6 +161,62 @@ async function loadOwnerDashboard() {
   }
 }
 
+
+// ─── Import / Sample Data ───────────────────────────────────
+async function loadSampleData() {
+  if (!confirm('Load 20 sample items for testing? This adds practice data to Discovery.')) return;
+  try {
+    toast('Loading sample data...');
+    const result = await api('/owner/sample-data', 'POST');
+    const el = document.getElementById('importResult');
+    el.hidden = false;
+    el.style.background = 'var(--accent)';
+    el.style.color = 'var(--surface)';
+    el.innerHTML = `✓ Loaded ${result.created} sample items.`;
+    toast(`Loaded ${result.created} sample items!`);
+    loadOwnerDashboard();
+  } catch (e) {
+    toast(e.message, true);
+    const el = document.getElementById('importResult');
+    el.hidden = false;
+    el.style.background = 'var(--danger)';
+    el.style.color = '#fff';
+    el.textContent = '✗ ' + e.message;
+  }
+}
+
+async function importBundle(file) {
+  try {
+    toast('Importing bundle...');
+    const buf = await file.arrayBuffer();
+    const res = await fetch('/api/owner/import', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'x-owner-token': ownerToken,
+        'x-file-name': file.name,
+      },
+      body: buf,
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.message || 'Import failed');
+    const el = document.getElementById('importResult');
+    el.hidden = false;
+    el.style.background = 'var(--accent)';
+    el.style.color = 'var(--surface)';
+    el.innerHTML = `✓ Imported ${result.created + result.updated} items (${result.created} new, ${result.updated} updated), ${result.photos} photos.`;
+    toast(`Imported ${result.created + result.updated} items!`);
+    loadOwnerDashboard();
+  } catch (e) {
+    toast(e.message, true);
+    const el = document.getElementById('importResult');
+    el.hidden = false;
+    el.style.background = 'var(--danger)';
+    el.style.color = '#fff';
+    el.textContent = '✗ ' + e.message;
+  }
+}
+
 function renderHeirList(heirs) {
   const el = $('#heirList');
   if (!heirs.length) {
@@ -622,6 +678,16 @@ function toast(msg, isError) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.remove(), 3000);
 }
+
+  // File input for bundle import
+  const bundleInput = document.getElementById('bundleFileInput');
+  if (bundleInput) {
+    bundleInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) importBundle(file);
+      e.target.value = '';
+    });
+  }
 
 // Start
 init();
