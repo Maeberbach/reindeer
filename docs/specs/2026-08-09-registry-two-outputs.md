@@ -174,7 +174,7 @@ Gaps do NOT block signing (per the "don't let perfection block completion" call)
 
 ## Delivery mechanics
 
-Both envelope types travel over the existing ReindeerExchange delivery layer (`packages/legacy-delivery`). Three delivery methods, owner-selectable per recipient:
+Both envelope types travel over the existing ReindeerExchange delivery layer (`packages/reindeer-delivery`). Three delivery methods, owner-selectable per recipient:
 
 1. **Direct email** to the recipient with the envelope as an attachment (JSON + PDF summary + audio file if addendum).
 2. **Signed download link** — recipient gets a link they click; download is logged.
@@ -189,7 +189,7 @@ Not exhaustive — this is a spec, not a diff — but the shape of the code work
 - **Item model:** add `assigned_to_heir_id`, `closeup_photo_ref` (nullable), `owner_words` (existing Important comment repurposed as the addendum text for assigned items).
 - **Owner model:** add `wills_caretaker` contact (name, firm, email, delivery method preference) and `trustee` contact.
 - **Signing flow:** new "Sign the addendum and send it" screen. Distinct from the existing "finish inventory" flow. Both may exist in Couple mode where inventory continues while the addendum ships.
-- **Delivery layer:** two new envelope generators. Existing `packages/legacy-delivery` should handle them without new transport code.
+- **Delivery layer:** two new envelope generators. Existing `packages/reindeer-delivery` should handle them without new transport code.
 - **Audit trail:** track versions, deliveries, review affirmations.
 - **Print output:** two distinct printable documents — inventory (long, room-by-room) and addendum (short, per-item with close-ups).
 

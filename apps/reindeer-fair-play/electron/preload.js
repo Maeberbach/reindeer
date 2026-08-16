@@ -45,7 +45,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     const info = await import_electron.ipcRenderer.invoke("get-network-info");
     if (!info || !info.connectUrl) return;
     const container = document.createElement("div");
-    container.id = "legacy-wifi-overlay-container";
+    container.id = "reindeer-wifi-overlay-container";
     const shadow = container.attachShadow({ mode: "open" });
     const style = document.createElement("style");
     style.textContent = `

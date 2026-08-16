@@ -1,5 +1,5 @@
-import { ulid } from '@reindeer-legacy/core-data';
-import { ORIGIN_APP, REVIEW_STATE } from '@reindeer-legacy/core-api';
+import { ulid } from '@reindeer/core-data';
+import { ORIGIN_APP, REVIEW_STATE } from '@reindeer/core-api';
 import { readBundle } from './bundle.js';
 
 /**
@@ -190,7 +190,7 @@ export async function importBundle(buffer, {
     INSERT INTO export_batches (batch_id, scope_id, format, item_count, file_name, created_at)
     VALUES (?,?,?,?,?,?)
     ON CONFLICT(batch_id) DO UPDATE SET item_count=excluded.item_count, created_at=excluded.created_at
-  `).run(batchId, ctx.scopeId, 'import:legacy-exchange-1.0', envelope.items.length,
+  `).run(batchId, ctx.scopeId, 'import:reindeer-exchange-1.0', envelope.items.length,
     manifest?.files?.[0] ?? 'items.json', new Date().toISOString());
 
   await audit.append({

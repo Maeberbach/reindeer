@@ -482,7 +482,7 @@ export class ReminderPrefsRepo {
  * field ever supplies an identity.
  */
 import express from 'express';
-import { makeScopeCtx } from '@reindeer-legacy/core-api';
+import { makeScopeCtx } from '@reindeer/core-api';
 
 export const HOLIDAY_KEYS = Object.freeze([
   'thanksgiving',
@@ -571,9 +571,9 @@ export function createRemindersRouter({ reminderPrefs, resolveScope }) {
 @@ -2,13 +2,14 @@ import express from 'express';
  import path from 'node:path';
  import { fileURLToPath } from 'node:url';
- import { SCOPE_TYPE } from '@reindeer-legacy/core-api';
--import { openDb, defaultDataDir, SqliteAuditLog, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry, PeopleRepo, HeirsRepo, WillsCaretakersRepo, AddendumVersionsRepo, ParticipantsRepo, MagicLinksRepo, SessionsRepo, MemorandumRepo } from '@reindeer-legacy/core-data';
-+import { openDb, defaultDataDir, SqliteAuditLog, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry, PeopleRepo, HeirsRepo, WillsCaretakersRepo, AddendumVersionsRepo, ParticipantsRepo, MagicLinksRepo, SessionsRepo, MemorandumRepo, ReminderPrefsRepo } from '@reindeer-legacy/core-data';
+ import { SCOPE_TYPE } from '@reindeer/core-api';
+-import { openDb, defaultDataDir, SqliteAuditLog, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry, PeopleRepo, HeirsRepo, WillsCaretakersRepo, AddendumVersionsRepo, ParticipantsRepo, MagicLinksRepo, SessionsRepo, MemorandumRepo } from '@reindeer/core-data';
++import { openDb, defaultDataDir, SqliteAuditLog, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry, PeopleRepo, HeirsRepo, WillsCaretakersRepo, AddendumVersionsRepo, ParticipantsRepo, MagicLinksRepo, SessionsRepo, MemorandumRepo, ReminderPrefsRepo } from '@reindeer/core-data';
  import { AuthService } from './auth/service.js';
  import { attachSession, authRequired } from './auth/middleware.js';
  import { createAuthRouter } from './auth/router.js';
@@ -582,8 +582,8 @@ export function createRemindersRouter({ reminderPrefs, resolveScope }) {
  import { createMemorandumRouter } from './routes/memorandum.js';
 +import { createRemindersRouter } from './routes/reminders.js';
  import crypto from 'node:crypto';
- import { createIntakeRouter, createExecutionRouter, createPeopleRouter, legacyErrorHandler, MockVisionProvider, HttpVisionProvider, AnthropicVisionProvider, SimpleDuplicateDetector } from '@reindeer-legacy/intake-feature';
- import { createPrintRouter } from '@reindeer-legacy/print-feature';
+ import { createIntakeRouter, createExecutionRouter, createPeopleRouter, legacyErrorHandler, MockVisionProvider, HttpVisionProvider, AnthropicVisionProvider, SimpleDuplicateDetector } from '@reindeer/intake-feature';
+ import { createPrintRouter } from '@reindeer/print-feature';
 @@ -104,6 +105,7 @@ const heirs = new HeirsRepo(db, audit);
  const willsCaretakers = new WillsCaretakersRepo(db, audit);
  const addendumVersions = new AddendumVersionsRepo(db, audit);

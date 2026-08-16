@@ -9,12 +9,12 @@
     "start": "node server/index.js"
   },
   "dependencies": {
-    "@reindeer-legacy/core-api": "*",
-    "@reindeer-legacy/core-data": "*",
-    "@reindeer-legacy/intake-feature": "*",
-    "@reindeer-legacy/print-feature": "*",
-    "@reindeer-legacy/exchange": "*",
-    "@reindeer-legacy/delivery": "*",
+    "@reindeer/core-api": "*",
+    "@reindeer/core-data": "*",
+    "@reindeer/intake-feature": "*",
+    "@reindeer/print-feature": "*",
+    "@reindeer/exchange": "*",
+    "@reindeer/delivery": "*",
     "express": "^4.19.2"
   }
 }

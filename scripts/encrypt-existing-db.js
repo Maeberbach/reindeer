@@ -19,7 +19,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { openDb, encryptExistingDb, isEncryptionConfigured } from '@reindeer-legacy/core-data';
+import { openDb, encryptExistingDb, isEncryptionConfigured } from '@reindeer/core-data';
 
 const [dbPath, estateId] = process.argv.slice(2);
 

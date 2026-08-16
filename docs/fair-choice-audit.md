@@ -229,7 +229,7 @@ All findings above are drawn directly from the source files in this repository c
 - `packages/legacy-core-data/src/index.js`, `registry.js`, `db/index.js`, `audit/index.js`, `media/index.js`, `migrations/index.js`, `repositories/itemRepository.js`
 - `packages/legacy-intake-feature/src/index.js`, `duplicates.js`, `vision/index.js`, `server/router.js`
 - `packages/legacy-print-feature/src/index.js`, `templates/index.js`, `templates/trusteePacket.js`
-- `packages/legacy-exchange/src/index.js`, `bundle.js`, `zip.js`, `importer.js`, `v1/envelope.js`, `v1/csv.js`
-- `packages/legacy-delivery/src/index.js`, `delivery.js`, `mailer.js`, `router.js`, `trustees.js`
+- `packages/reindeer-exchange/src/index.js`, `bundle.js`, `zip.js`, `importer.js`, `v1/envelope.js`, `v1/csv.js`
+- `packages/reindeer-delivery/src/index.js`, `delivery.js`, `mailer.js`, `router.js`, `trustees.js`
 
 No external sources were used; this is a pure code-reading audit as instructed. No source file was modified, and no `npm install` or build was run.

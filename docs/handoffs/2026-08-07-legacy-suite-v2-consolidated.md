@@ -6,7 +6,7 @@
 
 - **`apps/reindeer-fair-play`** → `2.0.0`
 - **`apps/reindeer-registry`** → `1.0.0`
-- **`packages/legacy-exchange`** stays at ReindeerExchange **wire version `1.0`** — no envelope change; only receiver behavior changed.
+- **`packages/reindeer-exchange`** stays at ReindeerExchange **wire version `1.0`** — no envelope change; only receiver behavior changed.
 
 Neither app has shipped yet, so the whole 2026-08-06/07 sequence — trustee-handoff rescope, owner_important_comment plumbing, method agreement UI, walkthrough fixes, trustee packet rewrite, and owner-assignment / detector — is folded into these two version numbers instead of drip-migrations across "v14a…v15b" internal labels.
 
@@ -40,7 +40,7 @@ PR-facing family distribution game with fiduciary oversight and trustee handoff.
 
 ## ReindeerExchange v1 (unchanged wire format)
 
-`packages/legacy-exchange/src/v1/envelope.js` still exports `EXCHANGE_VERSION = "1.0"`. The receiver semantics changed (recipient_hint now binds), but the JSON envelope, CSV, checksum layout, and media manifest are byte-for-byte the same. Existing bundles remain readable.
+`packages/reindeer-exchange/src/v1/envelope.js` still exports `EXCHANGE_VERSION = "1.0"`. The receiver semantics changed (recipient_hint now binds), but the JSON envelope, CSV, checksum layout, and media manifest are byte-for-byte the same. Existing bundles remain readable.
 
 ## Test surface (all green at bump)
 

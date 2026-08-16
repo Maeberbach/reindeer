@@ -1,4 +1,4 @@
-import { NON_BINDING_DISCLAIMER } from '@reindeer-legacy/core-api';
+import { NON_BINDING_DISCLAIMER } from '@reindeer/core-api';
 
 export const PRINT_PROFILES = {
   letter_photo: { page: 'letter', margin: '0.6in', photoHeight: '3.2in', density: 'comfortable' },

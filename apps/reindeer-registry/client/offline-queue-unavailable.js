@@ -11,7 +11,7 @@
  * for this app — the whole point is that the recording survives.
  */
 (function () {
-  window.LegacyOfflineQueue = {
+  window.ReindeerOfflineQueue = {
     async available() {
       return false;
     },

@@ -2,8 +2,8 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
-import { openDb, defaultDataDir, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry } from '@reindeer-legacy/core-data';
-import { SCOPE_TYPE } from '@reindeer-legacy/core-api';
+import { openDb, defaultDataDir, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry } from '@reindeer/core-data';
+import { SCOPE_TYPE } from '@reindeer/core-api';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

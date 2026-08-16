@@ -7,11 +7,11 @@
  * This is deliberately loose (many `any`s) — it exists so `npm run check`
  * can type-check the self-test, not to fully model these packages' surface.
  * See `exchange.d.ts` for the precise, production-relevant declaration of
- * `@reindeer-legacy/exchange/reader`, which importService.ts actually depends
+ * `@reindeer/exchange/reader`, which importService.ts actually depends
  * on.
  */
 
-declare module "@reindeer-legacy/core-api" {
+declare module "@reindeer/core-api" {
   export const SCOPE_TYPE: { INVENTORY: string; ESTATE: string; [k: string]: string };
   export function makeScopeCtx(args: { scopeType: string; scopeId: string; actorId?: string | null }): any;
   export const DEFAULT_ROOMS: string[];
@@ -19,7 +19,7 @@ declare module "@reindeer-legacy/core-api" {
   export const ORIGIN_APP: Record<string, string>;
 }
 
-declare module "@reindeer-legacy/core-data" {
+declare module "@reindeer/core-data" {
   export function openDb(path: string): any;
   export function ulid(): string;
   export function defaultDataDir(): string;
@@ -54,7 +54,7 @@ declare module "@reindeer-legacy/core-data" {
   }
 }
 
-declare module "@reindeer-legacy/exchange" {
+declare module "@reindeer/exchange" {
   export function buildEnvelope(...args: any[]): any;
   export function parseEnvelope(...args: any[]): any;
   export const EXCHANGE_FORMAT: string;

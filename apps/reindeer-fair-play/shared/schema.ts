@@ -249,7 +249,7 @@ export const items = sqliteTable("items", {
   name: text("name").notNull(),
   room: text("room").notNull().default(""),
   /**
-   * Optional. Null (or the legacy empty string) means the item sits in the
+   * Optional. Null (or the empty string) means the item sits in the
    * implicit "Uncategorized" bucket — it still enters rankings and the draft.
    */
   category: text("category"),
@@ -342,7 +342,7 @@ export const items = sqliteTable("items", {
    * The owner's own words about why they marked this item Important in
    * Registry, if any. Distinct from inventory_story (biography). This is the
    * comment that traveled from Registry's owner_important_comment field via
-   * the exchange envelope. Legacy content — display only, never a valuation.
+   * the exchange envelope. content — display only, never a valuation.
    */
   ownerImportantComment: text("owner_important_comment").notNull().default(""),
   /**
@@ -844,7 +844,7 @@ export const methodAgreements = sqliteTable(
      * later captain change requires a fresh signature on the new mandate;
      * old rows stay on the record for audit but no longer count toward
      * the current mandate. Defaults to 0 (nonexistent participant id) for
-     * legacy rows written before captain was part of the wire format.
+     * rows written before captain was part of the wire format.
      * See docs/specs/2026-08-08-captain-model.md.
      */
     captainParticipantId: integer("captain_participant_id")
@@ -1427,7 +1427,7 @@ export const PRACTICE_SAMPLE_ITEMS = [
   { name: "Wool blanket", room: "Bedroom 2", category: "Miscellaneous", aiEstimatedValue: 45 },
 ] as const;
 
-/** @deprecated superseded by the taxonomy table; kept for legacy imports. */
+/** @deprecated superseded by the taxonomy table; kept for old imports. */
 export const PRESET_ROOMS = [
   "Living Room",
   "Dining Room",

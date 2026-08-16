@@ -1,5 +1,5 @@
 /**
- * Canonical domain models for the Legacy product line.
+ * Canonical domain models for the Reindeer suite.
  * Both Reindeer Registry and Reindeer: FairPlay depend on these definitions
  * so the two apps can never drift apart on what an "item" is.
  */
@@ -179,7 +179,7 @@ export const MORE_ROOMS = Object.freeze([
  * to Firearms. The other five are the owner's shorthand and FairPlay may
  * unpack them after import. Unpacking only ever changes the category — an heir
  * the owner named is never touched. See REGISTRY_CATEGORY_MAP in
- * @reindeer-legacy/exchange for the mapping.
+ * @reindeer/exchange for the mapping.
  *
  * Guns and Vehicles sit below "Everything else" rather than above it. They are
  * not household goods to be argued over so much as regulated and titled
@@ -252,7 +252,7 @@ export function makeItemRecord(input = {}) {
     // reason, and 'feeling' | 'money' | 'both' when the owner offered one.
     owner_high_value: input.owner_high_value ?? false,
     owner_high_value_reason: input.owner_high_value_reason ?? '',
-    // Owner-authored comment kept with the item for legacy value. Prints on
+    // Owner-authored comment kept with the item for heritage value. Prints on
     // paper as written; travels through export/import. Empty string is the
     // "no comment" state. Coupling with owner_high_value is asymmetric and
     // is applied in validateItemRecord, not here — see the spec at

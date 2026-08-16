@@ -47,7 +47,7 @@ The following capabilities remain unchanged in the app:
 - **The `is_high_value` flag on items.** Retained for transparency.
 - **The `high_value_audit_log` table.** Retained but its role narrows to a transparency ledger: who flagged what, when, why, plus reversion history.
 - **`itemValuations` table** — its semantics narrow: an heir or the captain can attach an estimated value. The app never approves, disputes, or supersedes. It just displays the most recent estimate and lists all history.
-- **ReindeerExchange envelope** (`packages/legacy-exchange`). No wire change. The envelope already carries `owner_high_value` and `owner_high_value_reason` from Registry — that carries the owner's escalation into FairPlay.
+- **ReindeerExchange envelope** (`packages/reindeer-exchange`). No wire change. The envelope already carries `owner_high_value` and `owner_high_value_reason` from Registry — that carries the owner's escalation into FairPlay.
 
 ## 4. Escalation to high-value — the new rule
 
@@ -263,7 +263,7 @@ Items with no recorded estimate print `"n/a"` for their value. The RoD **never r
 ## 7. What the reshape does NOT touch
 
 - Registry (`apps/reindeer-registry`) — no change.
-- ReindeerExchange v1 contract (`packages/legacy-exchange`) — no wire change. The envelope already carries `owner_high_value` and `owner_high_value_reason`; the importer starts honoring it at import time.
+- ReindeerExchange v1 contract (`packages/reindeer-exchange`) — no wire change. The envelope already carries `owner_high_value` and `owner_high_value_reason`; the importer starts honoring it at import time.
 - The AI photo pipeline itself — the analyzer gains one new output field, but the pipeline shape is unchanged.
 - Offline sync, ranked draft algorithm, engine, stages, session-scoped loss counter.
 - Auth, sign-in, session cookies, deny-by-default gate.
@@ -291,7 +291,7 @@ This spec does **not** update the patent brief. That is a separate task after th
 1. **Commit 1 — RoD reshape (additive first).** Extend `generateRecordOfDecisions` to expose the per-stage + escalation-bucket structure. Rewrite the print template. Add the closing-note copy. Keep every removed endpoint in place. Bring up new checks in the selftest (~5) alongside the existing 103.
 2. **Commit 2 — Escalation model rewrite.** Rename `nominateHighValue` → `escalateHighValue`; delete `confirmHighValue`; add `revertHighValue`. Rewrite `high_value_nominations` schema (columns changed). Add `sessions.high_value_threshold_usd`. Rebuild `data.db`. Add ~15 selftest checks for the new model.
 3. **Commit 3 — AI auto-flag.** Add `highValueAutoFlag` output to `server/ai/analyzer.ts`. Wire the intake pipeline to honor it (items land as `in_high_value` when triggered). Add ~5 selftest checks.
-4. **Commit 4 — Registry-owner escalation.** Update the importer in `packages/legacy-exchange` and FairPlay's ingestion side to honor `owner_high_value` at import time, writing a `high_value_nominations` row with source `"owner"` and the reason. Add ~5 selftest checks and a roundtrip check.
+4. **Commit 4 — Registry-owner escalation.** Update the importer in `packages/reindeer-exchange` and FairPlay's ingestion side to honor `owner_high_value` at import time, writing a `high_value_nominations` row with source `"owner"` and the reason. Add ~5 selftest checks and a roundtrip check.
 5. **Commit 5 — Remove equalization/consent/finalize endpoints and their storage methods.** Drop the corresponding UI panels and cards. Trim the selftest (delete the ~60 checks that exercised removed machinery). Rebuild `data.db`.
 6. **Commit 6 — Drop schema tables and columns.** `equalization_decisions`, `consents`, `finalization_events`, `threshold_decisions`, thresholds columns on sessions, `valueStatus`/`approvedValue` on items, dead item states. Rebuild `data.db`.
 7. **Commit 7 — Update `docs/SUITE-OVERVIEW.md` and reshape handoff.** Documentation only.

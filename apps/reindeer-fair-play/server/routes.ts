@@ -564,7 +564,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       })
       .parse(req.body);
     const { heirPermissions, ...rest } = body;
-    // `setup` and `cataloging` are legacy/human names for real phases.
+    // `setup` and `cataloging` are human names for real phases.
     if (rest.phase) rest.phase = normalizePhase(rest.phase) as any;
     // Opening the ranking phase by hand still starts the countdown.
     if (rest.phase === "ranking" || rest.phase === "secondary_ranking") {

@@ -1,5 +1,5 @@
-import { DuplicateDetector } from '@reindeer-legacy/core-api';
-import { ulid } from '@reindeer-legacy/core-data';
+import { DuplicateDetector } from '@reindeer/core-api';
+import { ulid } from '@reindeer/core-data';
 
 const normalize = (s) => (s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 

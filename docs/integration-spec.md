@@ -108,7 +108,7 @@ legacy/
     │   ├── client/                   # elder-friendly guided capture UI
     │   └── data/                     # inventory.db
     │
-    └── fair-choice-legacy/           # EXISTING — rewired, not rewritten
+    └── fair-choice/           # EXISTING — rewired, not rewritten
         ├── server/                   # game routes stay here
         ├── client/
         └── data/                     # estate.db

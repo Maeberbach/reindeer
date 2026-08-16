@@ -1,8 +1,8 @@
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SCOPE_TYPE } from '@reindeer-legacy/core-api';
-import { openDb, defaultDataDir, SqliteAuditLog, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry, PeopleRepo, HeirsRepo, WillsCaretakersRepo, AddendumVersionsRepo, ParticipantsRepo, MagicLinksRepo, SessionsRepo, MemorandumRepo, ReminderPrefsRepo } from '@reindeer-legacy/core-data';
+import { SCOPE_TYPE } from '@reindeer/core-api';
+import { openDb, defaultDataDir, SqliteAuditLog, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry, PeopleRepo, HeirsRepo, WillsCaretakersRepo, AddendumVersionsRepo, ParticipantsRepo, MagicLinksRepo, SessionsRepo, MemorandumRepo, ReminderPrefsRepo } from '@reindeer/core-data';
 import { AuthService } from './auth/service.js';
 import { attachSession, authRequired } from './auth/middleware.js';
 import { createAuthRouter } from './auth/router.js';
@@ -11,10 +11,10 @@ import { createHouseholdLinkRouter } from './routes/householdLink.js';
 import { createMemorandumRouter } from './routes/memorandum.js';
 import { createRemindersRouter } from './routes/reminders.js';
 import crypto from 'node:crypto';
-import { createIntakeRouter, createExecutionRouter, createPeopleRouter, legacyErrorHandler, MockVisionProvider, HttpVisionProvider, AnthropicVisionProvider, OpenAIVisionProvider, SimpleDuplicateDetector } from '@reindeer-legacy/intake-feature';
-import { createPrintRouter } from '@reindeer-legacy/print-feature';
-import { writeBundle } from '@reindeer-legacy/exchange';
-import { TrusteeRepository, DeliveryService, createDeliveryRouter, createLinkRouter, mailerFromEnv, createMailerFromConfig, getSmtpSettingsFromDb, saveSmtpSettingsToDb, TwoOutputsService, createTwoOutputsRouter } from '@reindeer-legacy/delivery';
+import { createIntakeRouter, createExecutionRouter, createPeopleRouter, reindeerErrorHandler, MockVisionProvider, HttpVisionProvider, AnthropicVisionProvider, OpenAIVisionProvider, SimpleDuplicateDetector } from '@reindeer/intake-feature';
+import { createPrintRouter } from '@reindeer/print-feature';
+import { writeBundle } from '@reindeer/exchange';
+import { TrusteeRepository, DeliveryService, createDeliveryRouter, createLinkRouter, mailerFromEnv, createMailerFromConfig, getSmtpSettingsFromDb, saveSmtpSettingsToDb, TwoOutputsService, createTwoOutputsRouter } from '@reindeer/delivery';
 import { requireLicenseForWrite } from './licenseMiddleware.js';
 import { FEATURE_FLAGS as REGISTRY_FLAGS } from './featureFlags.js';
 
@@ -121,7 +121,7 @@ const resolveScope = (req) => ({
   permissions: { canEdit: true, canDelete: true, canExport: true },
 });
 
-// Two-Output Delivery Model (Registry v2). Additive — leaves the legacy
+// Two-Output Delivery Model (Registry v2). Additive — leaves existing
 // single-bundle delivery path unchanged.
 const heirs = new HeirsRepo(db, audit);
 const willsCaretakers = new WillsCaretakersRepo(db, audit);
@@ -265,7 +265,7 @@ app.get('/api/export/bundle', async (req, res, next) => {
     });
     res.setHeader('content-type', 'application/zip');
     res.setHeader('content-disposition', `attachment; filename="${fileName}"`);
-    res.setHeader('x-legacy-batch', manifest.batch_id);
+    res.setHeader('x-reindeer-batch', manifest.batch_id);
     res.send(buffer);
   } catch (e) { next(e); }
 });
@@ -279,7 +279,7 @@ app.get('/api/export/csv', async (req, res, next) => {
       query: { review_state: req.query.review_state || 'kept' },
       source: { app: 'reindeer-registry', app_version: '0.1.0', inventory_id: SCOPE_ID },
     });
-    const { toCsv } = await import('@reindeer-legacy/exchange');
+    const { toCsv } = await import('@reindeer/exchange');
     res.setHeader('content-type', 'text/csv');
     res.setHeader('content-disposition', 'attachment; filename="reindeer-registry.csv"');
     res.send(toCsv(envelope));
@@ -327,7 +327,7 @@ app.post('/api/two-outputs/freeze', express.json(), async (req, res, next) => {
 });
 
 app.use(express.static(path.join(__dirname, '..', 'client')));
-app.use(legacyErrorHandler);
+app.use(reindeerErrorHandler);
 
 const PORT = process.env.PORT || 3210;
 app.listen(PORT, () => {

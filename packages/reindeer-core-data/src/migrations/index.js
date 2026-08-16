@@ -285,7 +285,7 @@ export const MIGRATIONS = [
      *
      * Purely additive: three nullable/defaulted columns on an existing table and
      * one index. No column is dropped, renamed or retyped, so an inventory.db
-     * written by this build stays readable by every existing query, and Legacy:
+     * written by this build stays readable by every existing query, and Reindeer:
      * FairPlay never reads `rooms` at all.
      */
     sql: `
@@ -350,7 +350,7 @@ export const MIGRATIONS = [
     name: 'owner_important_comment',
     /*
      * The owner's own note on an item they flagged as Important. Free text,
-     * legacy content, kept for the heirs and the trustee. The owner author
+     * content, kept for the heirs and the trustee. The owner author
      * anything they want in here — a story, a maker, a memory, a dollar
      * figure if they choose. Registry does not shape the owner's own words;
      * FairPlay does its own appraisal work separately.

@@ -15,7 +15,7 @@
  * field ever supplies an identity.
  */
 import express from 'express';
-import { makeScopeCtx } from '@reindeer-legacy/core-api';
+import { makeScopeCtx } from '@reindeer/core-api';
 
 export const HOLIDAY_KEYS = Object.freeze([
   'thanksgiving',

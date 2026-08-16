@@ -1,5 +1,5 @@
 import { readSessionCookie, decodeSessionCookie, buildSetCookieHeader, encodeSessionCookie } from './cookie.js';
-import { SESSION_TTL_MILLISECONDS } from '@reindeer-legacy/core-data';
+import { SESSION_TTL_MILLISECONDS } from '@reindeer/core-data';
 
 /**
  * Attach `req.session` and `req.participant` if a valid session cookie

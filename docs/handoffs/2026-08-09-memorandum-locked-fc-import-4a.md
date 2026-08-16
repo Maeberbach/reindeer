@@ -22,7 +22,7 @@ The following came from the user across this slice; they are load-bearing:
 
 ## What changed
 
-### Wire format (envelope) — `packages/legacy-exchange/src/v1/envelope.js`
+### Wire format (envelope) — `packages/reindeer-exchange/src/v1/envelope.js`
 
 - `buildEnvelope` now accepts `lockedMemoranda` — an array of `{ owner_name, signed_at, version_number, item_ids }`.
 - Each `envelope.items[i]` gets a new field `is_locked_gift: boolean` (defaults false; true when the item's id appears in any locked memorandum).
@@ -33,10 +33,10 @@ The following came from the user across this slice; they are load-bearing:
 
 - `packages/legacy-core-data/src/migrations/index.js`: migration 12 adds `frozen_at`, `frozen_by_participant_id`, `frozen_note` to `addendum_versions`.
 - `packages/legacy-core-data/src/repos/addendumVersionsRepo.js`: `freezeLatest(participantId, actorId, note?, ctx)` — audit-logged (action `addendum.freeze`), idempotent (a second freeze on an already-frozen version returns the row unchanged). New `listFrozen()` returns all frozen versions with items_snapshot for export.
-- `packages/legacy-delivery/src/twoOutputs.js`: `signAndWriteAddendum` refuses when `latestFor(participantId).frozen_at` is set. Error message: "This owner's memorandum has been frozen by the trustee. Registry can't accept another signing…"
+- `packages/reindeer-delivery/src/twoOutputs.js`: `signAndWriteAddendum` refuses when `latestFor(participantId).frozen_at` is set. Error message: "This owner's memorandum has been frozen by the trustee. Registry can't accept another signing…"
 - `apps/reindeer-registry/server/index.js`: new endpoint `POST /api/two-outputs/freeze { participantId, note? }`. Actor identity comes from `resolveScope()` — participantId in the body is the TARGET (whose memorandum), not an identity claim.
 
-### Registry export wiring — `packages/legacy-exchange/src/bundle.js`
+### Registry export wiring — `packages/reindeer-exchange/src/bundle.js`
 
 - `writeBundle` accepts optional `addendumVersions` + `people`. When both are provided, `listFrozen()` runs and per-owner name resolution runs through `people.get(participantId, ctx)`; the resulting `lockedMemoranda` array feeds `buildEnvelope`.
 - Guard helper `safeOwnerName()` — a lookup failure returns `""` (FC then groups those items under "Unknown owner") rather than crashing the export.

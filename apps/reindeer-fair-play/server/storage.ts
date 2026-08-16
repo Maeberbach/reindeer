@@ -2690,14 +2690,14 @@ export class DatabaseStorage implements IStorage {
       };
       // Older blobs stored `awards` as an item -> award map and carried no
       // award history. Normalise so the summary always has an array to read.
-      const legacyMap =
+      const oldMap =
         raw.awards && !Array.isArray(raw.awards)
           ? (raw.awards as Record<string, { participantId: number; round: number }>)
           : undefined;
       const counters = raw.contestedLossCounters ?? {};
       const roster: PracticeHeir[] = Array.isArray(raw.heirs)
         ? (raw.heirs as PracticeHeir[])
-        : // Legacy blob: rebuild the roster from the stored priority order.
+        : // blob: rebuild the roster from the stored priority order.
           (raw.priorityOrder ?? []).map((id, idx) => ({
             id,
             name:
@@ -2712,7 +2712,7 @@ export class DatabaseStorage implements IStorage {
         heirs: roster,
         priorityOrder: raw.priorityOrder ?? [],
         contestedLossCounters: raw.contestedLossCounters ?? {},
-        awardsByItem: raw.awardsByItem ?? legacyMap ?? {},
+        awardsByItem: raw.awardsByItem ?? oldMap ?? {},
         awards: Array.isArray(raw.awards) ? (raw.awards as PracticeState["awards"]) : [],
         finalCounters: raw.finalCounters ?? raw.contestedLossCounters ?? {},
         rankings: raw.rankings ?? {},

@@ -17,7 +17,7 @@
  *   REINDEER_SMTP_PASS   — password or app-specific password
  *   REINDEER_SMTP_FROM   — From: address (defaults to SMTP_USER if not set)
  *
- * For backwards compatibility, LEGACY_SMTP_* vars are still recognized.
+ * For backwards compatibility, OLD_SMTP_* vars are still recognized.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -118,23 +118,23 @@ export class RecordingMailer extends Mailer {
 
 /**
  * Create the appropriate mailer from environment variables.
- * Supports both REINDEER_SMTP_* (preferred) and LEGACY_SMTP_* (backwards compat).
+ * Supports both REINDEER_SMTP_* (preferred) and OLD_SMTP_* (backwards compat).
  * Falls back to ConsoleMailer when no SMTP host is configured.
  */
 export function mailerFromEnv(env = process.env, fallbackDir = '/tmp/reindeer-mail') {
-  // Prefer REINDEER_SMTP_* vars, fall back to LEGACY_SMTP_* for older installs
-  const host = env.REINDEER_SMTP_HOST || env.LEGACY_SMTP_HOST;
+  // Prefer REINDEER_SMTP_* vars, fall back to OLD_SMTP_* for older installs
+  const host = env.REINDEER_SMTP_HOST || env.REINDEER_SMTP_HOST;
   if (host) {
     return new SmtpMailer({
       host,
-      port: (env.REINDEER_SMTP_PORT || env.LEGACY_SMTP_PORT) ? Number(env.REINDEER_SMTP_PORT || env.LEGACY_SMTP_PORT) : 587,
-      secure: (env.REINDEER_SMTP_SECURE || env.LEGACY_SMTP_SECURE) === 'true',
-      user: env.REINDEER_SMTP_USER || env.LEGACY_SMTP_USER,
-      pass: env.REINDEER_SMTP_PASS || env.LEGACY_SMTP_PASS,
-      from: env.REINDEER_SMTP_FROM || env.LEGACY_SMTP_FROM || env.REINDEER_SMTP_USER || env.LEGACY_SMTP_USER,
+      port: (env.REINDEER_SMTP_PORT || env.OLD_SMTP_PORT) ? Number(env.REINDEER_SMTP_PORT || env.OLD_SMTP_PORT) : 587,
+      secure: (env.REINDEER_SMTP_SECURE || env.OLD_SMTP_SECURE) === 'true',
+      user: env.REINDEER_SMTP_USER || env.OLD_SMTP_USER,
+      pass: env.REINDEER_SMTP_PASS || env.OLD_SMTP_PASS,
+      from: env.REINDEER_SMTP_FROM || env.OLD_SMTP_FROM || env.REINDEER_SMTP_USER || env.OLD_SMTP_USER,
     });
   }
-  return new ConsoleMailer(env.REINDEER_MAIL_DIR || env.LEGACY_MAIL_DIR || fallbackDir);
+  return new ConsoleMailer(env.REINDEER_MAIL_DIR || env.OLD_MAIL_DIR || fallbackDir);
 }
 
 function friendlySmtpError(e) {

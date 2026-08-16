@@ -1,4 +1,4 @@
-import { NON_BINDING_DISCLAIMER } from '@reindeer-legacy/core-api';
+import { NON_BINDING_DISCLAIMER } from '@reindeer/core-api';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const money = (c) => (c == null ? '' : `$${(c / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);

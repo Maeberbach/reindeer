@@ -119,7 +119,7 @@ narrow and avoided touching a well-tested surface.
 **Modified**
 - `packages/legacy-core-data/src/registry.js` — `linkHousehold` / `unlinkHousehold`
 - `packages/legacy-print-feature/src/templates/trusteePacket.js` — `renderImportanceSections`
-- `packages/legacy-delivery/src/delivery.js` — plumbs `importanceClaims` + `participants` through
+- `packages/reindeer-delivery/src/delivery.js` — plumbs `importanceClaims` + `participants` through
 - `apps/reindeer-registry/server/index.js` — wires the new router + delivery deps
 - `apps/reindeer-registry/client/index.html` — two screens, quiet-row entries
 - `apps/reindeer-registry/client/app.js` — `loadHouseholdLink`, `loadClaimReview`, `claimAction`, `refreshReviewBadge`, router hooks

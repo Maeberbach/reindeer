@@ -1,5 +1,5 @@
 import express from 'express';
-import { makeScopeCtx } from '@reindeer-legacy/core-api';
+import { makeScopeCtx } from '@reindeer/core-api';
 
 /**
  * The people screen's API.

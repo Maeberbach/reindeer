@@ -41,7 +41,7 @@ Not on this slice: recorder in the intake flow (you record here only), print/PDF
 Not on this slice: fancy transcript generation. The transcript slot is left blank for now (Slice V3 might use a mock transcript, or we skip transcripts entirely — your call).
 
 **Compute cost:** Roughly a quarter of step 4. Bundle building already iterates media; adding one more media_kind is small. Tests for the bundle need one extra case.
-**Files touched:** `packages/legacy-delivery/src/bundle/index.js` (~30 lines), `packages/legacy-delivery/src/manifest/index.js` (~15 lines), one extended test in `two-outputs-bundle-test.mjs` (~40 lines).
+**Files touched:** `packages/reindeer-delivery/src/bundle/index.js` (~30 lines), `packages/reindeer-delivery/src/manifest/index.js` (~15 lines), one extended test in `two-outputs-bundle-test.mjs` (~40 lines).
 **Risk:** medium. The bundle contract is what the trustee actually consumes. Small changes need careful review of the manifest format so downstream FairPlay import doesn't choke.
 
 ### Slice V3 — intake-flow recorder (prompt to record at capture time)

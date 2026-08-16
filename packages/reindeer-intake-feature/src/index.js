@@ -2,6 +2,6 @@ export { MockVisionProvider, HttpVisionProvider, screenHighValue, groupAcrossFra
 export { AnthropicVisionProvider } from './vision/anthropic.js';
 export { OpenAIVisionProvider } from './vision/openai.js';
 export { SimpleDuplicateDetector, titleSimilarity } from './duplicates.js';
-export { createIntakeRouter, legacyErrorHandler } from './server/router.js';
+export { createIntakeRouter, reindeerErrorHandler } from './server/router.js';
 export { createExecutionRouter } from './server/executionRouter.js';
 export { createPeopleRouter } from './server/peopleRouter.js';

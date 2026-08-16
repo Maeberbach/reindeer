@@ -1,5 +1,5 @@
-import { ulid } from '@reindeer-legacy/core-data';
-import { ValidationError, NotFoundError } from '@reindeer-legacy/core-api';
+import { ulid } from '@reindeer/core-data';
+import { ValidationError, NotFoundError } from '@reindeer/core-api';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 

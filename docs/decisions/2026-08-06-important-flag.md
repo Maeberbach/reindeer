@@ -103,16 +103,16 @@ without opening the item.
 Styling for the two optional chips at the same large-target size as the
 existing room and category chips.
 
-### `packages/legacy-exchange/src/v1/envelope.js`
+### `packages/reindeer-exchange/src/v1/envelope.js`
 Carries both fields on each item. Bundle counts gain
 `owner_high_value: <n>` (kept separate from the existing `high_value: <n>`
 count).
 
-### `packages/legacy-exchange/src/v1/csv.js`
+### `packages/reindeer-exchange/src/v1/csv.js`
 Two new columns appended **at the end**:
 `owner_important` (yes/no) and `owner_important_reason`.
 
-### `packages/legacy-exchange/src/importer.js`
+### `packages/reindeer-exchange/src/importer.js`
 Reads both fields back and passes them to `itemRepo.create` / `.update`
 unchanged. FairPlay sorts flagged items forward and can send
 money-flagged ones to the appraiser first, but it never reads this as a

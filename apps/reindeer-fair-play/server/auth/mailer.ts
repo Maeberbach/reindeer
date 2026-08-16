@@ -2,14 +2,14 @@
  * Mail delivery for sign-in links, reusing the monorepo's shared mailer
  * rather than writing a second one.
  *
- * `mailerFromEnv` (from @reindeer-legacy/delivery) defaults to `ConsoleMailer`,
+ * `mailerFromEnv` (from @reindeer/delivery) defaults to `ConsoleMailer`,
  * which writes the message to disk and sends nothing, UNLESS SMTP settings
  * are present in the environment. That is the safety property this file
  * must never weaken: no development machine may ever send real mail by
  * accident. Tests use `RecordingMailer` explicitly (see selftest.mts) so no
  * mail hits disk or a network socket during automated runs either.
  */
-import { mailerFromEnv, type Mailer } from "@reindeer-legacy/delivery";
+import { mailerFromEnv, type Mailer } from "@reindeer/delivery";
 
 let cachedMailer: Mailer | null = null;
 

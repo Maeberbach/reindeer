@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { ulid } from '@reindeer-legacy/core-data';
+import { ulid } from '@reindeer/core-data';
 import {
   parseTypedEnvelope,
   ENVELOPE_TYPE_INVENTORY,
@@ -15,11 +15,11 @@ import { zipSync, unzipSync } from './zip.js';
  *
  * Two new bundle formats live beside the existing `.reindeer` bundle:
  *
- *   \u2022 legacy-exchange-inventory-bundle v1.0  \u2014  the trustee's copy of
+ *   \u2022 reindeer-exchange-inventory-bundle v1.0  \u2014  the trustee's copy of
  *     everything the owner ever added. One recipient. All photos travel.
  *     No voice. No per-item assignments.
  *
- *   \u2022 legacy-exchange-addendum-bundle  v1.0  \u2014  the assigned-items packet
+ *   \u2022 reindeer-exchange-addendum-bundle  v1.0  \u2014  the assigned-items packet
  *     sent to the wills caretaker and the trustee on every signing.
  *     Versioned. Close-up photos required (or listed in gaps). Voice
  *     message optional. Envelope carries owner signature evidence.
@@ -30,8 +30,8 @@ import { zipSync, unzipSync } from './zip.js';
  * writeInventoryBundle or writeAddendumBundle.
  */
 
-const INVENTORY_MANIFEST_FORMAT = 'legacy-exchange-inventory-bundle';
-const ADDENDUM_MANIFEST_FORMAT = 'legacy-exchange-addendum-bundle';
+const INVENTORY_MANIFEST_FORMAT = 'reindeer-exchange-inventory-bundle';
+const ADDENDUM_MANIFEST_FORMAT = 'reindeer-exchange-addendum-bundle';
 const MANIFEST_VERSION = '1.0';
 const INVENTORY_FILE_EXT = '.inventory';
 const ADDENDUM_FILE_EXT = '.addendum';
@@ -71,12 +71,12 @@ function buildCoverText(kind) {
     '     in this bundle.',
     '',
     'The contents (envelope.json, manifest.json, checksums.txt, and',
-    'the media/ folder) are provided so a family process, or Legacy:',
+    'the media/ folder) are provided so a family process, or Reindeer:',
     'FairPlay, can work from a faithful record of what the owner',
     'wrote down. Nothing in this bundle overrides the will or a',
     'signed paper memorandum.',
     '',
-    'Reindeer Legacy',
+    'Reindeer Suite',
     '',
   ].join('\n');
 }
@@ -172,7 +172,7 @@ export async function writeInventoryBundle({ envelope, mediaStore, scopeMediaSto
   entries.push({ name: 'checksums.txt', data: Buffer.from(checksums.join('\n'), 'utf8') });
 
   const buffer = zipSync(entries);
-  const fileName = `legacy-inventory-${batchId.slice(0, 10)}${INVENTORY_FILE_EXT}`;
+  const fileName = `reindeer-inventory-${batchId.slice(0, 10)}${INVENTORY_FILE_EXT}`;
   return { buffer, fileName, batchId, manifest, envelopeSha256: envelopeSha };
 }
 
@@ -317,7 +317,7 @@ export async function writeAddendumBundle({ envelope, closeupPathResolver, voice
   entries.push({ name: 'checksums.txt', data: Buffer.from(checksums.join('\n'), 'utf8') });
 
   const buffer = zipSync(entries);
-  const fileName = `legacy-addendum-v${envelope.addendum_version}-${batchId.slice(0, 10)}${ADDENDUM_FILE_EXT}`;
+  const fileName = `reindeer-addendum-v${envelope.addendum_version}-${batchId.slice(0, 10)}${ADDENDUM_FILE_EXT}`;
   return { buffer, fileName, batchId, manifest, envelopeSha256: envelopeSha };
 }
 

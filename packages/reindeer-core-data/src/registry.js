@@ -1,4 +1,4 @@
-import { DEFAULT_ROOMS, DEFAULT_CATEGORIES, MORE_ROOMS, MORE_CATEGORIES, LegacyError } from '@reindeer-legacy/core-api';
+import { DEFAULT_ROOMS, DEFAULT_CATEGORIES, MORE_ROOMS, MORE_CATEGORIES, ReindeerError } from '@reindeer/core-api';
 import { ulid } from './db/index.js';
 
 /**
@@ -186,9 +186,9 @@ export class Registry {
    */
   async setRoomState(roomId, state, ctx, { documented = false } = {}) {
     const room = this.db.prepare('SELECT * FROM rooms WHERE room_id = ? AND scope_id = ?').get(roomId, ctx.scopeId);
-    if (!room) throw new LegacyError('That room is not on your list.', 'NOT_FOUND', 404);
+    if (!room) throw new ReindeerError('That room is not on your list.', 'NOT_FOUND', 404);
     const allowed = ['not_started', 'started', 'done', 'skipped'];
-    if (!allowed.includes(state)) throw new LegacyError('Unknown room state.', 'BAD_STATE', 400);
+    if (!allowed.includes(state)) throw new ReindeerError('Unknown room state.', 'BAD_STATE', 400);
     const now = new Date().toISOString();
     this.db.prepare(`UPDATE rooms SET
         walkthrough_state = ?,
@@ -296,9 +296,9 @@ export class Registry {
   /** Rename a room. The owner can call Bedroom 2 "Bobby's Room" etc. */
   async renameRoom(roomId, name, ctx) {
     const room = this.db.prepare('SELECT * FROM rooms WHERE room_id = ? AND scope_id = ?').get(roomId, ctx.scopeId);
-    if (!room) throw new LegacyError('That room is not on your list.', 'NOT_FOUND', 404);
+    if (!room) throw new ReindeerError('That room is not on your list.', 'NOT_FOUND', 404);
     const trimmed = (name || '').trim();
-    if (!trimmed) throw new LegacyError('A room needs a name.', 'BAD_NAME', 400);
+    if (!trimmed) throw new ReindeerError('A room needs a name.', 'BAD_NAME', 400);
     this.db.prepare('UPDATE rooms SET name = ? WHERE room_id = ? AND scope_id = ?')
       .run(trimmed, roomId, ctx.scopeId);
     await this.audit.append(
@@ -311,14 +311,14 @@ export class Registry {
   /** Deleting a referenced room or category requires reassignment first. */
   async deleteRoom(roomId, ctx) {
     const n = this.db.prepare('SELECT COUNT(*) c FROM items WHERE room_id = ? AND scope_id = ?').get(roomId, ctx.scopeId).c;
-    if (n > 0) throw new LegacyError(`${n} item(s) still use this room. Move them first.`, 'IN_USE', 409, { count: n });
+    if (n > 0) throw new ReindeerError(`${n} item(s) still use this room. Move them first.`, 'IN_USE', 409, { count: n });
     this.db.prepare('DELETE FROM rooms WHERE room_id = ? AND scope_id = ?').run(roomId, ctx.scopeId);
     await this.audit.append({ action: 'room.delete', entity: 'room', entity_id: roomId }, ctx);
   }
 
   async deleteCategory(categoryId, ctx) {
     const n = this.db.prepare('SELECT COUNT(*) c FROM items WHERE category_id = ? AND scope_id = ?').get(categoryId, ctx.scopeId).c;
-    if (n > 0) throw new LegacyError(`${n} item(s) still use this category. Move them first.`, 'IN_USE', 409, { count: n });
+    if (n > 0) throw new ReindeerError(`${n} item(s) still use this category. Move them first.`, 'IN_USE', 409, { count: n });
     this.db.prepare('DELETE FROM categories WHERE category_id = ? AND scope_id = ?').run(categoryId, ctx.scopeId);
     await this.audit.append({ action: 'category.delete', entity: 'category', entity_id: categoryId }, ctx);
   }

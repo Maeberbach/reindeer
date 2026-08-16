@@ -1,5 +1,5 @@
 import express from 'express';
-import { LegacyError, makeScopeCtx } from '@reindeer-legacy/core-api';
+import { ReindeerError, makeScopeCtx } from '@reindeer/core-api';
 
 /**
  * Execution: the signed original, and who says they are holding it.
@@ -110,11 +110,11 @@ export function createExecutionRouter({ db, scopeMediaStore, audit, resolveScope
     const ctx = ctxOf(req);
     const myId = me(req);
     if (!req.body || !req.body.length) {
-      throw new LegacyError('No photograph of the signed page was received. Please try taking it again.', 'NO_IMAGE', 400);
+      throw new ReindeerError('No photograph of the signed page was received. Please try taking it again.', 'NO_IMAGE', 400);
     }
     const mime = req.get('content-type') || 'image/jpeg';
     if (!/^image\//.test(mime) && mime !== 'application/pdf') {
-      throw new LegacyError('That file is not a photograph or a scan. Please take a picture of the signed page.', 'BAD_MEDIA', 400);
+      throw new ReindeerError('That file is not a photograph or a scan. Please take a picture of the signed page.', 'BAD_MEDIA', 400);
     }
 
     // Only supersede THIS participant's previous scans, not the partner's.
@@ -182,12 +182,12 @@ export function createExecutionRouter({ db, scopeMediaStore, audit, resolveScope
     const role = String(req.body.role || 'trustee').trim().toLowerCase();
     const holds = String(req.body.holds || '').trim();
 
-    if (!name) throw new LegacyError('Please give the name of the person confirming.', 'NO_NAME', 400);
+    if (!name) throw new ReindeerError('Please give the name of the person confirming.', 'NO_NAME', 400);
     const ROLES = ['trustee', 'captain', 'executor', 'attorney', 'other'];
-    if (!ROLES.includes(role)) throw new LegacyError(`Role must be one of: ${ROLES.join(', ')}.`, 'BAD_ROLE', 400);
+    if (!ROLES.includes(role)) throw new ReindeerError(`Role must be one of: ${ROLES.join(', ')}.`, 'BAD_ROLE', 400);
     const HOLDS = ['holds_original', 'seen_original', 'copy_only'];
     if (!HOLDS.includes(holds)) {
-      throw new LegacyError('Please say whether the original is held, has been seen, or only a copy was received.', 'BAD_HOLDS', 400);
+      throw new ReindeerError('Please say whether the original is held, has been seen, or only a copy was received.', 'BAD_HOLDS', 400);
     }
 
     const meta = readMeta(row);
@@ -231,10 +231,10 @@ export function createExecutionRouter({ db, scopeMediaStore, audit, resolveScope
     const ctx = ctxOf(req);
     const row = rowOf(req.params.mediaId, ctx);
     if (!row) return res.status(404).json({ error: 'Photograph the signed page first, then record.' });
-    if (!req.body || !req.body.length) throw new LegacyError('No recording was received. Please try again.', 'NO_MEDIA', 400);
+    if (!req.body || !req.body.length) throw new ReindeerError('No recording was received. Please try again.', 'NO_MEDIA', 400);
 
     const mime = req.get('content-type') || 'audio/webm';
-    if (!/^(audio|video)\//.test(mime)) throw new LegacyError('That file is not a recording.', 'BAD_MEDIA', 400);
+    if (!/^(audio|video)\//.test(mime)) throw new ReindeerError('That file is not a recording.', 'BAD_MEDIA', 400);
 
     const saved = await scopeMediaStore.put(req.body, {
       media_kind: STATEMENT_KIND,

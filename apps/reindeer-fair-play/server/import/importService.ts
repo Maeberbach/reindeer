@@ -27,8 +27,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { eq, and, desc } from "drizzle-orm";
-import { readBundle } from "@reindeer-legacy/exchange/reader";
-import type { ExchangeItem, ExchangeEnvelope } from "@reindeer-legacy/exchange/reader";
+import { readBundle } from "@reindeer/exchange/reader";
+import type { ExchangeItem, ExchangeEnvelope } from "@reindeer/exchange/reader";
 import { db, storage } from "../storage";
 import { looksLikeSameThing } from "../duplicates/match";
 import {
@@ -196,19 +196,19 @@ function extractMediaFile(
  * "Reindeer Registry". Bundles written under the old name must still open —
  * a family's export from last year is not a file we get to reject.
  */
-const LEGACY_SOURCE_APP_ALIASES: Record<string, string> = {
+const IMPORT_SOURCE_ALIASES: Record<string, string> = {
   // Old ids, kept deliberately. A rename in our code must never make a
   // family's existing export unreadable.
   legacy_inventory: "reindeer_registry",
   "legacy-inventory": "reindeer_registry",
-  "legacy-inventory-memories": "reindeer_registry",
+  "reindeer-inventory-memories": "reindeer_registry",
   legacy_inventory_memories: "reindeer_registry",
   "legacy-registry": "reindeer_registry",
 };
 
 export function normalizeSourceApp(app: string | null | undefined): string {
   if (!app) return "reindeer_registry";
-  return LEGACY_SOURCE_APP_ALIASES[app] ?? app;
+  return IMPORT_SOURCE_ALIASES[app] ?? app;
 }
 
 export async function stageBundle(
@@ -495,7 +495,7 @@ export async function stageBundle(
         category: srcItem.category_name ?? null,
         notes: srcItem.description ?? "",
         inventoryStory: srcItem.story ?? "",
-        // The owner's Registry "Important" comment travels through as legacy
+        // The owner's Registry "Important" comment travels through as
         // content. Default '' when the envelope pre-dates the field (older
         // Registry versions). See docs/decisions/2026-08-06-fc-honors-owner-important.md.
         ownerImportantComment,

@@ -10,8 +10,8 @@ Full-stack estate property division app. Express + Vite + React + Tailwind + Dri
 ## Rebuild steps
 
 ```bash
-unzip fair-choice-legacy-source.zip -d fair-choice-legacy
-cd fair-choice-legacy
+unzip fair-choice-source.zip -d fair-choice
+cd fair-choice
 npm install
 npm run dev
 ```

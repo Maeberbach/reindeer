@@ -27,7 +27,7 @@ The greying is visual only — the ranking pool already excludes `status === 'ow
 - **Welcome screen** (line 65). The old "You are not signing anything" note now leads with the three-point statement (preparation tool / paper governs / replace or amend on paper at any time) before the existing "nothing leaves this app" reassurance.
 - **Sign screen** (line 818). Removed the previous "Once signed, it becomes a legal document" line, which directly contradicted the user's commit 4 copy directive. Replaced with the same three-point statement plus the versioning note.
 
-`packages/legacy-exchange/src/two-outputs-bundle.js`
+`packages/reindeer-exchange/src/two-outputs-bundle.js`
 
 - **Bundle cover.** Every `.inventory` and `.addendum` zip now carries a `README.txt` at the top of the archive containing the same three-point statement, phrased for the trustee/attorney opening the bundle. The `README.txt` is included in `checksums.txt` so tamper-detection covers it. Manifest.files lists it. Backward-compatible — old readers see one extra file they can ignore.
 
@@ -80,7 +80,7 @@ Result: `two-outputs-bundle-test.mjs` went from 40 → **55 checks**, all passin
 - `apps/reindeer-fair-play/client/src/pages/results.tsx` — split section, add preamble + greyed cards
 - `apps/reindeer-fair-play/server/import/selftest.mts` — cast writeBundle args to `any`
 - `apps/reindeer-registry/client/index.html` — welcome + sign copy
-- `packages/legacy-exchange/src/two-outputs-bundle.js` — README.txt in both bundles
+- `packages/reindeer-exchange/src/two-outputs-bundle.js` — README.txt in both bundles
 - `scripts/two-outputs-bundle-test.mjs` — freeze flow section + README checks
 - `scripts/vision-test.mjs` — B-002 rewrite
 - `docs/bug-log.md` — B-001 + B-002 marked fixed

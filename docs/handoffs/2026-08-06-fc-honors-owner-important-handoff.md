@@ -56,9 +56,9 @@ We were mid-rollout on the owner-authored **Important comment** feature (steps 1
 - `docs/decisions/2026-08-06-fc-honors-owner-important.md` — the approved spec, 219 lines, ready to submit as the first file in the atomic commit.
 
 **Modified (from step 5 of the earlier Important-comment rollout, staged before the FC-boundary reframe interrupted):**
-- `packages/legacy-exchange/src/importer.js` — reads `src.owner_important_comment ?? ''`
-- `packages/legacy-exchange/src/v1/csv.js` — appends `owner_important_comment` column at end (CSV_COLUMNS + toCsv row)
-- `packages/legacy-exchange/src/v1/envelope.js` — adds `owner_important_comment` per-item field + `counts.owner_commented_important`
+- `packages/reindeer-exchange/src/importer.js` — reads `src.owner_important_comment ?? ''`
+- `packages/reindeer-exchange/src/v1/csv.js` — appends `owner_important_comment` column at end (CSV_COLUMNS + toCsv row)
+- `packages/reindeer-exchange/src/v1/envelope.js` — adds `owner_important_comment` per-item field + `counts.owner_commented_important`
 - `scripts/roundtrip-test.mjs` — modified 1 existing check (CSV header/positional check now expects 3-column tail: owner_important, owner_important_reason, owner_important_comment) + APPENDED 10 new checks at end of file (isolated `cmt` scope, tests auto-flag, empty comment doesn't flag, clear-on-unflag, comment-delete keeps flag, 500-char cap, trim, envelope verbatim, counts, CSV verbatim, import round-trip, print verbatim with `$` figure + leak-guard restated). Target: 65 checks (55 existing + 10 new). NOT YET RUN or verified.
 
 **⚠️ These step-5 changes must NOT go in the FC-boundary commit.** They're a separate rollout (owner's Important comment as a legacy-value field on the Registry side + through the envelope). Two commits, in this order: (1) FC-boundary, (2) step-5 comment rollout.
@@ -107,7 +107,7 @@ Currently 35 checks. Add 2:
 2. `ownerImportantComment` on FC item matches envelope's `owner_important_comment` verbatim.
 Target: 37 checks.
 
-### File 7: `packages/legacy-exchange/src/importer.js`
+### File 7: `packages/reindeer-exchange/src/importer.js`
 Lines 88-99 currently document that owner_high_value is NOT mapped to high_value_flag. Replace with:
 ```js
 // Owner's Registry "Important" mark seeds FairPlay's high-value flag,
@@ -120,7 +120,7 @@ high_value_flag: !!src.high_value_flag || !!src.owner_high_value,
 Reverse the existing negative-path assertions that verify `owner_high_value` doesn't set `high_value_flag`. New wording: "an item the owner marked Important arrives in FairPlay already flagged as high value." Also assert the classification-change row is written on import. Approximately +2 checks net.
 
 **Path A confirmed by user 2026-08-06 6:23 PM EDT.** Procedure:
-1. `git stash push -m "step-5-comment-rollout-in-progress" -- packages/legacy-exchange/src/importer.js packages/legacy-exchange/src/v1/csv.js packages/legacy-exchange/src/v1/envelope.js scripts/roundtrip-test.mjs`
+1. `git stash push -m "step-5-comment-rollout-in-progress" -- packages/reindeer-exchange/src/importer.js packages/reindeer-exchange/src/v1/csv.js packages/reindeer-exchange/src/v1/envelope.js scripts/roundtrip-test.mjs`
 2. Working tree now matches HEAD `41e427b` (which is effectively the same code as `7b71554` — the intervening commit was docs-only). Roundtrip is 55 checks in this state.
 3. Make the FC-boundary edits to the 8 files listed above (including reversing the 2 existing negative-path assertions in `scripts/roundtrip-test.mjs`). Expected roundtrip count after this edit: ~57.
 4. Verify (see "Verification before submit" section). Submit as one commit.
@@ -173,7 +173,7 @@ If any of the above fails, DO NOT submit. Fix and re-verify. This is the workflo
 - FC fiduciaryStorage (state machine, do not edit): `apps/reindeer-fair-play/server/fiduciary/fiduciaryStorage.ts`
 - FC migrations dir: `apps/reindeer-fair-play/server/migrations/`
 - FC migration wiring: `apps/reindeer-fair-play/server/storage.ts:88-93`
-- Registry-side importer (line 88-99 block needs rewrite): `packages/legacy-exchange/src/importer.js`
+- Registry-side importer (line 88-99 block needs rewrite): `packages/reindeer-exchange/src/importer.js`
 - Registry intake router (line 104 stays untouched): `packages/legacy-intake-feature/src/server/router.js`
 - Roundtrip test: `scripts/roundtrip-test.mjs`
 - FC self-tests: `apps/reindeer-fair-play/server/{auth,fiduciary,import}/selftest.mts`

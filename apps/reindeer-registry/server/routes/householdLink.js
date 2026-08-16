@@ -27,7 +27,7 @@
  * to invite) come from the body.
  */
 import express from 'express';
-import { makeScopeCtx } from '@reindeer-legacy/core-api';
+import { makeScopeCtx } from '@reindeer/core-api';
 
 function ownerOnly(req, res, next) {
   const p = req.participant;

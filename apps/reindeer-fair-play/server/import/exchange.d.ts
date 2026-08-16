@@ -1,16 +1,16 @@
 /**
- * Hand-written ambient types for `@reindeer-legacy/exchange/reader`.
+ * Hand-written ambient types for `@reindeer/exchange/reader`.
  *
  * The package is plain ESM JavaScript with no type declarations of its own.
  * This module only describes the DB-free surface Reindeer: FairPlay
  * actually imports (`readBundle`), shaped from:
- *   - packages/legacy-exchange/src/bundle.js   (readBundle, writeBundle)
- *   - packages/legacy-exchange/src/v1/envelope.js (buildEnvelope/parseEnvelope)
- *   - packages/legacy-exchange/src/reader.js   (re-exports)
+ *   - packages/reindeer-exchange/src/bundle.js   (readBundle, writeBundle)
+ *   - packages/reindeer-exchange/src/v1/envelope.js (buildEnvelope/parseEnvelope)
+ *   - packages/reindeer-exchange/src/reader.js   (re-exports)
  *
  * Keep this in sync with the envelope shape if the exchange package changes.
  */
-declare module "@reindeer-legacy/exchange/reader" {
+declare module "@reindeer/exchange/reader" {
   /** A photo attached to an item. */
   export interface ExchangePhoto {
     role?: string | null;
@@ -109,7 +109,7 @@ declare module "@reindeer-legacy/exchange/reader" {
   }
 
   export interface ExchangeEnvelope {
-    format: "legacy-exchange";
+    format: "reindeer-exchange";
     version: string;
     generated_at: string;
     source: ExchangeSource;
@@ -122,7 +122,7 @@ declare module "@reindeer-legacy/exchange/reader" {
   }
 
   export interface ExchangeManifest {
-    format: "legacy-exchange-bundle";
+    format: "reindeer-exchange-bundle";
     version: string;
     batch_id: string;
     created_at: string;

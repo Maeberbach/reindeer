@@ -1,13 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { ulid } from '@reindeer-legacy/core-data';
-import { writeBundle } from '@reindeer-legacy/exchange';
-import { renderTrusteePacket, renderTrusteeEmail } from '@reindeer-legacy/print-feature';
+import { ulid } from '@reindeer/core-data';
+import { writeBundle } from '@reindeer/exchange';
+import { renderTrusteePacket, renderTrusteeEmail } from '@reindeer/print-feature';
 import {
   DELIVERY_METHOD, DELIVERY_STATE, MAX_EMAIL_ATTACHMENT_BYTES,
   ValidationError, NotFoundError,
-} from '@reindeer-legacy/core-api';
+} from '@reindeer/core-api';
 
 const LINK_TTL_DAYS = 30;
 

@@ -1,7 +1,7 @@
 import {
   ItemRepository, validateItemRecord, validateRecipientHint,
   ValidationError, NotFoundError, EXPORT_STATE, PRINT_STATE,
-} from '@reindeer-legacy/core-api';
+} from '@reindeer/core-api';
 import { ulid } from '../db/index.js';
 
 const toRow = (i) => ({

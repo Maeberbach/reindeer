@@ -1,6 +1,6 @@
-import { NON_BINDING_DISCLAIMER, ExchangeVersionError } from '@reindeer-legacy/core-api';
+import { NON_BINDING_DISCLAIMER, ExchangeVersionError } from '@reindeer/core-api';
 
-export const EXCHANGE_FORMAT = 'legacy-exchange';
+export const EXCHANGE_FORMAT = 'reindeer-exchange';
 export const EXCHANGE_VERSION = '1.0';
 
 /**

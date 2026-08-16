@@ -24,12 +24,12 @@ flag that prevents inadvertent legal exposure, plus a clean audit trail for the 
 
 | Package | Responsibility |
 | --- | --- |
-| `@reindeer-legacy/core-api` | Models, enums, ports, validators, errors. No I/O. |
-| `@reindeer-legacy/core-data` | SQLite, migrations, hash-chained audit log, item repository, media stores. |
-| `@reindeer-legacy/intake-feature` | Guided capture, vision screening, duplicate detection, intake routes. |
-| `@reindeer-legacy/print-feature` | Item sheets, room and category reports, trustee cover packet. |
-| `@reindeer-legacy/exchange` | ReindeerExchange v1 — the `.legacy` bundle, envelope, writer, reader, importer. |
-| `@reindeer-legacy/delivery` | Trustees, mailer, two-step package delivery, secure links. |
+| `@reindeer/core-api` | Models, enums, ports, validators, errors. No I/O. |
+| `@reindeer/core-data` | SQLite, migrations, hash-chained audit log, item repository, media stores. |
+| `@reindeer/intake-feature` | Guided capture, vision screening, duplicate detection, intake routes. |
+| `@reindeer/print-feature` | Item sheets, room and category reports, trustee cover packet. |
+| `@reindeer/exchange` | ReindeerExchange v1 — the `.legacy` bundle, envelope, writer, reader, importer. |
+| `@reindeer/delivery` | Trustees, mailer, two-step package delivery, secure links. |
 
 ## The boundary that must not move
 

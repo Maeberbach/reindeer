@@ -22,10 +22,10 @@
  * Environment:
  *   REINDEER_SMTP_HOST, REINDEER_SMTP_PORT, REINDEER_SMTP_USER, REINDEER_SMTP_PASS,
  *   REINDEER_SMTP_FROM, REINDEER_SMTP_SECURE — see mailer.js for details.
- *   If none are set, the ConsoleMailer writes emails to /tmp/legacy-mail
+ *   If none are set, the ConsoleMailer writes emails to /tmp/reindeer-mail
  *   and nothing is actually sent (safe for development).
  */
-import { mailerFromEnv } from '@reindeer-legacy/delivery';
+import { mailerFromEnv } from '@reindeer/delivery';
 import { HOLIDAY_LABELS } from '../routes/reminders.js';
 import { holidayDate, holidayTwoWeeksFromNow } from './holidayDates.js';
 
@@ -161,9 +161,9 @@ export async function runHolidayReminders({ db, mailer, participantsRepo, remind
  */
 async function main() {
   const Database = (await import('better-sqlite3')).default;
-  const { ParticipantsRepo, ReminderPrefsRepo } = await import('@reindeer-legacy/core-data');
+  const { ParticipantsRepo, ReminderPrefsRepo } = await import('@reindeer/core-data');
 
-  const dbPath = process.env.LEGACY_DB_PATH || './data/legacy-registry.db';
+  const dbPath = process.env.REINDEER_DB_PATH || './data/reindeer-registry.db';
   const db = new Database(dbPath);
 
   // Ensure the reminder_prefs table exists.

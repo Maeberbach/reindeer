@@ -823,7 +823,7 @@ export class FiduciaryStorage {
     };
 
     // Escalation source: read from appraisal_flags when present,
-    // otherwise infer from the audit log (legacy pre-reshape rows).
+    // otherwise infer from the audit log (pre-reshape rows).
     const nominationRows = db
       .select()
       .from(appraisalFlags)

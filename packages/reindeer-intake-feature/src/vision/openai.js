@@ -1,4 +1,4 @@
-import { VisionProvider } from '@reindeer-legacy/core-api';
+import { VisionProvider } from '@reindeer/core-api';
 import { groupAcrossFrames, screenHighValue } from './index.js';
 
 /**

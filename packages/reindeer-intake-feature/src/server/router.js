@@ -1,8 +1,8 @@
 import express from 'express';
 import {
-  LegacyError, REVIEW_STATE, PHOTO_ROLE, makeScopeCtx,
+  ReindeerError, REVIEW_STATE, PHOTO_ROLE, makeScopeCtx,
   MEDIA_KIND, MEDIA_ACCEPT, RECORDING_ROLE, mediaKindFor, DEFAULT_CATEGORIES,
-} from '@reindeer-legacy/core-api';
+} from '@reindeer/core-api';
 import { screenHighValue } from '../vision/index.js';
 
 /**
@@ -101,7 +101,7 @@ export function createIntakeRouter(deps) {
   r.get('/items/:id', wrap(async (req, res) => {
     const ctx = ctxOf(req);
     const item = await itemRepo.get(req.params.id, ctx);
-    if (!item) throw new LegacyError('That item was not found.', 'NOT_FOUND', 404);
+    if (!item) throw new ReindeerError('That item was not found.', 'NOT_FOUND', 404);
     res.json(item);
   }));
 
@@ -192,10 +192,10 @@ export function createIntakeRouter(deps) {
     const mime = req.get('content-type') || 'audio/webm';
     const kind = mediaKindFor(mime);
     if (kind === MEDIA_KIND.PHOTO) {
-      throw new LegacyError('That file is not a video or a voice recording.', 'BAD_MEDIA_KIND', 400);
+      throw new ReindeerError('That file is not a video or a voice recording.', 'BAD_MEDIA_KIND', 400);
     }
     if (!MEDIA_ACCEPT[kind].includes(mime)) {
-      throw new LegacyError(`This app cannot read ${mime} files yet. Try recording again in the app.`, 'UNSUPPORTED_MEDIA', 415);
+      throw new ReindeerError(`This app cannot read ${mime} files yet. Try recording again in the app.`, 'UNSUPPORTED_MEDIA', 415);
     }
     const saved = await mediaStore.put(req.body, {
       item_id: req.params.id,
@@ -232,7 +232,7 @@ export function createIntakeRouter(deps) {
   }));
 
   r.post('/scope-media', express.raw({ type: '*/*', limit: '800mb' }), wrap(async (req, res) => {
-    if (!scopeMediaStore) throw new LegacyError('This app does not store whole-inventory recordings.', 'NO_SCOPE_MEDIA', 501);
+    if (!scopeMediaStore) throw new ReindeerError('This app does not store whole-inventory recordings.', 'NO_SCOPE_MEDIA', 501);
     const ctx = ctxOf(req);
     const mime = req.get('content-type') || 'video/mp4';
     const saved = await scopeMediaStore.put(req.body, {
@@ -274,7 +274,7 @@ export function createIntakeRouter(deps) {
       frame_index: img.frame_index ?? i,
       buffer: Buffer.from((img.data_url ?? img.data ?? '').split(',').pop() ?? '', 'base64'),
     }));
-    if (!images.length) throw new LegacyError('No photos were received.', 'NO_IMAGES', 400);
+    if (!images.length) throw new ReindeerError('No photos were received.', 'NO_IMAGES', 400);
     const detections = await vision.detectItems(images, { room_hint: req.body.room_hint });
     await audit.append({ action: 'intake.detect', entity: 'batch', entity_id: null, payload: { images: images.length, detections: detections.length } }, ctx);
     // Tell the client whether a real model looked at the photo. The mock is a
@@ -367,7 +367,7 @@ export function createIntakeRouter(deps) {
 }
 
 /** Shared error handler so both apps return the same plain-language shape. */
-export function legacyErrorHandler(err, _req, res, _next) {
+export function reindeerErrorHandler(err, _req, res, _next) {
   const status = err.status ?? 500;
   if (status >= 500) console.error(err);
   // Only expose specific error details for client errors (4xx).

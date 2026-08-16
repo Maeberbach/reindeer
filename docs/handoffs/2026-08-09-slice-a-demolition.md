@@ -53,7 +53,7 @@ build memorandums on a clean floor.
   `renderImportanceSections` now reads `items[].owner_high_value` and
   `items[].owner_important_comment` directly instead of joining against
   claim rows and participants.
-- `packages/legacy-delivery/src/delivery.js` — constructor no longer
+- `packages/reindeer-delivery/src/delivery.js` — constructor no longer
   requires `importanceClaims` or `participants`; `prepare` passes only
   `householdMode` through to the print template.
 - `apps/reindeer-registry/client/app.js` — removed the `claimreview` screen
@@ -190,7 +190,7 @@ surfaces the mismatch.
   and removing 13 would confuse existing installs.
 - The `household_mode` field still exists on scope and is still used to
   show/hide couple-only UI. That is correct — Slice B needs it.
-- The `packages/legacy-delivery/src/delivery.js` constructor no longer
+- The `packages/reindeer-delivery/src/delivery.js` constructor no longer
   requires `importanceClaims` or `participants`. If Slice C reintroduces
   the participants dep to render both partners' names on the trustee
   cover, that is fine — just pass it explicitly again.

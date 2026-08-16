@@ -90,7 +90,7 @@ fields on the envelope and CSV.
 
 ### Reindeer Legacy exchange importer (NOT changing after all)
 
-On closer read, `packages/legacy-exchange/src/importer.js` is a
+On closer read, `packages/reindeer-exchange/src/importer.js` is a
 **Registry-to-Registry** reader, not a Registry-to-FC reader. Its
 `high_value_flag: !!src.high_value_flag` line correctly transfers Registry's
 own flag; owner promotion crosses at the FC boundary via
