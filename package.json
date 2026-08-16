@@ -7,7 +7,8 @@
   "workspaces": [
     "packages/*",
     "apps/reindeer-registry",
-    "apps/reindeer-fair-play"
+    "apps/reindeer-fair-play",
+    "apps/reindeer-discovery"
   ],
   "scripts": {
     "test:roundtrip": "node scripts/roundtrip-test.mjs",
