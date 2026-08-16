@@ -22,7 +22,7 @@ export default function NotReadyYetPage() {
       <div className="mb-8 flex items-center gap-3">
         <Logo className="h-8 w-8" />
         <div className="leading-tight">
-          <div className="text-xs uppercase tracking-widest text-muted-foreground">Legacy</div>
+          <div className="text-xs uppercase tracking-widest text-muted-foreground">Reindeer</div>
           <div className="font-serif text-lg font-semibold">Reindeer: FairPlay</div>
         </div>
       </div>

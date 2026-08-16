@@ -47,7 +47,7 @@ function SignInFrame({ children }: { children: React.ReactNode }) {
           </span>
           <div className="leading-tight">
             <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-              Legacy
+              Reindeer
             </div>
             <div className="font-serif text-base font-semibold">Reindeer: FairPlay</div>
           </div>

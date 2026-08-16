@@ -313,7 +313,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </span>
             <div className="leading-tight">
               <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                Legacy
+                Reindeer
               </div>
               <div className="font-serif text-base font-semibold" data-testid="text-app-name">
                 Reindeer: FairPlay
