@@ -103,7 +103,8 @@ $('#joinBtn').onclick = async () => {
 };
 
 // ─── Owner login ──────────────────────────────────────────────
-$('#ownerLinkBtn').onclick = () => { show('ownerLogin'); };
+$('#ownerLinkBtn')?.onclick = () => { show('ownerLogin'); };
+$('#ownerDirectBtn').onclick = () => { show('ownerLogin'); };
 $('#ownerLoginBackBtn').onclick = () => { show('join'); };
 
 $('#ownerLoginBtn').onclick = async () => {
