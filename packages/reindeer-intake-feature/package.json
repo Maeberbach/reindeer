@@ -1,0 +1,12 @@
+{
+  "name": "@reindeer-legacy/intake-feature",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.js",
+  "description": "Photo/video capture, AI identification, duplicate handling. Shared by both apps.",
+  "dependencies": {
+    "@reindeer-legacy/core-api": "*",
+    "@reindeer-legacy/core-data": "*",
+    "express": "^4.19.2"
+  }
+}

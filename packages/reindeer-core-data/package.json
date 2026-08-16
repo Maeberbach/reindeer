@@ -1,0 +1,14 @@
+{
+  "name": "@reindeer-legacy/core-data",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.js",
+  "description": "SQLite implementations of the Legacy core ports.",
+  "dependencies": {
+    "@reindeer-legacy/core-api": "*",
+    "better-sqlite3": "^12.0.0"
+  },
+  "optionalDependencies": {
+    "better-sqlite3-multiple-ciphers": "^13.0.0"
+  }
+}

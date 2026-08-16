@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: reindeer-registry
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: node apps/reindeer-registry/server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: REINDEER_VISION_KEY
+        sync: false
+      - key: REINDEER_INVENTORY_DIR
+        value: /var/data
+    disk:
+      name: registry-data
+      mountPath: /var/data
+      sizeGB: 1
+    healthCheckPath: /
+    autoDeploy: true
+
+  - type: web
+    name: reindeer-fair-play
+    runtime: node
+    plan: starter
+    buildCommand: npm install && npm --prefix apps/reindeer-fair-play install && npm --prefix apps/reindeer-fair-play run build
+    startCommand: npm --prefix apps/reindeer-fair-play start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: REINDEER_FAIR_PLAY_DB_PATH
+        value: /var/data/data.db
+      - key: REINDEER_FAIR_PLAY_AUTH_SECRET
+        generateValue: true
+    disk:
+      name: fair-play-data
+      mountPath: /var/data
+      sizeGB: 1
+    healthCheckPath: /
+    autoDeploy: true

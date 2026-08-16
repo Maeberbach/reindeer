@@ -1,0 +1,23 @@
+node_modules/
+dist/
+.vite/
+
+# SQLite database files — never commit; exposes demo data at rest
+data.db
+data.db-shm
+data.db-wal
+data.db-journal
+
+.env
+.env.*
+!.env.example
+
+# Auto-generated development-only auth secret. Never commit — production
+# must set FAIR_CHOICE_AUTH_SECRET instead. See server/auth/secret.ts.
+.auth-secret
+
+*.log
+.DS_Store
+data.db
+data.db-wal
+data.db-shm

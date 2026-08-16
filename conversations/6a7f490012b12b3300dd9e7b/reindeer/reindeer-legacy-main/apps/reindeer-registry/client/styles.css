@@ -1,0 +1,999 @@
+/* Reindeer Registry — designed for older eyes and hands.
+   Body text 18px+, tap targets 48px+, one primary action per screen. */
+
+:root{
+  --ink:#221f1a; --ink-2:#55504a; --paper:#faf7f1; --card:#fff;
+  --line:#ddd5c7; --accent:#7a5c1e; --accent-soft:#f3ead6;
+  --ok:#2f6b3f; --warn:#8a3b2b; --radius:14px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font:400 19px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding-bottom:40px;
+}
+
+.appbar{
+  position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:12px;
+  background:#2b2a26; color:#fff; padding:14px 18px; min-height:64px;
+  padding-top:calc(14px + env(safe-area-inset-top));
+}
+.appbar h1{font-size:21px; margin:0; flex:1; font-weight:650; letter-spacing:-.01em}
+.pill{background:#464339; color:#f3ead6; border-radius:999px; padding:5px 13px; font-size:15px; white-space:nowrap}
+
+main{max-width:760px; margin:0 auto; padding:20px 18px 60px}
+h2{font-size:26px; line-height:1.25; margin:6px 0 18px; letter-spacing:-.015em}
+.lede{font-size:20px; color:var(--ink-2); margin:0 0 22px}
+.reassure{color:var(--ink-2); font-size:17px; margin-top:14px}
+ol.sign-reassure-list{margin:8px 0 14px; padding-left:26px}
+ol.sign-reassure-list > li{margin:0 0 8px; line-height:1.5}
+.where{margin-top:26px; color:var(--ink-2); font-size:16px; text-align:center}
+
+/* Priority suggestion — sits above the main tile grid */
+.suggest-first{margin-bottom:6px}
+.suggest-first .tile{
+  grid-template-columns:56px 1fr; gap:2px 16px;
+  border-width:3px; border-color:var(--accent);
+  background:var(--accent-soft);
+}
+.suggest-first .tile .txt{display:flex; flex-direction:column; gap:2px}
+
+/* Tiles */
+.tiles{display:grid; gap:14px}
+.tile{
+  display:grid; grid-template-columns:56px 1fr; grid-template-rows:auto auto;
+  gap:2px 16px; align-items:center; text-align:left; text-decoration:none;
+  background:var(--card); color:var(--ink); border:2px solid var(--line);
+  border-radius:var(--radius); padding:18px; min-height:88px; cursor:pointer; width:100%;
+  font:inherit;
+}
+.tile:hover{border-color:var(--accent)}
+.tile .ico{grid-row:1/3; font-size:34px; text-align:center}
+.tile .lbl{font-size:21px; font-weight:650}
+.tile .hint{font-size:16px; color:var(--ink-2)}
+/* A highlighted tile is a pale card, not a filled button, so it must keep dark
+   ink. Without this it inherits the white text from the solid .primary button
+   below and the most important label on the home screen disappears. */
+.tile.primary{background:var(--accent-soft); border-color:var(--accent); color:var(--ink)}
+.tile.primary .hint{color:var(--ink-2)}
+
+/* Buttons */
+button{font:inherit}
+.primary,.ghost{
+  min-height:56px; padding:14px 26px; border-radius:12px; font-size:19px;
+  font-weight:650; cursor:pointer; border:2px solid transparent;
+}
+.primary{background:var(--accent); color:#fff}
+.primary:disabled{background:#bdb6a8; cursor:not-allowed}
+.ghost{background:transparent; border-color:var(--line); color:var(--ink)}
+.appbar .ghost{border-color:#5c584d; color:#fff; min-height:44px; padding:8px 16px; font-size:17px}
+.wide{width:100%; margin-top:14px}
+
+/* Inputs */
+.bigin{
+  /* textarea would otherwise fall back to the browser's monospace default,
+     which reads as a coding box rather than a place to write about a teapot. */
+  width:100%; font-family:inherit; font-size:20px; padding:16px; margin-bottom:14px;
+  border:2px solid var(--line); border-radius:12px; background:#fff; color:var(--ink); min-height:58px;
+}
+.bigin:focus{outline:3px solid var(--accent); outline-offset:1px; border-color:var(--accent)}
+.bigfile{
+  display:block; text-align:center; background:var(--accent-soft); border:3px dashed var(--accent);
+  border-radius:var(--radius); padding:40px 20px; font-size:21px; font-weight:650; cursor:pointer;
+}
+.bigfile input{position:absolute; width:1px; height:1px; opacity:0}
+
+/* Chips */
+.chips{display:flex; flex-wrap:wrap; gap:10px}
+.chip{
+  background:#fff; border:2px solid var(--line); border-radius:999px;
+  padding:12px 20px; font-size:18px; min-height:50px; cursor:pointer;
+}
+.chip[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:#fff}
+
+/* Steps */
+.steps{display:flex; gap:8px; margin-bottom:20px}
+.dot{flex:1; height:8px; border-radius:4px; background:var(--line)}
+.dot.on{background:var(--accent)}
+.navrow{display:flex; gap:12px; margin-top:26px}
+.navrow .primary{flex:2} .navrow .ghost{flex:1}
+
+.preview,.thumbs img{border-radius:12px; border:2px solid var(--line); max-width:100%}
+.preview{margin-top:16px; max-height:300px; object-fit:contain; background:#fff; width:100%}
+.thumbs{display:flex; flex-wrap:wrap; gap:10px; margin:16px 0}
+.thumbs img{width:104px; height:104px; object-fit:cover}
+
+/* Cards */
+.cards{display:grid; gap:12px}
+.card{
+  display:grid; grid-template-columns:92px 1fr; gap:16px; align-items:start;
+  background:var(--card); border:2px solid var(--line); border-radius:var(--radius);
+  padding:14px; cursor:pointer; text-align:left; width:100%; font:inherit;
+}
+.card img{width:92px; height:92px; object-fit:cover; border-radius:10px; background:#f0ece2}
+.card .noimg{width:92px; height:92px; border-radius:10px; background:#f0ece2; display:grid; place-items:center; color:var(--ink-2); font-size:13px; text-align:center}
+.card h3{margin:0 0 4px; font-size:20px}
+.card .sub{color:var(--ink-2); font-size:16px}
+.badge{display:inline-block; font-size:13px; font-weight:700; padding:3px 10px; border-radius:999px; margin:6px 6px 0 0; letter-spacing:.02em}
+.badge.hv{background:#2b2a26; color:#fff}
+.badge.draft{background:#f6e6c8; color:#6b4c12}
+.badge.kept{background:#e2f0e4; color:var(--ok)}
+.badge.who{background:var(--accent-soft); color:var(--accent)}
+
+/*
+ * Owner-set "Important" mark on an item.
+ *
+ * .badge.important is the small mark that rides on a list card, so the owner
+ * can see at a glance which items they have flagged without opening each one.
+ * Deliberately quiet: this is a personal mark, not an alert, and we do not want
+ * every list to look like a warning screen.
+ *
+ * .important-block, .important-check, .important-hint, .important-chips wrap
+ * the control on the review step and item screen. They read as one thing so
+ * the owner does not have to hunt for the reason chips — chips reveal only
+ * when the checkbox is ticked.
+ */
+.badge.important{background:#f4f1e8; color:#55504a; font-style:italic; letter-spacing:.01em; font-weight:600}
+.important-block{margin-top:18px; padding:14px; background:#faf7ee; border:1px solid #ece4c8; border-radius:10px}
+.important-check{display:flex; align-items:center; gap:12px; font-size:20px; font-weight:600; cursor:pointer; padding:6px 0}
+.important-check input[type="checkbox"]{width:26px; height:26px; margin:0; accent-color:var(--accent)}
+.important-hint{margin:4px 0 0 38px; color:#55504a; font-size:16px; font-style:italic}
+.important-chips{margin-top:12px}
+/* HTML `hidden` normally maps to display:none, but .chips sets display:flex,
+ * which wins on specificity. This restores the hidden semantic so the chips
+ * only appear when the checkbox is ticked. */
+.important-chips[hidden]{display:none}
+
+/* The owner-authored comment on the item detail screen. The comment is meant
+ * to read as though the owner is speaking, so it sits in a warm cream card
+ * with a small quiet label, printed verbatim. Large body type (20px) for
+ * elderly readers; italic body so it reads as authored, not as chrome. */
+.owner-comment{margin-top:18px; padding:16px 18px; background:#fbf7ea; border-left:4px solid var(--accent); border-radius:8px}
+.owner-comment-lbl{font-size:14px; letter-spacing:.06em; text-transform:uppercase; color:#7a7466; font-weight:600; margin-bottom:8px}
+.owner-comment-body{font-size:20px; line-height:1.5; color:#2a2620; font-style:italic; white-space:pre-wrap}
+
+.filters{display:grid; gap:10px; margin-bottom:18px}
+.summary,.note{background:#fff; border:2px solid var(--line); border-radius:var(--radius); padding:16px; font-size:18px}
+.note{margin-top:18px; background:var(--accent-soft); border-color:var(--accent)}
+.summary div{padding:7px 0; border-bottom:1px solid #eee9dd}
+.summary div:last-child{border:0}
+.aiNote{background:var(--accent-soft); border-left:5px solid var(--accent); padding:12px 14px; border-radius:8px; font-size:17px}
+
+.detrow{display:flex; gap:12px; flex-wrap:wrap; margin-top:18px}
+.detrow a,.detrow button{flex:1 1 46%; text-align:center; text-decoration:none; display:inline-block}
+.detrow a.primary{color:#fff}
+
+.toast{
+  position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+  background:#2b2a26; color:#fff; padding:15px 26px; border-radius:12px;
+  font-size:18px; z-index:60; max-width:92vw;
+}
+.toast.bad{background:var(--warn)}
+
+@media (min-width:640px){ .tiles{grid-template-columns:1fr 1fr} .filters{grid-template-columns:2fr 1fr 1fr} }
+@media (prefers-reduced-motion:no-preference){ .screen{animation:fade .18s ease-out} @keyframes fade{from{opacity:0}to{opacity:1}} }
+
+/* ---- field labels ------------------------------------------------------- */
+.fieldlabel{
+  display:block; font-size:18px; font-weight:600; color:var(--ink);
+  margin:18px 0 6px;
+}
+.fieldlabel:first-child{margin-top:0}
+
+/* ---- money entry -------------------------------------------------------- */
+.moneyrow{display:flex; align-items:center; gap:10px}
+.moneyrow .moneysign{font-size:30px; font-weight:600; color:var(--ink-2)}
+.moneyrow .bigin{flex:1; margin:0}
+
+/* ---- microphone in progress --------------------------------------------- */
+button.listening{
+  background:var(--accent-soft); border-color:var(--accent); color:var(--ink);
+  font-weight:600;
+}
+
+/* ---- finishing-up choices ----------------------------------------------- */
+.choices{list-style:none; padding:0; margin:0 0 8px}
+.choice{
+  background:var(--card); border:2px solid var(--line); border-radius:14px;
+  padding:0; margin-bottom:14px;
+}
+.choice > label{
+  display:flex; align-items:flex-start; gap:14px; padding:18px 18px;
+  cursor:pointer; min-height:64px;
+}
+.choice input[type="checkbox"]{
+  width:30px; height:30px; margin:2px 0 0; flex:0 0 auto; accent-color:var(--accent);
+}
+.choicebody{display:flex; flex-direction:column; gap:4px}
+.choicelbl{font-size:21px; font-weight:600; color:var(--ink); line-height:1.3}
+.choicehint{font-size:16px; color:var(--ink-2); line-height:1.4}
+.choice:has(input:checked){border-color:var(--accent); background:var(--accent-soft)}
+.subfields{padding:0 18px 18px; border-top:1px solid var(--line); margin-top:2px}
+.subfields .fieldlabel{margin-top:14px}
+
+/* ---- welcome ------------------------------------------------------------ */
+.bighead{font-size:32px; line-height:1.25; margin:6px 0 16px; letter-spacing:-0.01em}
+.welcome .lede{font-size:19px; line-height:1.55}
+
+/* "What this does" — same visual rhythm as the numbered steps below, but
+   without numbered circles (these aren't sequential steps). Plain text
+   items with emoji markers, no card borders or backgrounds. */
+.whats{list-style:none; padding:0; margin:0 0 8px}
+.whats li{display:flex; gap:14px; align-items:flex-start; margin-bottom:18px}
+.whats .what-ico{font-size:24px; line-height:1; flex:0 0 auto; margin-top:2px}
+.whats b{display:block; font-size:19px; margin-bottom:3px; line-height:1.3}
+.whats li > span:last-child{font-size:17px; color:var(--ink-2); line-height:1.5}
+
+/* Disclaimer — plain text, no highlighted box. It's a legal caveat,
+   not a call to action. */
+.disclaimer{font-size:16px; color:var(--ink-2); line-height:1.55; margin:22px 0 0}
+
+.howhead{font-size:23px; margin:30px 0 14px}
+.steps3{list-style:none; padding:0; margin:0 0 24px; counter-reset:none}
+.steps3 li{display:flex; gap:14px; align-items:flex-start; margin-bottom:18px}
+.stepnum{
+  flex:0 0 auto; width:40px; height:40px; border-radius:50%;
+  background:var(--accent); color:#fff; font-size:20px; font-weight:700;
+  display:flex; align-items:center; justify-content:center;
+}
+.steps3 b{display:block; font-size:19px; margin-bottom:3px}
+.steps3 li > span:last-child{font-size:17px; color:var(--ink-2); line-height:1.5}
+
+.linky{
+  display:block; margin:20px auto 0; background:none; border:none;
+  color:var(--accent); font-size:17px; font-weight:600; text-decoration:underline;
+  text-underline-offset:4px; cursor:pointer; padding:12px; min-height:48px;
+}
+.linky:hover{color:var(--ink)}
+
+/* ------------------------------------------------------------------ signing
+   The screen that has to deliver a piece of bad news — you cannot sign this on
+   your phone — without making the reader feel they have hit a wall. The notice
+   is styled as a quiet card rather than a red warning, and every step after it
+   is an action they can actually take. */
+
+.lawbox{
+  background:#fff; border:2px solid var(--accent); border-left-width:8px;
+  border-radius:var(--radius); padding:18px 20px; margin:6px 0 26px;
+}
+.lawbox p{margin:0 0 12px}
+.lawbox p:last-child{margin-bottom:0}
+.lawlede{font-size:21px}
+.lawnote{color:var(--ink-2)}
+
+ol.signsteps{list-style:none; margin:0; padding:0}
+ol.signsteps > li{
+  display:flex; gap:14px; padding:20px 0; border-top:1px solid var(--line);
+}
+ol.signsteps > li:first-child{border-top:0; padding-top:4px}
+ol.signsteps .stepbody{flex:1; min-width:0}
+ol.signsteps h3{font-size:21px; margin:2px 0 8px; line-height:1.3}
+ol.signsteps p{margin:0 0 14px; color:var(--ink-2); font-size:18px}
+ol.signsteps .primary,ol.signsteps .ghost{margin-top:2px}
+
+.proheader{
+  margin-top:32px; padding-top:22px; border-top:2px solid var(--line);
+}
+.proheader h3{font-size:21px; margin:0 0 8px}
+.proheader p{margin:0 0 16px; color:var(--ink-2); font-size:18px}
+
+.saybox{
+  background:var(--accent-soft); border-radius:var(--radius);
+  padding:16px 18px; margin:0 0 18px;
+}
+.saylead{margin:0 0 6px !important; font-size:16px !important; text-transform:uppercase; letter-spacing:.06em}
+.saysays{margin:0 !important; color:var(--ink) !important; font-size:19px !important; line-height:1.5}
+.blankish{
+  border-bottom:2px dotted var(--accent); padding:0 2px; font-style:italic; color:var(--ink-2);
+}
+
+#stmtPlayer{width:100%; margin-top:16px}
+#attList ul{margin:8px 0 0; padding-left:22px}
+#attList li{margin-bottom:6px}
+.opt{color:var(--ink-2); font-weight:400}
+select.bigin{appearance:none; background-image:linear-gradient(45deg,transparent 50%,var(--ink-2) 50%),linear-gradient(135deg,var(--ink-2) 50%,transparent 50%);
+  background-position:calc(100% - 22px) calc(50% + 2px),calc(100% - 15px) calc(50% + 2px);
+  background-size:7px 7px,7px 7px; background-repeat:no-repeat; padding-right:46px}
+
+/* ------------------------------------------------------------------- people
+   A roster, not a legal instrument. Deliberately plain: no avatars, no
+   percentages, no shares — anything that looked like an allocation would
+   imply this page decides something, and it does not. */
+
+.peoplelist{margin:18px 0 6px}
+/* No wrapping: a row that reflows differently depending on how long the word
+   next to it happens to be reads as a mistake to somebody scanning the list. */
+.personrow{
+  display:flex; align-items:center; gap:12px; flex-wrap:nowrap;
+  background:#fff; border:2px solid var(--line); border-radius:var(--radius);
+  padding:14px 16px; margin-bottom:10px;
+}
+.personwho{flex:1 1 auto; min-width:0; display:flex; flex-direction:column}
+.personname{overflow-wrap:anywhere}
+.personname{font-size:21px; font-weight:600; line-height:1.25}
+.personrel{color:var(--ink-2); font-size:17px}
+.personcount{color:var(--ink-2); font-size:16px; text-align:right; flex:0 0 auto; max-width:88px; line-height:1.2}
+.personx{
+  flex:0 0 auto;
+  border:2px solid var(--line); background:#fff; color:var(--warn);
+  border-radius:10px; padding:10px 14px; font:inherit; font-size:16px;
+  min-height:44px; cursor:pointer;
+}
+.personx:hover{border-color:var(--warn)}
+.chipn{
+  display:inline-block; min-width:22px; margin-left:4px; padding:0 5px;
+  background:var(--accent); color:#fff; border-radius:11px;
+  font-size:14px; line-height:22px; text-align:center;
+}
+.chiprel{color:var(--ink-2); font-size:15px; margin-left:5px}
+.chip[aria-pressed="true"] .chiprel{color:inherit; opacity:.85}
+
+/* Bulk intake offers two lanes. Each is boxed so the choice reads as a choice
+   rather than as one long form the owner has to work down. */
+.lane {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  padding: 18px;
+  margin: 16px 0;
+}
+.lane h3 { margin: 0 0 6px; font-size: 21px; }
+.lane .bigfile { margin-top: 12px; }
+#videoState { margin-top: 12px; }
+
+/* Duplicate offer — a suggestion the owner can dismiss, not a task. Sits above
+   the fold of the toast so it cannot be missed, but has an obvious way out. */
+/* Standalone hint text outside a tile. */
+.screen > .hint { font-size: 17px; color: var(--ink-2); line-height: 1.45; margin: 6px 0 18px; }
+
+.dupoffer {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: 24px;
+  width: min(560px, calc(100vw - 32px)); z-index: 60;
+  background: var(--card); border: 2px solid var(--accent);
+  border-radius: var(--radius); padding: 20px 22px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .18);
+}
+.dupoffer p { margin: 0 0 14px; font-size: 19px; line-height: 1.5; color: var(--ink); }
+.dupoffer-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.dupoffer-actions button { flex: 1 1 180px; }
+.dupoffer-note { margin: 14px 0 0 !important; font-size: 16px !important; color: var(--ink-2); }
+
+/* ============================================================
+   ROOM BY ROOM
+   Sizing is set for a hand-held phone held by someone who may
+   not see well: no target under 56px tall, no label under 17px,
+   and status carried by a word as well as a colour.
+   ============================================================ */
+
+/* --- picking up where they left off --- */
+.resume{
+  background:var(--accent-soft); border:2px solid var(--accent);
+  border-radius:var(--radius); padding:16px 16px 18px; margin-bottom:18px;
+}
+.resume-line{margin:0; font-size:20px; font-weight:650; line-height:1.35}
+.resume .wide{margin-top:12px}
+.resume-rest{margin:12px 0 0; font-size:16px; color:var(--ink-2); line-height:1.4}
+
+/* --- recordings still on the device --- */
+.queuebadge{
+  background:#fff; border:2px solid var(--warn); border-radius:var(--radius);
+  padding:16px; margin-bottom:18px;
+}
+.qb-line{margin:0; font-size:19px; line-height:1.35}
+.qb-note{margin:8px 0 0; font-size:16px; color:var(--ink-2); line-height:1.45}
+
+/* The same box, dialled down: a standing fact about the device rather than
+   something needing attention. Still above the 16px floor for older eyes. */
+.queuebadge.quiet{
+  border:1px solid var(--line); padding:10px 12px; margin-bottom:14px;
+  background:var(--paper-2, #fff);
+}
+.qb-quiet{margin:0; font-size:16px; color:var(--ink-2); line-height:1.4}
+
+/* --- how far through the house --- */
+.walkprogress{margin-bottom:20px}
+.walkbar{height:14px; background:var(--line); border-radius:999px; overflow:hidden}
+.walkbar-fill{height:100%; background:var(--ok); border-radius:999px; transition:width .3s ease}
+.walkcount{margin:8px 0 0; font-size:17px; color:var(--ink-2)}
+
+.walknext{margin-bottom:24px}
+.walknext-label{
+  margin:0 0 6px; font-size:15px; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--ink-2);
+}
+.walknext .wide{margin-top:0}
+
+.walkh{font-size:20px; margin:0 0 12px}
+
+/* --- one row per room --- */
+.walkrooms{display:grid; gap:12px}
+.roomrow{
+  display:grid; grid-template-columns:38px 1fr; align-items:center; gap:12px;
+  width:100%; min-height:68px; padding:14px;
+  background:var(--card); border:2px solid var(--line); border-radius:var(--radius);
+  text-align:left; font:inherit; color:var(--ink); cursor:pointer;
+}
+.roomrow:hover{border-color:var(--accent)}
+.roomrow-mark{font-size:26px; font-weight:700; text-align:center; line-height:1}
+.roomrow-body{display:grid; gap:3px; min-width:0}
+.roomrow-name{font-size:20px; font-weight:650}
+.roomrow-state{font-size:16px; color:var(--ink-2)}
+.roomrow.st-done{background:#f2f7f1; border-color:var(--ok)}
+.roomrow.st-done .roomrow-mark{color:var(--ok)}
+.roomrow.st-skip{background:#faf9f6}
+.roomrow.st-skip .roomrow-mark{color:var(--ink-2)}
+.roomrow.st-part{background:var(--accent-soft); border-color:var(--accent)}
+.roomrow.st-part .roomrow-mark{color:var(--accent)}
+
+/* --- adding a room of their own --- */
+.addroom{
+  margin-top:26px; padding:16px; background:var(--card);
+  border:2px dashed var(--line); border-radius:var(--radius);
+}
+.addroom label{display:block; font-size:18px; font-weight:650; margin-bottom:8px}
+.addroom .hint{margin:10px 0 0; font-size:16px; color:var(--ink-2)}
+
+.alldone{
+  margin-top:24px; padding:18px; background:#f2f7f1;
+  border:2px solid var(--ok); border-radius:var(--radius);
+}
+.alldone-title{margin:0 0 8px; font-size:21px; font-weight:700; color:var(--ok)}
+.alldone p{margin:0; line-height:1.5}
+
+/* --- inside a room --- */
+.roomname{margin:0 0 4px; font-size:27px; font-weight:700; line-height:1.2}
+.roomstats{margin:0 0 20px}
+.roomstat-ok{margin:0; font-size:17px; color:var(--ok); font-weight:600}
+.roomstat-todo{margin:0; font-size:17px; color:var(--ink-2)}
+
+.roomactions{display:grid; gap:14px}
+/* A file input dressed as a tile, so photographing a room is one tap on a
+   target the same size as every other choice on the screen. */
+.filetile{cursor:pointer}
+.roomfinish{margin-top:30px; padding-top:22px; border-top:2px solid var(--line)}
+.roomfinish .linky{display:block; margin:18px auto 0}
+
+.captured{margin-top:22px; display:grid; gap:12px}
+.capt{
+  background:var(--card); border:2px solid var(--line);
+  border-radius:var(--radius); padding:14px;
+}
+.capt-line{margin:0; font-size:18px; font-weight:600}
+.capt-note{margin:8px 0 0; font-size:16px; color:var(--ink-2)}
+
+/* --- honesty about guessed names --- */
+.mockwarn{
+  background:#fdf4f1; border:2px solid var(--warn);
+  border-radius:var(--radius); padding:14px; margin-bottom:18px;
+}
+.mockwarn p{margin:0; font-size:17px; line-height:1.45}
+
+/* --- rooms the owner added, kept at the front of the chip list --- */
+.chip-mine{border-color:var(--accent)}
+.chip-other{border-style:dashed; color:var(--ink-2)}
+.chip-other[aria-pressed="true"]{color:#fff}
+
+/* ------------------------------------------------ what you already know
+   The promise lane and the two counts.
+   Warm on the left, neutral on the right, and no bar joining them — an
+   estate has no denominator, so any percentage would be invented. */
+
+.promisetally{
+  border-left:4px solid var(--accent, #7a5c2e);
+  background:var(--paper-2, #fff);
+  padding:12px 14px; margin:0 0 18px;
+}
+.promisetally p{margin:0; font-size:18px; line-height:1.45}
+
+.pivot{
+  margin-top:24px; padding:18px 16px;
+  border:1px solid var(--line); background:var(--paper-2, #fff);
+}
+.pivot-line{margin:0 0 8px; font-size:22px; font-weight:700; line-height:1.3}
+.pivot-rest{margin:0 0 18px; font-size:18px; line-height:1.5; color:var(--ink-2)}
+
+.counters{display:flex; flex-wrap:wrap; gap:12px; margin:0 0 20px}
+.counter{
+  flex:1 1 140px; padding:14px 16px; border:1px solid var(--line);
+  display:flex; flex-direction:column; gap:4px;
+}
+.counter.spoken{background:#f4efe4; border-color:#d9c9a6}
+.counter.open{background:var(--paper-2, #fff)}
+.cnum{font-size:34px; font-weight:700; line-height:1}
+.clbl{font-size:15px; line-height:1.3; color:var(--ink-2)}
+.counter-note{
+  flex:1 1 100%; margin:2px 0 0; font-size:17px; line-height:1.5; color:var(--ink-2);
+}
+
+/* ---------------------------------------------------------------- the ask
+   One question per room, never per item. Sized like a question a person is
+   meant to answer out loud, not like a form field. */
+.ask{
+  margin:22px 0 8px; padding:20px 18px; border:2px solid var(--line);
+  border-radius:14px; background:#faf7f1;
+}
+.askq{margin:0 0 16px; font-size:23px; line-height:1.35; font-weight:600; color:var(--ink)}
+
+/* Pointing at several things at once. Large targets, obvious when chosen:
+   a tick and a heavy border, never colour alone. */
+.picks{display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:14px; margin:8px 0 18px}
+.pick{
+  position:relative; display:flex; flex-direction:column; gap:8px; padding:10px;
+  background:var(--card); border:2px solid var(--line); border-radius:14px;
+  font:inherit; text-align:left; cursor:pointer; min-height:150px;
+}
+.pick img{width:100%; height:110px; object-fit:cover; border-radius:10px; display:block}
+.pick .noimg{
+  display:flex; align-items:center; justify-content:center; height:110px;
+  border-radius:10px; background:#efeae1; color:var(--ink-2); font-size:15px;
+}
+.picklbl{font-size:17px; line-height:1.3; color:var(--ink)}
+.pick[aria-pressed="true"]{border-color:var(--accent); background:#f4efe4}
+.pick[aria-pressed="true"]::after{
+  content:"✓"; position:absolute; top:6px; right:8px;
+  width:34px; height:34px; border-radius:50%;
+  background:var(--accent); color:#fff; font-size:20px; font-weight:700;
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* The quiet row under the four choices. Present, reachable, not competing. */
+.quietrow{
+  display:flex; flex-wrap:wrap; gap:18px 24px; justify-content:center;
+  margin:20px 0 6px; padding-top:16px; border-top:1px solid var(--line);
+}
+.quietrow .linky{font-size:18px}
+
+/* -------------------------------------------------- Add-your-partner card
+   Sits between the main tile grid and the quietrow. Soft-colored so it invites
+   without competing with the primary tiles. Hidden until scope-summary confirms
+   solo mode. Once linked, this card is replaced by #homePartnerLinked (a small
+   quiet line). See Home render logic in app.js. 2026-08-10. */
+.partner-card[hidden]{display:none !important}
+.partner-card{
+  display:grid; grid-template-columns:auto 1fr; align-items:center; gap:14px;
+  width:100%; margin:18px 0 4px; padding:14px 18px;
+  background:var(--accent-soft); color:var(--ink);
+  border:2px dashed var(--accent); border-radius:var(--radius);
+  text-align:left; font-family:inherit; cursor:pointer;
+}
+.partner-card:hover, .partner-card:focus-visible{
+  background:var(--accent-soft); border-style:solid; outline:none;
+}
+.partner-card .ico{font-size:32px; line-height:1}
+.partner-card .txt{display:grid; gap:4px}
+.partner-card .lbl{font-size:20px; font-weight:650}
+.partner-card .hint{font-size:15px; color:var(--ink-2)}
+.partner-linked{
+  margin:18px 0 4px; padding:10px 16px;
+  color:var(--ink-2); font-size:16px; text-align:center;
+  background:var(--surface-2, transparent); border-radius:var(--radius);
+}
+
+/* ------------------------------------------------ add another room
+   The rooms Registry does not seed sit here rather than on the buttons above.
+
+   Deliberately quiet. A room button is a thing to press while walking through
+   the house; this is a thing to open only when the house has an attic and the
+   list does not. Giving it the same visual weight as the buttons would undo
+   the reason for splitting them in the first place.
+
+   The select keeps .bigin's 58px height and 20px text, so it stays a large
+   target and stays readable — this list exists for people who forget the safe
+   deposit box, not for people with good eyesight and a steady hand. */
+.room-more{margin-top:18px; padding-top:16px; border-top:1px solid var(--line)}
+.room-more-lbl{display:block; font-size:16px; color:var(--ink-2); margin-bottom:8px}
+.room-more select{margin-bottom:0}
+
+/* The instruction under a step heading.
+
+   Set at 18px rather than the 16px used for asides, because this one is not an
+   aside: on the category step it is the whole point of the screen, and an owner
+   who skims past it will fill the memorandum with things nobody was ever going
+   to argue about. Generous line height and a hard 34em measure keep it to a few
+   short lines on a phone. */
+.step-lede{font-size:18px; line-height:1.5; color:var(--ink-2);
+  max-width:34em; margin:0 0 20px}
+.step-lede strong{color:var(--ink); font-weight:700}
+
+/* =========================================================================
+ * SPECIAL GIFTS BY NAME
+ * Uses the same visual language as the People screen so the two feel
+ * related, but keeps its own screen names so it can evolve on its own.
+ * ========================================================================= */
+
+.gifts-actions { display: grid; gap: 12px; margin: 16px 0 24px; }
+.gifts-h { margin: 24px 0 8px; font-size: 22px; }
+.gifts-list { display: grid; gap: 12px; margin-bottom: 20px; }
+
+.giftrow {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 2px solid #d8cfbf;
+  background: #fbf8f2;
+  border-radius: 14px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.giftrow:hover { background: #f6f1e3; }
+.giftrow:focus-visible { outline: 3px solid #7a5c2b; outline-offset: 2px; }
+
+.kind-toggle { margin: 20px 0 16px; }
+.kind-lbl {
+  display: block; font-weight: 600; margin-bottom: 8px; font-size: 18px;
+}
+.kind-toggle .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.kind-toggle .chip {
+  padding: 12px 16px; border: 2px solid #b6a887; border-radius: 999px;
+  background: #fff; font: inherit; cursor: pointer;
+}
+.kind-toggle .chip[aria-pressed="true"] {
+  background: #7a5c2b; color: #fff; border-color: #7a5c2b;
+}
+
+.giftperson-items { margin-top: 24px; }
+.giftitem {
+  padding: 14px; border: 1px solid #e0d6c1; border-radius: 12px;
+  margin-bottom: 10px; background: #fff;
+}
+.giftitem-title { font-weight: 600; font-size: 18px; }
+.giftitem-room { color: #6a6250; font-size: 15px; margin-top: 2px; }
+
+.sign-summary { margin: 8px 0 16px; }
+.sign-box {
+  padding: 16px 18px; border-radius: 14px; background: #f2ecd9;
+  border: 2px solid #d8cfbf;
+}
+.sign-line { font-size: 18px; margin-bottom: 4px; }
+.sign-line.reassure { color: #5b543f; font-size: 15px; margin-top: 6px; }
+
+.sign-items { margin: 16px 0 24px; }
+.sign-group {
+  padding: 14px 16px; border: 1px solid #d8cfbf; border-radius: 12px;
+  margin-bottom: 12px; background: #fff;
+}
+.sign-group-h { font-weight: 600; font-size: 18px; margin-bottom: 8px; }
+.sign-list { margin: 0; padding-left: 22px; }
+.sign-list li { padding: 4px 0; font-size: 16px; }
+.kind-badge {
+  display: inline-block; margin-left: 8px; padding: 2px 8px;
+  border-radius: 999px; background: #eadfbf; color: #5b3f14;
+  font-size: 13px; font-weight: 600; vertical-align: middle;
+}
+
+.still-to-decide {
+  margin: 16px 0; padding: 14px 16px;
+  border: 1px dashed #b6a887; border-radius: 12px; background: #fbf6e6;
+}
+.still-list { margin: 8px 0 0; padding-left: 22px; }
+.still-list li { padding: 4px 0; }
+
+/* Send-unsigned-preview block on the giftversions screen. Sits above the
+   versions list. Neutral background so it reads as an offer, not an alert. */
+.email-preview-offer {
+  padding: 18px 20px; border-radius: 14px; border: 2px solid #d8cfbf;
+  background: #fdfaf3; margin-top: 12px; margin-bottom: 18px;
+}
+.email-preview-offer h2 { font-size: 22px; margin: 0 0 8px 0; color: #3d3625; }
+.email-preview-offer label { display: block; margin-top: 12px; font-weight: 600; color: #3d3625; }
+.email-preview-offer select {
+  width: 100%; padding: 12px; margin-top: 6px; font-size: 17px;
+  border-radius: 10px; border: 2px solid #d8cfbf; background: #fff;
+}
+.email-preview-actions { margin-top: 14px; }
+.email-preview-offer .reassure { margin-top: 12px; }
+
+.versions-list { display: grid; gap: 12px; margin-top: 12px; }
+.version-row {
+  padding: 16px 18px; border-radius: 14px; border: 2px solid #d8cfbf;
+  background: #fff;
+}
+.version-row.current { border-color: #7a5c2b; background: #fbf8f2; }
+.version-row.superseded { opacity: 0.85; }
+.version-h { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 600; }
+.version-v { font-size: 18px; }
+.badge {
+  padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600;
+}
+.badge.current { background: #7a5c2b; color: #fff; }
+.badge.superseded { background: #d8cfbf; color: #5b543f; }
+.version-meta { color: #5b543f; font-size: 15px; margin-top: 4px; }
+.version-row button { margin-top: 12px; }
+
+.linky {
+  background: transparent; border: none; padding: 4px 0;
+  color: #7a5c2b; text-decoration: underline; font: inherit; cursor: pointer;
+}
+.linky:hover { color: #5b3f14; }
+
+.assign-block {
+  margin: 20px 0;
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid #d8cfbf;
+  background: #fbf8f2;
+}
+.assign-block .important-lbl { display: block; margin-bottom: 8px; font-weight: 600; }
+.assign-block .important-hint { margin-top: 8px; color: #5b543f; font-size: 15px; }
+.assign-block select.bigin { width: 100%; }
+
+/* -------------------------------------------------------------------- */
+/* Slice 4a — household link screen.                                    */
+/* -------------------------------------------------------------------- */
+
+/* Household-link "Linked" card. Big legible block; nothing dense. */
+.link-card {
+  margin: 20px 0; padding: 16px 18px;
+  border-radius: 12px; border: 1px solid #d8cfbf;
+  background: #fbf8f2; line-height: 1.6;
+}
+.link-card ul.plain-list { margin: 8px 0 0 0; padding-left: 0; list-style: none; }
+.link-card ul.plain-list li { padding: 6px 0; font-size: 17px; }
+
+/* Invite form on the household-link screen. Kept large. */
+.invite-form { margin: 20px 0; }
+.invite-form label { display: block; font-weight: 600; margin-bottom: 6px; }
+.invite-form input[type="email"],
+.invite-form input[type="text"] {
+  display: block; width: 100%; box-sizing: border-box;
+  padding: 12px 14px; font-size: 19px;
+  border-radius: 10px; border: 1px solid #cbc2b3; background: #fff;
+  margin-bottom: 12px;
+}
+.invite-link { display: block; padding: 8px; background: #f6f2ea; border-radius: 8px; margin-top: 6px; word-break: break-all; font-size: 14px; }
+
+/* --- Memorandum writer (Slice B) ------------------------------------
+   Elderly-friendly layered notices. Two banner styles:
+   - .memo-note-edit  : warm yellow, shown when opening a v2 draft after
+                        signing v1. Guidance, not an error.
+   - .memo-note-conflict : gold, shown when the two partners named
+                        different people for the same item. Strongly
+                        advises resolution but never blocks signing.
+-------------------------------------------------------------------- */
+.memo-head{margin:0 0 16px}
+/* Page title on the writer screen. Larger than a regular h2 (26px) so it
+   reads as the primary anchor of the screen for elderly owners; 2026-08-09. */
+.memo-title{font-size:34px; line-height:1.15; margin:0 0 6px; letter-spacing:-.02em; font-weight:700}
+@media (min-width:720px){
+  .memo-title{font-size:40px}
+}
+.memo-sub{color:var(--ink-2); font-size:18px; margin:0 0 10px}
+.memo-version{display:inline-block; background:var(--accent-soft); color:var(--accent);
+  border-radius:999px; padding:5px 13px; font-size:15px; font-weight:600; margin:0}
+/* Primary Add button sits directly under the heading; give it a little
+   air above and below to separate cleanly from the title and any banners
+   that follow. 2026-08-09. */
+.memo-actions-top{margin:6px 0 18px}
+
+.memo-note{
+  margin:14px 0 18px; padding:14px 16px; border-radius:var(--radius);
+  border:2px solid transparent; font-size:17px; line-height:1.5;
+}
+.memo-note p{margin:0 0 8px}
+.memo-note p:last-child{margin-bottom:0}
+.memo-note-h{font-weight:650; font-size:19px; color:inherit}
+
+/* Warm yellow — post-signing edit guidance. */
+.memo-note-edit{background:#fff8e6; border-color:#d9b64a; color:#5a4210}
+
+/* Gold — cross-partner conflict. Slightly firmer than yellow. */
+.memo-note-conflict{background:#f7eec9; border-color:#b78d1e; color:#4a3a10}
+.memo-conflict-list{margin:10px 0 0; padding-left:22px}
+.memo-conflict-list li{margin:6px 0; line-height:1.45}
+.memo-conflict-list b{font-weight:650}
+
+.memo-actions{margin:8px 0 20px}
+
+.memo-list{display:flex; flex-direction:column; gap:12px; margin-bottom:24px}
+.memo-empty{
+  padding:22px 18px; text-align:center;
+  background:var(--card); border:2px dashed var(--line); border-radius:var(--radius);
+  color:var(--ink-2); font-size:17px;
+}
+.memo-row{
+  display:grid; grid-template-columns:1fr auto; gap:6px 14px; align-items:center;
+  padding:16px 18px; background:var(--card); border:2px solid var(--line);
+  border-radius:var(--radius); cursor:pointer; text-align:left; width:100%;
+  font-family:inherit; color:inherit;
+}
+.memo-row:hover{border-color:var(--accent)}
+.memo-row.conflict{border-color:#b78d1e; background:#fbf5df}
+.memo-row-item{font-size:19px; font-weight:600; grid-column:1}
+.memo-row-heir{font-size:17px; color:var(--ink-2); grid-column:1}
+.memo-row-note{font-size:16px; color:var(--ink-2); grid-column:1/-1; font-style:italic; margin-top:2px}
+.memo-row-flag{
+  grid-column:2; grid-row:1/3; align-self:start;
+  background:#f7eec9; color:#4a3a10; border:2px solid #b78d1e;
+  border-radius:999px; padding:3px 10px; font-size:14px; font-weight:600;
+}
+.memo-row-arrow{grid-column:2; grid-row:1/3; font-size:22px; color:var(--ink-2); align-self:center}
+
+.memo-footer{margin-top:12px; text-align:center; display:flex; flex-direction:column; gap:12px; align-items:center}
+.memo-footer .linky{color:var(--ink-2)}
+
+/* --- Entry editor --- */
+.memo-item-picker{
+  max-height:200px; overflow-y:auto; margin:6px 0 8px;
+  background:var(--card); border:2px solid var(--line); border-radius:var(--radius);
+}
+.memo-item-picker .pickrow{
+  display:block; width:100%; text-align:left; padding:12px 14px;
+  background:transparent; border:0; border-bottom:1px solid var(--line);
+  font:inherit; color:inherit; cursor:pointer;
+}
+.memo-item-picker .pickrow:last-child{border-bottom:0}
+.memo-item-picker .pickrow:hover{background:var(--accent-soft)}
+.memo-item-picker .pickrow.picked{background:var(--accent-soft); font-weight:600}
+.memo-item-picker .pickrow-sub{font-size:14px; color:var(--ink-2); display:block; margin-top:2px}
+.memo-item-picked{
+  padding:12px 14px; margin:8px 0 4px;
+  background:var(--accent-soft); border:2px solid var(--accent); border-radius:var(--radius);
+  font-size:17px; font-weight:600;
+}
+.memo-item-picked .change{margin-left:10px; font-weight:400}
+.memo-note-count{font-size:15px; margin:4px 0 0; text-align:right}
+.opt{color:var(--ink-2); font-weight:400; font-size:15px}
+
+/* Quiet hint used on a Home tile in the header row. */
+.quiet-hint{color:var(--ink-2); font-size:14px; margin-left:6px}
+
+/* -------------------------------------------------- Ship B: contested screen */
+.contested-cards { display: grid; gap: 16px; margin-top: 16px; }
+.contested-card {
+  background: #fff; border: 1px solid #e5dccb;
+  border-radius: 14px; padding: 18px 20px;
+}
+.contested-card h3 { margin: 0 0 6px 0; font-size: 22px; }
+.contested-card .why {
+  margin: 0 0 10px 0; color: #6c5f4b; font-size: 16px; line-height: 1.4;
+}
+.contested-card .advice {
+  margin: 0 0 12px 0; font-size: 17px; line-height: 1.5;
+}
+.contested-card .trustee-notice {
+  background: #fff4d6; border-left: 4px solid #c89b1a;
+  padding: 12px 14px; border-radius: 8px;
+  margin: 0 0 14px 0; font-size: 16px; line-height: 1.45;
+}
+.contested-card .trustee-notice strong { display: block; margin-bottom: 4px; }
+.contested-card .detrow { margin-top: 8px; }
+
+/* Softer rule between the categories list and the holiday picker. */
+hr.softrule {
+  border: 0; border-top: 1px solid #e5dccb; margin: 28px 0 20px 0;
+}
+
+/* Holiday reminder checkbox list. Large targets for elderly users. */
+.reminder-picker {
+  display: grid; gap: 8px; margin: 12px 0 18px 0;
+}
+.reminder-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; background: #fff;
+  border: 1px solid #e5dccb; border-radius: 10px;
+  font-size: 18px; cursor: pointer;
+}
+.reminder-row input[type="checkbox"] {
+  width: 22px; height: 22px; margin: 0;
+}
+
+/* Nudge at the bottom of contested categories → room walkthrough */
+.contested-done{
+  margin-top:24px; padding:20px; border:1px solid var(--border);
+  border-radius:var(--radius); background:var(--accent-soft); text-align:center;
+}
+.contested-done button{ margin-top:8px }
+
+#homeBtn{margin-left:auto}
+
+
+/* ============================================================
+   Step 5 — conflict banner on item detail + Home counter
+   ============================================================ */
+
+/* Gold conflict banner on the item-detail screen.
+   Reuses .memo-note-conflict from the writer; this just adds
+   spacing so it reads as a distinct card above the item title. */
+.detail-conflict-banner {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: 8px;
+}
+.detail-conflict-banner .memo-conflict-heading {
+  font-weight: 650;
+  font-size: 15px;
+  margin: 0 0 4px;
+}
+.detail-conflict-banner .memo-conflict-text {
+  font-size: 14px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* Conflict counter on Home — gold, tappable, sits under the
+   two honest numbers. Matches the writer's banner palette. */
+.conflict-counter {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #f7eec9;
+  border: 1px solid #b78d1e;
+  color: #4a3a10;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-top: 12px;
+  cursor: pointer;
+  font: inherit;
+}
+.conflict-counter .cnum {
+  font-size: 28px;
+  font-weight: 700;
+  color: #8a6b1a;
+  display: block;
+  line-height: 1.1;
+}
+.conflict-counter .clbl {
+  font-size: 14px;
+  display: block;
+  margin-top: 2px;
+}
+.conflict-counter:active {
+  background: #f0e4b8;
+}
+
+/* Floating home button — persistent navigation on every screen */
+.floating-home{
+  position:fixed; bottom:calc(20px + env(safe-area-inset-bottom)); left:50%;
+  transform:translateX(-50%); z-index:30;
+  display:flex; align-items:center; gap:8px;
+  background:var(--accent); color:#fff; border:none; border-radius:999px;
+  padding:12px 28px; font-size:18px; font-weight:650; font-family:inherit;
+  box-shadow:0 4px 16px rgba(0,0,0,0.2); cursor:pointer;
+  min-height:52px; transition:transform .15s, opacity .15s;
+}
+.floating-home:hover{transform:translateX(-50%) scale(1.05)}
+.floating-home:active{transform:translateX(-50%) scale(0.95)}
+.floating-home .fh-ico{font-size:22px}
+.floating-home[hidden]{display:none}
+
+/* GUIDED INTRODUCTION — three-step first-run flow */
+[data-screen="guidedpartner"] .tiles,
+[data-screen="guidedphoto"] .tiles { gap: 14px; margin-bottom: 16px; }
+[data-screen="guidedpartner"] .reassure,
+[data-screen="guidedphoto"] .reassure { margin-top: 16px; }
+[data-screen="guidedmeaning"] .lede { margin-bottom: 16px; }
+
+/* CLOSE-UP PHOTO + VOICE MEMO — capture flow + detail */
+.closeup-block, .voice-memo-block { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.closeup-block h3, .voice-memo-block h3 { font-size: 1.1rem; margin-bottom: 4px; }
+.closeup-block .preview, .closeup-section .closeup-img { max-width: 100%; border-radius: 8px; margin-top: 8px; }
+.closeup-block button { margin-top: 8px; }
+
+/* Detail screen close-up + voice sections */
+.closeup-section, .voice-section { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+.closeup-section h3, .voice-section h3 { font-size: 1.1rem; margin-bottom: 4px; }
+.closeup-section .closeup-img { max-width: 100%; border-radius: 8px; margin-bottom: 8px; }
+.voice-section .voice-player { width: 100%; margin-bottom: 8px; }
+.voice-section button, .closeup-section button { margin-top: 4px; }
+
+/* Close-up modal overlay */
+.closeup-modal { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.closeup-modal[hidden] { display: none; }
+.closeup-modal-inner { background: var(--bg); border-radius: 12px; padding: 20px; max-width: 400px; width: 100%; }
+.closeup-modal-inner h3 { font-size: 1.2rem; margin-bottom: 8px; }
+.closeup-modal-inner .preview { max-width: 100%; border-radius: 8px; margin-top: 8px; }
+.closeup-modal-inner .detrow { margin-top: 12px; }
+
+/* AI conversion note on detail screen */
+.ai-convert-note { background: var(--accent-bg, #f0f7ff); border: 1px solid var(--accent-border, #c8e0ff); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+.ai-convert-heading { font-weight: 600; margin-bottom: 4px; }
+.ai-convert-text { font-size: 0.9rem; color: var(--muted); margin-bottom: 8px; }
+
+/* Ownership tag selector */
+.ownership-block { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+.ownership-chips .chip[aria-pressed="true"] { background: var(--accent-bg, #e8f0fe); border-color: var(--accent-border, #4a90d9); font-weight: 600; }

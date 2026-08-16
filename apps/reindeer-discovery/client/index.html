@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <title>Reindeer: Discovery</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#5b7c5a">
+  <style>
+    :root {
+      --bg: #faf9f5;
+      --surface: #fff;
+      --border: #e8e4db;
+      --text: #2c2a26;
+      --muted: #8a857c;
+      --primary: #5b7c5a;
+      --primary-fg: #fff;
+      --accent: #d4a574;
+      --danger: #c44d4d;
+      --success: #5b8c5a;
+      --radius: 12px;
+      --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    [data-theme="dark"] {
+      --bg: #1a1916;
+      --surface: #25231f;
+      --border: #3a362f;
+      --text: #e8e4db;
+      --muted: #8a857c;
+      --primary: #7a9a78;
+      --primary-fg: #1a1916;
+      --accent: #d4a574;
+      --danger: #e06868;
+      --success: #7aad78;
+      --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    .screen { max-width: 600px; margin: 0 auto; padding: 20px 16px 80px; }
+    .screen[hidden] { display: none; }
+
+    /* Top bar */
+    .topbar {
+      position: sticky; top: 0; z-index: 50;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+      max-width: 600px; margin: 0 auto;
+    }
+    .topbar h1 { font-size: 1.1rem; font-weight: 600; flex: 1; }
+    .topbar .badge { font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; background: var(--border); color: var(--muted); }
+    .topbar .badge.active { background: var(--primary); color: var(--primary-fg); }
+
+    /* Typography */
+    .bighead { font-size: 1.75rem; font-weight: 700; margin-bottom: 12px; }
+    .lede { font-size: 1.05rem; color: var(--muted); margin-bottom: 16px; line-height: 1.6; }
+    .reassure { font-size: 0.85rem; color: var(--muted); margin-top: 6px; }
+
+    /* Buttons */
+    .primary {
+      background: var(--primary); color: var(--primary-fg);
+      border: none; padding: 14px 24px; border-radius: var(--radius);
+      font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%;
+    }
+    .ghost {
+      background: transparent; color: var(--text);
+      border: 1px solid var(--border); padding: 12px 20px; border-radius: var(--radius);
+      font-size: 0.95rem; cursor: pointer; width: 100%;
+    }
+    .danger {
+      background: var(--danger); color: #fff;
+      border: none; padding: 14px 24px; border-radius: var(--radius);
+      font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px; margin-bottom: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    /* Item photo — large, centered */
+    .item-photo {
+      width: 100%; border-radius: var(--radius); object-fit: cover;
+      max-height: 450px; background: var(--border);
+    }
+    .item-photo-wrap { position: relative; margin-bottom: 16px; }
+
+    /* Swipe buttons */
+    .swipe-row {
+      display: flex; gap: 8px; margin-top: 12px;
+    }
+    .swipe-btn {
+      flex: 1; padding: 16px 8px; border-radius: var(--radius);
+      border: 2px solid var(--border); background: var(--surface);
+      font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      transition: all 0.15s;
+    }
+    .swipe-btn .icon { font-size: 1.5rem; }
+    .swipe-btn.low { border-color: var(--muted); }
+    .swipe-btn.low:active { background: var(--muted); color: var(--surface); }
+    .swipe-btn.medium { border-color: var(--accent); }
+    .swipe-btn.medium:active { background: var(--accent); color: var(--surface); }
+    .swipe-btn.high { border-color: var(--primary); }
+    .swipe-btn.high:active { background: var(--primary); color: var(--primary-fg); }
+
+    .swipe-btn.selected { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+    .swipe-btn.selected.medium { background: var(--accent); color: var(--surface); border-color: var(--accent); }
+
+    /* Search */
+    .search-bar {
+      display: flex; gap: 8px; margin-bottom: 16px;
+    }
+    .search-bar input {
+      flex: 1; padding: 12px 16px; border-radius: var(--radius);
+      border: 1px solid var(--border); background: var(--surface);
+      font-size: 1rem; color: var(--text);
+    }
+    .search-bar button {
+      padding: 12px 16px; border-radius: var(--radius);
+      background: var(--primary); color: var(--primary-fg);
+      border: none; font-weight: 600; cursor: pointer;
+    }
+
+    /* Item grid */
+    .item-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .item-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .item-card:active { transform: scale(0.97); }
+    .item-card img { width: 100%; height: 140px; object-fit: cover; background: var(--border); }
+    .item-card .info { padding: 8px 10px; }
+    .item-card .title { font-size: 0.85rem; font-weight: 600; line-height: 1.3; }
+    .item-card .room { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+    .item-card .reaction { font-size: 1.2rem; position: absolute; top: 8px; right: 8px; }
+
+    /* Ranking list */
+    .rank-list { list-style: none; }
+    .rank-item {
+      display: flex; align-items: center; gap: 12px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 10px 14px; margin-bottom: 8px;
+      cursor: grab;
+    }
+    .rank-item.dragging { opacity: 0.5; cursor: grabbing; }
+    .rank-item .handle { color: var(--muted); font-size: 1.2rem; }
+    .rank-item .pos { font-weight: 700; color: var(--primary); width: 28px; }
+    .rank-item .thumb { width: 48px; height: 48px; border-radius: 8px; object-fit: cover; background: var(--border); }
+    .rank-item .name { flex: 1; font-weight: 500; }
+    .rank-item .name .room { font-size: 0.8rem; color: var(--muted); font-weight: 400; }
+
+    /* Detail modal */
+    .detail-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100;
+      display: flex; align-items: flex-end; justify-content: center;
+    }
+    .detail-sheet {
+      background: var(--surface); border-radius: 20px 20px 0 0;
+      max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto;
+      padding: 24px 20px 40px;
+    }
+    .detail-sheet img { width: 100%; border-radius: var(--radius); margin-bottom: 16px; }
+    .detail-sheet h2 { font-size: 1.4rem; margin-bottom: 8px; }
+    .detail-sheet .meta { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+    .detail-sheet .meta .chip {
+      font-size: 0.8rem; padding: 4px 10px; border-radius: 20px;
+      background: var(--border); color: var(--muted);
+    }
+    .detail-sheet .story { font-size: 0.95rem; line-height: 1.6; color: var(--text); margin-bottom: 16px; }
+    .detail-sheet .field-label { font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+    .detail-sheet .field-value { margin-bottom: 12px; }
+    .detail-sheet .close-btn {
+      position: sticky; top: 0; float: right; background: var(--border);
+      border: none; border-radius: 50%; width: 36px; height: 36px;
+      font-size: 1.2rem; cursor: pointer; color: var(--text);
+    }
+
+    /* Step indicators */
+    .funnel { display: flex; gap: 4px; margin-bottom: 20px; }
+    .funnel .step-dot {
+      flex: 1; height: 4px; border-radius: 2px; background: var(--border);
+    }
+    .funnel .step-dot.active { background: var(--primary); }
+    .funnel .step-dot.done { background: var(--success); }
+
+    /* Looking for input */
+    .lf-input {
+      display: flex; gap: 8px; margin-bottom: 12px;
+    }
+    .lf-input input {
+      flex: 1; padding: 12px 16px; border-radius: var(--radius);
+      border: 1px solid var(--border); background: var(--surface);
+      font-size: 0.95rem; color: var(--text);
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: var(--text); color: var(--bg);
+      padding: 12px 24px; border-radius: 24px; font-size: 0.9rem;
+      z-index: 200; animation: fadeup 0.3s;
+    }
+    @keyframes fadeup { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+    /* Summary stats */
+    .stat-row { display: flex; gap: 12px; margin-bottom: 16px; }
+    .stat-tile {
+      flex: 1; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px; text-align: center;
+    }
+    .stat-tile .num { font-size: 1.75rem; font-weight: 700; color: var(--primary); }
+    .stat-tile .lbl { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
+    /* Section label */
+    .section-label {
+      font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--muted); margin: 20px 0 10px;
+    }
+  </style>
+</head>
+<body>
+  <!-- TOP BAR -->
+  <div class="topbar" id="topbar" hidden>
+    <h1>Discovery</h1>
+    <span class="badge" id="heirBadge"></span>
+    <button class="ghost" id="menuBtn" style="width:auto;padding:6px 12px;font-size:0.85rem">Menu</button>
+  </div>
+
+  <!-- JOIN SCREEN -->
+  <div class="screen" id="joinScreen">
+    <h2 class="bighead">Reindeer: Discovery</h2>
+    <p class="lede">You've been invited to review a family estate inventory. Explore the items, read the stories, and privately mark what matters to you.</p>
+    <div class="card">
+      <label style="display:block;font-size:0.85rem;font-weight:600;color:var(--muted);margin-bottom:6px">Your name</label>
+      <input type="text" id="joinName" class="search-bar" style="margin-bottom:12px" placeholder="Enter your name">
+      <label style="display:block;font-size:0.85rem;font-weight:600;color:var(--muted);margin-bottom:6px">Invite code</label>
+      <input type="text" id="joinToken" placeholder="Enter your invite code">
+      <button class="primary" id="joinBtn" style="margin-top:16px">Join</button>
+    </div>
+    <p class="reassure" style="margin-top:16px;text-align:center">Your responses are private until everyone has completed their review.</p>
+    <p style="margin-top:16px;text-align:center"><button class="ghost" id="ownerLinkBtn" style="width:auto;display:inline-block;padding:8px 16px;font-size:0.85rem;color:var(--muted)">Owner login</button></p>
+  </div>
+
+  <!-- OWNER LOGIN SCREEN -->
+  <div class="screen" id="ownerLoginScreen" hidden>
+    <h2 class="bighead">Owner Login</h2>
+    <p class="lede">Enter your passcode to access the Discovery dashboard, invite heirs, and review results.</p>
+    <div class="card">
+      <label style="display:block;font-size:0.85rem;font-weight:600;color:var(--muted);margin-bottom:6px">Owner passcode</label>
+      <input type="password" id="ownerCode" class="search-bar" style="margin-bottom:12px" placeholder="Enter passcode">
+      <button class="primary" id="ownerLoginBtn">Log in</button>
+    </div>
+    <p style="margin-top:16px;text-align:center"><button class="ghost" id="ownerLoginBackBtn" style="width:auto;display:inline-block;padding:8px 16px;font-size:0.85rem;color:var(--muted)">Back</button></p>
+  </div>
+  <!-- HOME / EXPLORE -->
+  <div class="screen" id="homeScreen" hidden>
+    <div class="funnel" id="funnelBar">
+      <div class="step-dot active" data-stage="explore"></div>
+      <div class="step-dot" data-stage="save"></div>
+      <div class="step-dot" data-stage="prioritize"></div>
+      <div class="step-dot" data-stage="lock"></div>
+    </div>
+    <h2 class="bighead" id="homeTitle">Explore the collection</h2>
+    <p class="lede" id="homeLede">Browse all items, read the stories, and discover what's here. When you're ready, start marking your interest.</p>
+
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search items, stories, rooms...">
+      <button id="searchBtn">Search</button>
+    </div>
+
+    <div class="search-bar">
+      <button class="ghost" id="browseRoomsBtn" style="width:auto">Browse by room</button>
+      <button class="ghost" id="quickReviewBtn" style="width:auto">Quick review</button>
+    </div>
+
+    <!-- Looking for -->
+    <div class="section-label">Looking for something specific?</div>
+    <div class="lf-input">
+      <input type="text" id="lookingForInput" placeholder="Describe something you remember but can't find...">
+      <button class="ghost" id="lookingForBtn" style="width:auto;padding:12px 16px">Ask</button>
+    </div>
+    <div id="lookingForResult" hidden></div>
+
+    <!-- Item grid -->
+    <div class="section-label" id="gridLabel">All items</div>
+    <div class="item-grid" id="itemGrid"></div>
+  </div>
+
+  <!-- QUICK REVIEW (Tinder-like) -->
+  <div class="screen" id="reviewScreen" hidden>
+    <div class="funnel">
+      <div class="step-dot done"></div>
+      <div class="step-dot active"></div>
+      <div class="step-dot"></div>
+      <div class="step-dot"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2 class="bighead" style="margin:0">Quick Review</h2>
+      <span class="badge" id="reviewCount" style="font-size:0.8rem;padding:6px 12px;border-radius:20px;background:var(--border);color:var(--muted)">0 of 0</span>
+    </div>
+    <div id="reviewCard" class="card" style="padding:0;overflow:hidden">
+      <div class="item-photo-wrap">
+        <img id="reviewPhoto" class="item-photo" alt="">
+      </div>
+      <div style="padding:16px">
+        <h3 id="reviewTitle" style="font-size:1.2rem;margin-bottom:6px"></h3>
+        <p id="reviewRoom" style="font-size:0.85rem;color:var(--muted);margin-bottom:8px"></p>
+        <p id="reviewStory" style="font-size:0.9rem;line-height:1.5;color:var(--text);margin-bottom:4px"></p>
+        <button class="ghost" id="reviewDetailBtn" style="width:auto;font-size:0.85rem;padding:6px 12px;margin-top:8px">Tap for details</button>
+      </div>
+      <div style="padding:0 16px 16px">
+        <div class="swipe-row" id="reviewButtons">
+          <button class="swipe-btn low" data-reaction="low">
+            <span class="icon">✕</span>
+            <span>Low</span>
+          </button>
+          <button class="swipe-btn medium" data-reaction="medium">
+            <span class="icon">♡</span>
+            <span>Medium</span>
+          </button>
+          <button class="swipe-btn high" data-reaction="high">
+            <span class="icon">★</span>
+            <span>High</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <button class="ghost" id="reviewDoneBtn" style="margin-top:16px">Back to menu</button>
+  </div>
+
+  <!-- PRIORITIZE (drag-and-drop ranking) -->
+  <div class="screen" id="prioritizeScreen" hidden>
+    <div class="funnel">
+      <div class="step-dot done"></div>
+      <div class="step-dot done"></div>
+      <div class="step-dot active"></div>
+      <div class="step-dot"></div>
+    </div>
+    <h2 class="bighead">Prioritize what matters most</h2>
+    <p class="lede">Drag to reorder. Your most wanted items go at the top. This helps resolve conflicts fairly.</p>
+    <ul class="rank-list" id="rankList"></ul>
+    <button class="primary" id="saveRankBtn" style="margin-top:16px">Save ranking</button>
+  </div>
+
+  <!-- LOCK CHOICES -->
+  <div class="screen" id="lockScreen" hidden>
+    <div class="funnel">
+      <div class="step-dot done"></div>
+      <div class="step-dot done"></div>
+      <div class="step-dot done"></div>
+      <div class="step-dot active"></div>
+    </div>
+    <h2 class="bighead">Lock your choices</h2>
+    <p class="lede">Once you lock, you can't change your reactions. Make sure you're happy with your ranking.</p>
+    <div class="stat-row" id="lockStats"></div>
+    <button class="danger" id="lockBtn">Lock my choices</button>
+    <p class="reassure" style="margin-top:12px;text-align:center">After everyone locks, Discovery will compare and identify any overlaps.</p>
+  </div>
+
+  <!-- LOCKED / WAITING -->
+  <div class="screen" id="lockedScreen" hidden>
+    <h2 class="bighead">Your review is complete</h2>
+    <div class="stat-row" id="lockedStats"></div>
+    <p class="lede">You expressed interest in <strong id="lockedInterestedCount">0</strong> items.</p>
+    <p class="lede" id="lockedCompetitionSummary"></p>
+    <p class="reassure">Waiting for other heirs to complete their reviews. Once everyone has locked their choices, the comparison will be available.</p>
+    <button class="ghost" id="lockedHomeBtn" style="margin-top:16px">Back to explore</button>
+  </div>
+
+  <!-- OWNER DASHBOARD -->
+  <div class="screen" id="ownerScreen" hidden>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <h2 class="bighead" style="margin-bottom:0">Discovery Dashboard</h2>
+      <button class="ghost" id="ownerLogoutBtn" style="width:auto;padding:6px 12px;font-size:0.85rem">Log out</button>
+    </div>
+    <p class="lede">Invite heirs and track their review progress. Compare results once everyone has locked.</p>
+
+    <div id="ownerStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:20px"></div>
+
+    <div class="section-label">Heirs</div>
+    <div id="heirList"></div>
+
+    <div style="margin:20px 0">
+      <h3 style="font-size:1rem;margin-bottom:8px">Invite a new heir</h3>
+      <input type="text" id="newHeirName" placeholder="Name" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);margin-bottom:8px;background:var(--surface);color:var(--text)">
+      <input type="text" id="newHeirRelationship" placeholder="Relationship (optional)" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);margin-bottom:8px;background:var(--surface);color:var(--text)">
+      <input type="text" id="newHeirEmail" placeholder="Email (optional)" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);margin-bottom:8px;background:var(--surface);color:var(--text)">
+      <button class="primary" id="inviteHeirBtn">Invite heir</button>
+      <div id="inviteResult" hidden></div>
+    </div>
+
+    <div class="section-label">Comparison Report</div>
+    <div id="compareReport">
+      <p class="reassure">Once all heirs lock their choices, the comparison will appear here.</p>
+      <button class="ghost" id="refreshCompareBtn" style="width:auto;margin-top:8px">Check status</button>
+    </div>
+
+    <div class="section-label">Looking For Requests</div>
+    <div id="lookingForList">
+      <p class="reassure">Items heirs are looking for will appear here.</p>
+    </div>
+  </div>
+
+  <!-- DETAIL MODAL -->
+  <div class="detail-overlay" id="detailOverlay" hidden style="display:none">
+    <div class="detail-sheet" id="detailSheet">
+      <button class="close-btn" onclick="closeDetail()">✕</button>
+      <img id="detailPhoto" alt="">
+      <h2 id="detailTitle"></h2>
+      <div class="meta" id="detailMeta"></div>
+      <div id="detailStory"></div>
+      <div id="detailFields"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

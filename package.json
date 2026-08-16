@@ -1,0 +1,25 @@
+{
+  "name": "reindeer-legacy",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Reindeer Registry + Reindeer: FairPlay shared monorepo",
+  "workspaces": [
+    "packages/*",
+    "apps/reindeer-registry",
+    "apps/reindeer-fair-play"
+  ],
+  "scripts": {
+    "test:roundtrip": "node scripts/roundtrip-test.mjs",
+    "test": "node scripts/roundtrip-test.mjs",
+    "fairchoice": "npm --prefix apps/reindeer-fair-play run dev",
+    "registry": "node apps/reindeer-registry/server/index.js",
+    "inventory": "npm run registry"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

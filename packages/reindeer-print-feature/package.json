@@ -1,0 +1,11 @@
+{
+  "name": "@reindeer-legacy/print-feature",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.js",
+  "description": "Print-ready item sheets and reports. First-class feature, not an export button.",
+  "dependencies": {
+    "@reindeer-legacy/core-api": "*",
+    "express": "^4.19.2"
+  }
+}

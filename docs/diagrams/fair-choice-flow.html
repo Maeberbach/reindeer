@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>FairPlay — Flow & State Diagrams</title>
+<style>
+  @page { size: letter landscape; margin: 0.4in; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; margin: 0; padding: 0; color: #28251D; background: #F7F6F2; }
+  .page { width: 1400px; padding: 24px 32px; page-break-after: always; }
+  h1 { font-size: 22px; margin: 0 0 4px 0; font-weight: 600; }
+  h2 { font-size: 14px; margin: 0 0 16px 0; font-weight: 500; color: #7A7974; }
+  svg { display: block; background: #FBFBF9; border: 1px solid #D4D1CA; border-radius: 6px; }
+  .legend { display: flex; gap: 24px; margin-top: 16px; font-size: 11px; color: #7A7974; }
+  .legend span { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle; margin-right: 6px; border: 1px solid rgba(0,0,0,0.08); }
+</style>
+</head>
+<body>
+
+<div class="page">
+<h1>FairPlay — Session State Machine</h1>
+<h2>Every session moves through these phases in order. Phases in dashed boxes are conditional.</h2>
+
+<svg width="1340" height="550" viewBox="0 0 1340 550" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#28251D"/>
+    </marker>
+    <marker id="arrow-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7A7974"/>
+    </marker>
+    <marker id="arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#01696F"/>
+    </marker>
+  </defs>
+
+  <!-- Row 1: Setup phases -->
+  <g font-family="inherit" font-size="13">
+    <!-- welcome -->
+    <rect x="20" y="40" width="130" height="60" rx="6" fill="#F9F8F5" stroke="#D4D1CA" stroke-width="1.5"/>
+    <text x="85" y="65" text-anchor="middle" font-weight="600">welcome</text>
+    <text x="85" y="83" text-anchor="middle" font-size="11" fill="#7A7974">captain lands</text>
+
+    <!-- estate_name -->
+    <rect x="180" y="40" width="130" height="60" rx="6" fill="#F9F8F5" stroke="#D4D1CA" stroke-width="1.5"/>
+    <text x="245" y="65" text-anchor="middle" font-weight="600">estate_name</text>
+    <text x="245" y="83" text-anchor="middle" font-size="11" fill="#7A7974">name the estate</text>
+
+    <!-- registration -->
+    <rect x="340" y="40" width="130" height="60" rx="6" fill="#F9F8F5" stroke="#D4D1CA" stroke-width="1.5"/>
+    <text x="405" y="65" text-anchor="middle" font-weight="600">registration</text>
+    <text x="405" y="83" text-anchor="middle" font-size="11" fill="#7A7974">invite heirs</text>
+
+    <!-- intake -->
+    <rect x="500" y="40" width="130" height="60" rx="6" fill="#F9F8F5" stroke="#D4D1CA" stroke-width="1.5"/>
+    <text x="565" y="65" text-anchor="middle" font-weight="600">intake</text>
+    <text x="565" y="83" text-anchor="middle" font-size="11" fill="#7A7974">items loaded</text>
+
+    <!-- ranking -->
+    <rect x="660" y="40" width="130" height="60" rx="6" fill="#01696F" stroke="#0C4E54" stroke-width="1.5"/>
+    <text x="725" y="65" text-anchor="middle" font-weight="600" fill="#FBFBF9">ranking</text>
+    <text x="725" y="83" text-anchor="middle" font-size="11" fill="#BCE2E7">window opens · heirs rank</text>
+
+    <!-- groupings (dashed - optional) -->
+    <rect x="820" y="40" width="130" height="60" rx="6" fill="#F9F8F5" stroke="#7A7974" stroke-width="1.5" stroke-dasharray="4,3"/>
+    <text x="885" y="65" text-anchor="middle" font-weight="600">groupings</text>
+    <text x="885" y="83" text-anchor="middle" font-size="11" fill="#7A7974">optional · matched sets</text>
+
+    <!-- draft -->
+    <rect x="980" y="40" width="130" height="60" rx="6" fill="#01696F" stroke="#0C4E54" stroke-width="1.5"/>
+    <text x="1045" y="65" text-anchor="middle" font-weight="600" fill="#FBFBF9">draft</text>
+    <text x="1045" y="83" text-anchor="middle" font-size="11" fill="#BCE2E7">rounds run</text>
+
+    <!-- arrows row 1 -->
+    <line x1="150" y1="70" x2="180" y2="70" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <line x1="310" y1="70" x2="340" y2="70" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <line x1="470" y1="70" x2="500" y2="70" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <line x1="630" y1="70" x2="660" y2="70" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <line x1="790" y1="70" x2="820" y2="70" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow)" stroke-dasharray="4,3"/>
+    <line x1="950" y1="70" x2="980" y2="70" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- Transition labels for setup row -->
+    <text x="405" y="30" text-anchor="middle" font-size="10" fill="#A84B2F" font-style="italic">close registration (irreversible)</text>
+    <text x="725" y="30" text-anchor="middle" font-size="10" fill="#7A7974" font-style="italic">items ready</text>
+    <text x="885" y="30" text-anchor="middle" font-size="10" fill="#7A7974" font-style="italic">window closes</text>
+
+    <!-- draft loop-back arrow -->
+    <path d="M 1045 100 Q 1045 130, 1015 130 Q 985 130, 985 100" fill="none" stroke="#01696F" stroke-width="1.5" marker-end="url(#arrow-accent)"/>
+    <text x="1045" y="150" text-anchor="middle" font-size="10" fill="#01696F" font-style="italic">round loops · priority rotates</text>
+
+    <!-- ============ Row 2: Endgame ============ -->
+
+    <!-- decision diamond: unranked leftovers? -->
+    <polygon points="500,200 620,250 500,300 380,250" fill="#F9F8F5" stroke="#7A7974" stroke-width="1.5"/>
+    <text x="500" y="245" text-anchor="middle" font-size="12" font-weight="600">pool empty?</text>
+    <text x="500" y="263" text-anchor="middle" font-size="11" fill="#7A7974">or all remaining unranked?</text>
+
+    <!-- from draft down to diamond -->
+    <path d="M 1045 100 L 1045 170 L 500 170 L 500 200" fill="none" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="770" y="162" text-anchor="middle" font-size="11" fill="#28251D">round complete</text>
+
+    <!-- secondary_ranking -->
+    <rect x="720" y="220" width="150" height="60" rx="6" fill="#F9F8F5" stroke="#D4D1CA" stroke-width="1.5" stroke-dasharray="4,3"/>
+    <text x="795" y="245" text-anchor="middle" font-weight="600">secondary_ranking</text>
+    <text x="795" y="263" text-anchor="middle" font-size="11" fill="#7A7974">rank the leftovers</text>
+
+    <!-- secondary_draft -->
+    <rect x="920" y="220" width="150" height="60" rx="6" fill="#F9F8F5" stroke="#D4D1CA" stroke-width="1.5" stroke-dasharray="4,3"/>
+    <text x="995" y="245" text-anchor="middle" font-weight="600">secondary_draft</text>
+    <text x="995" y="263" text-anchor="middle" font-size="11" fill="#7A7974">same math, small pool</text>
+
+    <!-- complete -->
+    <rect x="1140" y="220" width="150" height="60" rx="6" fill="#437A22" stroke="#2f5a17" stroke-width="1.5"/>
+    <text x="1215" y="245" text-anchor="middle" font-weight="600" fill="#FBFBF9">complete</text>
+    <text x="1215" y="263" text-anchor="middle" font-size="11" fill="#DFF0D3">Record of Decisions</text>
+
+    <!-- yes / no branches from diamond -->
+    <line x1="620" y1="250" x2="720" y2="250" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="670" y="242" text-anchor="middle" font-size="10" fill="#28251D">unranked left</text>
+
+    <path d="M 500 300 L 500 350 L 1215 350 L 1215 280" fill="none" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="850" y="368" text-anchor="middle" font-size="11" fill="#28251D">pool empty · nothing more to draft</text>
+
+    <!-- secondary_ranking -> secondary_draft -->
+    <line x1="870" y1="250" x2="920" y2="250" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- secondary_draft -> complete -->
+    <line x1="1070" y1="250" x2="1140" y2="250" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- secondary_draft loop -->
+    <path d="M 995 280 Q 995 305, 965 305 Q 935 305, 935 280" fill="none" stroke="#01696F" stroke-width="1.5" marker-end="url(#arrow-accent)"/>
+    <text x="995" y="322" text-anchor="middle" font-size="10" fill="#01696F" font-style="italic">rounds loop</text>
+  </g>
+
+  <!-- Parallel track: high-value quarantine -->
+  <g font-family="inherit" font-size="12">
+    <rect x="20" y="420" width="1300" height="110" rx="8" fill="#FFF4E0" stroke="#DA7101" stroke-width="1.5" stroke-dasharray="6,4"/>
+    <text x="40" y="446" font-weight="600" fill="#964219">Parallel track — high-value quarantine (active from ranking onwards)</text>
+    <text x="40" y="470" font-size="11" fill="#28251D">An item flagged high-value (by heir escalation · AI 85%+ category rule · owner Registry Important · captain override) leaves the draft pool. It cannot be picked.</text>
+    <text x="40" y="490" font-size="11" fill="#28251D">A row is written to <tspan font-family="ui-monospace, monospace" font-size="10.5">appraisal_flags</tspan> with reason, and every flag/unflag/valuation event appends to <tspan font-family="ui-monospace, monospace" font-size="10.5">high_value_audit_log</tspan>.</text>
+    <text x="40" y="510" font-size="11" fill="#28251D">Any heir or the trustee can unflag if the family agrees. All flagged items appear on the Record of Decisions and are handed to the trustee outside the app.</text>
+  </g>
+
+</svg>
+
+<div class="legend">
+  <div><span style="background:#F9F8F5;"></span>Setup phase</div>
+  <div><span style="background:#01696F;"></span>Active phase (heirs are doing something)</div>
+  <div><span style="background:#F9F8F5;border-style:dashed;"></span>Conditional phase</div>
+  <div><span style="background:#437A22;"></span>Terminal state</div>
+  <div><span style="background:#FFF4E0;border-color:#DA7101;"></span>Parallel high-value track</div>
+</div>
+</div>
+
+<!-- ============================================================== -->
+<!--  PAGE 2 — draft round flowchart                                 -->
+<!-- ============================================================== -->
+
+<div class="page">
+<h1>FairPlay — One Draft Round, Step by Step</h1>
+<h2>This loop runs every round of the primary draft and the secondary draft. Priority rotates at the end of each round.</h2>
+
+<svg width="1340" height="820" viewBox="0 0 1340 820" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#28251D"/>
+    </marker>
+    <marker id="arrow2-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#01696F"/>
+    </marker>
+    <marker id="arrow2-terra" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#A84B2F"/>
+    </marker>
+  </defs>
+
+  <g font-family="inherit" font-size="12">
+
+    <!-- Start -->
+    <ellipse cx="670" cy="40" rx="120" ry="24" fill="#28251D"/>
+    <text x="670" y="45" text-anchor="middle" fill="#FBFBF9" font-weight="600">Round N begins</text>
+
+    <line x1="670" y1="64" x2="670" y2="90" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+    <!-- Step 1: owedLevel check -->
+    <rect x="510" y="90" width="320" height="70" rx="6" fill="#F9F8F5" stroke="#D4D1CA" stroke-width="1.5"/>
+    <text x="670" y="115" text-anchor="middle" font-weight="600">1 · Check what each heir owes</text>
+    <text x="670" y="135" text-anchor="middle" font-size="11" fill="#7A7974">owedLevel(heir) = pick position they should have submitted</text>
+    <text x="670" y="151" text-anchor="middle" font-size="11" fill="#7A7974">this round vs. what they have submitted</text>
+
+    <line x1="670" y1="160" x2="670" y2="190" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+    <!-- Step 2: heir submits pick (diamond) -->
+    <polygon points="670,190 900,250 670,310 440,250" fill="#F9F8F5" stroke="#7A7974" stroke-width="1.5"/>
+    <text x="670" y="240" text-anchor="middle" font-weight="600" font-size="13">2 · Heir submits a pick</text>
+    <text x="670" y="258" text-anchor="middle" font-size="11" fill="#7A7974">item must be ranked by this heir</text>
+    <text x="670" y="274" text-anchor="middle" font-size="11" fill="#7A7974">and not already awarded</text>
+
+    <!-- three reject arrows off the diamond -->
+    <line x1="900" y1="250" x2="1010" y2="250" stroke="#A84B2F" stroke-width="1.5" marker-end="url(#arrow2-terra)"/>
+    <rect x="1010" y="200" width="290" height="100" rx="6" fill="#FFF0EA" stroke="#A84B2F" stroke-width="1.5"/>
+    <text x="1155" y="223" text-anchor="middle" font-weight="600" fill="#A84B2F">Rejected · try again</text>
+    <text x="1155" y="243" text-anchor="middle" font-size="11">• item flagged high-value → refused</text>
+    <text x="1155" y="260" text-anchor="middle" font-size="11">• already picked at this level → dup</text>
+    <text x="1155" y="277" text-anchor="middle" font-size="11">• owedLevel = 0 → no pick to make</text>
+    <text x="1155" y="294" text-anchor="middle" font-size="11">• item already awarded → refused</text>
+
+    <!-- accepted -->
+    <line x1="670" y1="310" x2="670" y2="340" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+    <!-- Step 3: pick stored pending -->
+    <rect x="490" y="340" width="360" height="70" rx="6" fill="#F9F8F5" stroke="#D4D1CA" stroke-width="1.5"/>
+    <text x="670" y="365" text-anchor="middle" font-weight="600">3 · Pick stored as `pending`</text>
+    <text x="670" y="385" text-anchor="middle" font-size="11" fill="#7A7974">other heirs cannot see it · anyone still owing picks</text>
+    <text x="670" y="401" text-anchor="middle" font-size="11" fill="#7A7974">until captain triggers reveal · auto-picked from ranks if not submitted</text>
+
+    <line x1="670" y1="410" x2="670" y2="440" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+    <!-- Step 4: reveal -->
+    <rect x="510" y="440" width="320" height="60" rx="6" fill="#01696F" stroke="#0C4E54" stroke-width="1.5"/>
+    <text x="670" y="465" text-anchor="middle" font-weight="600" fill="#FBFBF9">4 · Reveal — all picks at this level shown</text>
+    <text x="670" y="485" text-anchor="middle" font-size="11" fill="#BCE2E7">group all pending picks by itemId</text>
+
+    <line x1="670" y1="500" x2="670" y2="530" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+    <!-- Step 5: per-item decision diamond -->
+    <polygon points="670,530 950,600 670,670 390,600" fill="#F9F8F5" stroke="#7A7974" stroke-width="1.5"/>
+    <text x="670" y="580" text-anchor="middle" font-weight="600" font-size="13">5 · For each contested item</text>
+    <text x="670" y="600" text-anchor="middle" font-size="11" fill="#7A7974">how many heirs picked it?</text>
+
+    <!-- uncontested (left) -->
+    <path d="M 390 600 L 240 600 L 240 720" fill="none" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow2)"/>
+    <rect x="258" y="578" width="104" height="36" rx="4" fill="#FBFBF9" stroke="#D4D1CA" stroke-width="1"/>
+    <text x="310" y="594" text-anchor="middle" font-size="11" font-weight="600" fill="#437A22">1 heir</text>
+    <text x="310" y="608" text-anchor="middle" font-size="10" fill="#7A7974">uncontested</text>
+
+    <rect x="80" y="720" width="320" height="80" rx="6" fill="#DFF0D3" stroke="#437A22" stroke-width="1.5"/>
+    <text x="240" y="745" text-anchor="middle" font-weight="600" fill="#437A22">Awarded outright</text>
+    <text x="240" y="765" text-anchor="middle" font-size="11">item.status = awarded</text>
+    <text x="240" y="781" text-anchor="middle" font-size="11">awardedToParticipantId = heir</text>
+
+    <!-- contested (right) -->
+    <path d="M 950 600 L 1100 600 L 1100 720" fill="none" stroke="#28251D" stroke-width="1.5" marker-end="url(#arrow2)"/>
+    <rect x="978" y="578" width="104" height="36" rx="4" fill="#FBFBF9" stroke="#D4D1CA" stroke-width="1"/>
+    <text x="1030" y="594" text-anchor="middle" font-size="11" font-weight="600" fill="#A84B2F">≥ 2 heirs</text>
+    <text x="1030" y="608" text-anchor="middle" font-size="10" fill="#7A7974">contested</text>
+
+    <rect x="940" y="720" width="320" height="80" rx="6" fill="#FFF0EA" stroke="#A84B2F" stroke-width="1.5"/>
+    <text x="1100" y="742" text-anchor="middle" font-weight="600" fill="#A84B2F">Sort by fairness keys · pick winner</text>
+    <text x="1100" y="760" text-anchor="middle" font-size="11">1st key: contestedLossCounter (desc)</text>
+    <text x="1100" y="775" text-anchor="middle" font-size="11">2nd key: priority index (asc)</text>
+    <text x="1100" y="791" text-anchor="middle" font-size="11" font-style="italic">losers +1 to their contestedLossCounter</text>
+  </g>
+</svg>
+
+<div class="legend">
+  <div><span style="background:#F9F8F5;"></span>Process step</div>
+  <div><span style="background:#01696F;"></span>Server action</div>
+  <div><span style="background:#DFF0D3;border-color:#437A22;"></span>Award</div>
+  <div><span style="background:#FFF0EA;border-color:#A84B2F;"></span>Contest resolution</div>
+</div>
+
+<div style="margin-top: 20px; padding: 16px 20px; background: #FBFBF9; border: 1px solid #D4D1CA; border-radius: 6px; font-size: 12px; line-height: 1.6;">
+  <strong style="font-size: 13px;">Why this is fair</strong><br>
+  Every round rotates who's first (P1 goes to the back). Losing a contest raises your <span style="font-family: ui-monospace, monospace; font-size: 11px;">contestedLossCounter</span>, which is the top sort key next time you're in a contest — so unlucky heirs get first crack at what they want most, and no heir stays unlucky. High-value items never enter this loop; the trustee handles them separately on the Record of Decisions.
+</div>
+</div>
+
+<!-- ============================================================== -->
+<!--  PAGE 3 — heir screen sequence                                 -->
+<!-- ============================================================== -->
+
+<div class="page">
+<h1>FairPlay — What an Heir Sees, Screen by Screen</h1>
+<h2>From the invitation email to the final receipt. Each tile is a real screen in the app.</h2>
+
+<svg width="1340" height="810" viewBox="0 0 1340 810" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="arrow3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7A7974"/>
+    </marker>
+    <marker id="arrow3-loop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#01696F"/>
+    </marker>
+  </defs>
+
+  <g font-family="inherit">
+
+    <!-- ============= ROW 1: onboarding ============= -->
+
+    <!-- 1 Email -->
+    <rect x="20" y="30" width="220" height="170" rx="8" fill="#FBFBF9" stroke="#D4D1CA" stroke-width="1.5"/>
+    <rect x="20" y="30" width="220" height="26" rx="8" fill="#28251D"/>
+    <text x="32" y="48" font-size="11" font-weight="600" fill="#FBFBF9">1 · Email inbox</text>
+    <text x="36" y="78" font-size="10" fill="#7A7974">From: FairPlay</text>
+    <text x="36" y="94" font-size="12" font-weight="600" fill="#28251D">You've been invited to</text>
+    <text x="36" y="110" font-size="12" font-weight="600" fill="#28251D">the Miller estate.</text>
+    <text x="36" y="132" font-size="10" fill="#28251D">Click the link below to sign</text>
+    <text x="36" y="146" font-size="10" fill="#28251D">in. Good for 20 minutes.</text>
+    <rect x="36" y="158" width="188" height="28" rx="4" fill="#01696F"/>
+    <text x="130" y="176" text-anchor="middle" font-size="11" font-weight="600" fill="#FBFBF9">Sign in to FairPlay</text>
+
+    <!-- 2 Method Agreement -->
+    <rect x="280" y="30" width="220" height="170" rx="8" fill="#FBFBF9" stroke="#D4D1CA" stroke-width="1.5"/>
+    <rect x="280" y="30" width="220" height="26" rx="8" fill="#28251D"/>
+    <text x="292" y="48" font-size="11" font-weight="600" fill="#FBFBF9">2 · Method Agreement</text>
+    <text x="296" y="78" font-size="12" font-weight="600" fill="#28251D">Before we begin…</text>
+    <text x="296" y="100" font-size="10" fill="#28251D">We will divide personal</text>
+    <text x="296" y="114" font-size="10" fill="#28251D">property using a ranked</text>
+    <text x="296" y="128" font-size="10" fill="#28251D">draft. Money is balanced</text>
+    <text x="296" y="142" font-size="10" fill="#28251D">by the trustee, separately.</text>
+    <rect x="296" y="152" width="14" height="14" rx="2" fill="#FBFBF9" stroke="#7A7974"/>
+    <text x="318" y="163" font-size="10" fill="#28251D">I've read this and agree.</text>
+    <rect x="296" y="172" width="188" height="20" rx="3" fill="#437A22"/>
+    <text x="390" y="186" text-anchor="middle" font-size="10" font-weight="600" fill="#FBFBF9">Sign the Method Agreement</text>
+
+    <!-- 3 Ranking (open) -->
+    <rect x="540" y="30" width="220" height="170" rx="8" fill="#FBFBF9" stroke="#01696F" stroke-width="2"/>
+    <rect x="540" y="30" width="220" height="26" rx="8" fill="#01696F"/>
+    <text x="552" y="48" font-size="11" font-weight="600" fill="#FBFBF9">3 · Ranking is open</text>
+    <text x="556" y="74" font-size="10" fill="#7A7974">Closes Tue · 5 days left</text>
+    <text x="556" y="94" font-size="11" font-weight="600">Drag things you want.</text>
+    <text x="556" y="108" font-size="10" fill="#7A7974">You don't have to rank every item.</text>
+    <!-- ranking list rows -->
+    <rect x="556" y="118" width="188" height="18" rx="3" fill="#F9F8F5" stroke="#D4D1CA"/>
+    <text x="562" y="131" font-size="9" font-weight="700" fill="#20808D">1</text>
+    <text x="578" y="131" font-size="10">Grandfather clock</text>
+    <rect x="556" y="140" width="188" height="18" rx="3" fill="#F9F8F5" stroke="#D4D1CA"/>
+    <text x="562" y="153" font-size="9" font-weight="700" fill="#20808D">2</text>
+    <text x="578" y="153" font-size="10">Wedding china (set)</text>
+    <rect x="556" y="162" width="188" height="18" rx="3" fill="#F9F8F5" stroke="#D4D1CA"/>
+    <text x="562" y="175" font-size="9" font-weight="700" fill="#20808D">3</text>
+    <text x="578" y="175" font-size="10">Dad's leather chair</text>
+
+    <!-- 4 Waiting -->
+    <rect x="800" y="30" width="220" height="170" rx="8" fill="#FBFBF9" stroke="#D4D1CA" stroke-width="1.5"/>
+    <rect x="800" y="30" width="220" height="26" rx="8" fill="#28251D"/>
+    <text x="812" y="48" font-size="11" font-weight="600" fill="#FBFBF9">4 · Between phases</text>
+    <text x="910" y="98" text-anchor="middle" font-size="12" font-weight="600">Waiting on others.</text>
+    <text x="910" y="120" text-anchor="middle" font-size="10" fill="#7A7974">3 of 5 heirs have signed</text>
+    <text x="910" y="134" text-anchor="middle" font-size="10" fill="#7A7974">the Method Agreement.</text>
+    <text x="910" y="156" text-anchor="middle" font-size="10" fill="#7A7974">You'll get an email when</text>
+    <text x="910" y="170" text-anchor="middle" font-size="10" fill="#7A7974">it's your turn again.</text>
+
+    <!-- 5 Draft – your pick -->
+    <rect x="1060" y="30" width="220" height="170" rx="8" fill="#FBFBF9" stroke="#01696F" stroke-width="2"/>
+    <rect x="1060" y="30" width="220" height="26" rx="8" fill="#01696F"/>
+    <text x="1072" y="48" font-size="11" font-weight="600" fill="#FBFBF9">5 · Draft — your pick</text>
+    <text x="1076" y="74" font-size="10" fill="#7A7974">Round 2 · Pick 1 of 1</text>
+    <text x="1076" y="94" font-size="11" font-weight="600">Choose one.</text>
+    <text x="1076" y="108" font-size="10" fill="#7A7974">No one sees your choice until reveal.</text>
+    <rect x="1076" y="118" width="188" height="22" rx="3" fill="#01696F"/>
+    <text x="1170" y="133" text-anchor="middle" font-size="10" font-weight="600" fill="#FBFBF9">Grandfather clock</text>
+    <rect x="1076" y="144" width="188" height="20" rx="3" fill="#F9F8F5" stroke="#D4D1CA"/>
+    <text x="1170" y="158" text-anchor="middle" font-size="10" fill="#7A7974">Wedding china (set)</text>
+    <rect x="1076" y="168" width="188" height="20" rx="3" fill="#F9F8F5" stroke="#D4D1CA"/>
+    <text x="1170" y="182" text-anchor="middle" font-size="10" fill="#7A7974">Dad's leather chair</text>
+
+    <!-- Row 1 arrows -->
+    <line x1="240" y1="115" x2="280" y2="115" stroke="#7A7974" stroke-width="1.5" marker-end="url(#arrow3)"/>
+    <line x1="500" y1="115" x2="540" y2="115" stroke="#7A7974" stroke-width="1.5" marker-end="url(#arrow3)"/>
+    <line x1="760" y1="115" x2="800" y2="115" stroke="#7A7974" stroke-width="1.5" marker-end="url(#arrow3)"/>
+    <line x1="1020" y1="115" x2="1060" y2="115" stroke="#7A7974" stroke-width="1.5" marker-end="url(#arrow3)"/>
+
+    <!-- ============= ROW 2 ============= -->
+
+    <!-- 6 Choice locked -->
+    <rect x="20" y="290" width="220" height="170" rx="8" fill="#FBFBF9" stroke="#D4D1CA" stroke-width="1.5"/>
+    <rect x="20" y="290" width="220" height="26" rx="8" fill="#28251D"/>
+    <text x="32" y="308" font-size="11" font-weight="600" fill="#FBFBF9">6 · Choice locked in</text>
+    <circle cx="130" cy="350" r="18" fill="#437A22"/>
+    <path d="M 122 350 L 128 356 L 138 344" stroke="#FBFBF9" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="130" y="390" text-anchor="middle" font-size="12" font-weight="600">You chose:</text>
+    <text x="130" y="408" text-anchor="middle" font-size="11" font-weight="600" fill="#01696F">Grandfather clock</text>
+    <text x="130" y="432" text-anchor="middle" font-size="10" fill="#7A7974">No one else can see it</text>
+    <text x="130" y="446" text-anchor="middle" font-size="10" fill="#7A7974">until the reveal.</text>
+
+    <!-- 7 Reveal — you won -->
+    <rect x="280" y="290" width="220" height="170" rx="8" fill="#FBFBF9" stroke="#437A22" stroke-width="2"/>
+    <rect x="280" y="290" width="220" height="26" rx="8" fill="#437A22"/>
+    <text x="292" y="308" font-size="11" font-weight="600" fill="#FBFBF9">7a · Reveal — you won</text>
+    <text x="296" y="336" font-size="11" font-weight="600">Round 2 results</text>
+    <rect x="296" y="346" width="188" height="36" rx="3" fill="#DFF0D3"/>
+    <text x="304" y="362" font-size="11" font-weight="600" fill="#437A22">Grandfather clock</text>
+    <text x="304" y="376" font-size="10" fill="#28251D">Awarded to you · uncontested</text>
+    <text x="296" y="400" font-size="10" fill="#7A7974">Sarah won: wedding china</text>
+    <text x="296" y="414" font-size="10" fill="#7A7974">David won: dad's chair</text>
+    <text x="296" y="438" font-size="10" fill="#7A7974">Next round starts in a minute.</text>
+
+    <!-- 7b Reveal — contested loss -->
+    <rect x="540" y="290" width="220" height="170" rx="8" fill="#FBFBF9" stroke="#A84B2F" stroke-width="2"/>
+    <rect x="540" y="290" width="220" height="26" rx="8" fill="#A84B2F"/>
+    <text x="552" y="308" font-size="11" font-weight="600" fill="#FBFBF9">7b · Reveal — contested loss</text>
+    <text x="556" y="336" font-size="11" font-weight="600">Round 3 results</text>
+    <rect x="556" y="346" width="188" height="48" rx="3" fill="#FFF0EA"/>
+    <text x="564" y="362" font-size="11" font-weight="600" fill="#A84B2F">Wedding china (set)</text>
+    <text x="564" y="376" font-size="10" fill="#28251D">3 heirs wanted it. Sarah won.</text>
+    <text x="564" y="388" font-size="10" fill="#28251D">You get +1 contested-loss.</text>
+    <text x="556" y="410" font-size="10" fill="#7A7974">Your counter is now 2 — next</text>
+    <text x="556" y="423" font-size="10" fill="#7A7974">time you're in a contest,</text>
+    <text x="556" y="436" font-size="10" fill="#7A7974">you get priority.</text>
+
+    <!-- 8 Reconciliation checkpoint -->
+    <rect x="800" y="290" width="220" height="170" rx="8" fill="#FBFBF9" stroke="#DA7101" stroke-width="2"/>
+    <rect x="800" y="290" width="220" height="26" rx="8" fill="#DA7101"/>
+    <text x="812" y="308" font-size="11" font-weight="600" fill="#FBFBF9">8 · Reconciliation check</text>
+    <text x="806" y="334" font-size="10" fill="#7A7974">Optional · captain may pause here</text>
+    <text x="910" y="360" text-anchor="middle" font-size="12" font-weight="600">Pausing to check in.</text>
+    <text x="806" y="384" font-size="10">Look at what's been awarded</text>
+    <text x="806" y="398" font-size="10">so far. Are you okay to continue?</text>
+    <rect x="806" y="410" width="92" height="24" rx="3" fill="#437A22"/>
+    <text x="852" y="426" text-anchor="middle" font-size="10" font-weight="600" fill="#FBFBF9">Yes, continue</text>
+    <rect x="906" y="410" width="108" height="24" rx="3" fill="#F9F8F5" stroke="#A84B2F"/>
+    <text x="960" y="426" text-anchor="middle" font-size="10" font-weight="600" fill="#A84B2F">Flag a concern</text>
+
+    <!-- 9 Secondary ranking (conditional) -->
+    <rect x="1060" y="290" width="220" height="170" rx="8" fill="#FBFBF9" stroke="#7A7974" stroke-width="1.5" stroke-dasharray="4,3"/>
+    <rect x="1060" y="290" width="220" height="26" rx="8" fill="#7A7974"/>
+    <text x="1072" y="308" font-size="11" font-weight="600" fill="#FBFBF9">9 · Secondary ranking</text>
+    <text x="1066" y="334" font-size="10" fill="#7A7974">Only if items were left unranked</text>
+    <text x="1076" y="358" font-size="11" font-weight="600">A few things are left.</text>
+    <text x="1076" y="376" font-size="10" fill="#7A7974">Nobody ranked these in the</text>
+    <text x="1076" y="390" font-size="10" fill="#7A7974">first round. Want any of them?</text>
+    <rect x="1076" y="400" width="188" height="18" rx="3" fill="#F9F8F5" stroke="#D4D1CA"/>
+    <text x="1082" y="413" font-size="10">Set of encyclopedias</text>
+    <rect x="1076" y="422" width="188" height="18" rx="3" fill="#F9F8F5" stroke="#D4D1CA"/>
+    <text x="1082" y="435" font-size="10">Garden tools</text>
+
+    <!-- Arrows from row 1 to row 2 -->
+    <path d="M 1170 200 L 1170 260 L 130 260 L 130 290" fill="none" stroke="#7A7974" stroke-width="1.5" marker-end="url(#arrow3)"/>
+    <text x="650" y="254" text-anchor="middle" font-size="10" fill="#7A7974" font-style="italic">wait for reveal</text>
+
+    <!-- 6 -> 7 branches -->
+    <line x1="240" y1="375" x2="280" y2="375" stroke="#7A7974" stroke-width="1.5" marker-end="url(#arrow3)"/>
+    <path d="M 240 375 L 260 375 L 260 500 L 620 500 L 620 460" fill="none" stroke="#7A7974" stroke-width="1.5" marker-end="url(#arrow3)" stroke-dasharray="3,3"/>
+    <text x="440" y="516" text-anchor="middle" font-size="10" fill="#7A7974" font-style="italic">or, if others also picked it</text>
+
+    <!-- 7 -> 8 -->
+    <line x1="500" y1="375" x2="540" y2="375" stroke="none"/>
+    <path d="M 760 375 L 800 375" fill="none" stroke="#7A7974" stroke-width="1.5" marker-end="url(#arrow3)"/>
+
+    <!-- 8 -> 9 -->
+    <line x1="1020" y1="375" x2="1060" y2="375" stroke="#7A7974" stroke-width="1.5" marker-end="url(#arrow3)"/>
+
+    <!-- ============= ROW 3 (final) ============= -->
+
+    <!-- 10 Results / RoD -->
+    <rect x="400" y="580" width="540" height="170" rx="8" fill="#FBFBF9" stroke="#437A22" stroke-width="2"/>
+    <rect x="400" y="580" width="540" height="26" rx="8" fill="#437A22"/>
+    <text x="412" y="598" font-size="12" font-weight="600" fill="#FBFBF9">10 · Results — Record of Decisions</text>
+    <text x="420" y="628" font-size="11" font-weight="600">The Miller estate personal property division — complete</text>
+    <text x="420" y="648" font-size="10" fill="#7A7974">Signed by the trustee on 8 August 2026 · Version 1 · Printable</text>
+    <!-- your items -->
+    <rect x="420" y="660" width="250" height="78" rx="3" fill="#DFF0D3"/>
+    <text x="430" y="676" font-size="10" font-weight="600" fill="#437A22">Your items (3)</text>
+    <text x="430" y="692" font-size="10">• Grandfather clock — R2, uncontested</text>
+    <text x="430" y="706" font-size="10">• Dad's watch — R4, uncontested</text>
+    <text x="430" y="720" font-size="10">• Fishing rods — R5, contested (2)</text>
+    <!-- flagged items -->
+    <rect x="680" y="660" width="250" height="78" rx="3" fill="#FFF4E0"/>
+    <text x="690" y="676" font-size="10" font-weight="600" fill="#964219">Flagged for the trustee (2)</text>
+    <text x="690" y="692" font-size="10">• Diamond brooch — owner Important</text>
+    <text x="690" y="706" font-size="10">• Coin collection — AI category rule</text>
+    <text x="690" y="722" font-size="9" fill="#7A7974">Trustee handles these separately.</text>
+
+    <!-- arrows down to results -->
+    <path d="M 1170 460 L 1170 560 L 670 560 L 670 580" fill="none" stroke="#7A7974" stroke-width="1.5" marker-end="url(#arrow3)"/>
+    <text x="920" y="554" text-anchor="middle" font-size="10" fill="#7A7974" font-style="italic">rounds continue until the pool empties</text>
+
+    <!-- After reveal, most rounds loop back to step 5 for the next pick.
+         Rendered as a small note on tile 7a rather than an arrow, so it
+         doesn't collide with the 'wait for reveal' arrow above. -->
+    <g>
+      <rect x="294" y="466" width="192" height="20" rx="3" fill="#F9F8F5" stroke="#01696F" stroke-width="1" stroke-dasharray="3,2"/>
+      <text x="390" y="480" text-anchor="middle" font-size="10" font-style="italic" fill="#01696F">↻ loops back to step 5 next round</text>
+    </g>
+  </g>
+</svg>
+
+<div style="margin-top: 20px; padding: 14px 20px; background: #FFF4E0; border: 1px solid #DA7101; border-radius: 6px; font-size: 12px; line-height: 1.55;">
+  <strong style="font-size: 13px; color: #964219;">Things the heir never sees</strong><br>
+  Other heirs' rankings (private until the draft). Other heirs' picks (private until reveal). Dollar valuations of items (belong to the trustee). Any "equalization ledger" (retired — balance sits outside the app). Contested-loss counters for other heirs (only your own).
+</div>
+</div>
+
+</body>
+</html>
