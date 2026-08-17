@@ -62,6 +62,9 @@ declare module "@reindeer/exchange/reader" {
     category_name?: string | null;
     room_id?: string | null;
     room_name?: string | null;
+    /** Multi-site: which site this item belongs to. Null = primary/home. */
+    site_id?: string | null;
+    site_name?: string | null;
     description?: string | null;
     story?: string | null;
     quantity?: number | null;

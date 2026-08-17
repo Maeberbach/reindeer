@@ -331,6 +331,9 @@ export const items = sqliteTable("items", {
   originApp: text("origin_app"),
   /** The item's id in the app it came from. Stable across re-imports. */
   originItemId: text("origin_item_id"),
+  /** Multi-site: which site this item belongs to. Null = primary/home. */
+  siteId: text("site_id"),
+  siteName: text("site_name").notNull().default(""),
   importBatchId: text("import_batch_id"),
   quantity: integer("quantity").notNull().default(1),
   conditionNote: text("condition_note").notNull().default(""),

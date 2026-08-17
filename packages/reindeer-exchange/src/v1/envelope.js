@@ -59,6 +59,9 @@ export function buildEnvelope({
       category_name: i.category?.name ?? null,
       room_id: i.room_id,
       room_name: i.room?.name ?? null,
+      // Multi-site: which site this item belongs to. Null/empty = primary/home.
+      site_id: i.site_id ?? null,
+      site_name: i.site_name ?? '',
       description: i.description,
       story: i.story,
       quantity: i.quantity,
