@@ -655,7 +655,7 @@ app.post('/api/owner/sample-data', ownerAuth, (req, res) => {
     if (!room) {
       const id = crypto.randomUUID();
       db.prepare('INSERT INTO rooms (room_id, scope_id, name, is_custom, walkthrough_state) VALUES (?, ?, ?, 0, ?)')
-        .run(id, SCOPE_ID, name, 'started', now, now);
+        .run(id, SCOPE_ID, name, 'started');
       room = db.prepare('SELECT * FROM rooms WHERE room_id = ?').get(id);
     }
     roomIds[name] = room.room_id;
@@ -668,7 +668,7 @@ app.post('/api/owner/sample-data', ownerAuth, (req, res) => {
     if (!cat) {
       const id = crypto.randomUUID();
       db.prepare('INSERT INTO categories (category_id, scope_id, name, is_custom) VALUES (?, ?, ?, 0)')
-        .run(id, SCOPE_ID, name, now, now);
+        .run(id, SCOPE_ID, name);
       cat = db.prepare('SELECT * FROM categories WHERE category_id = ?').get(id);
     }
     catIds[name] = cat.category_id;
