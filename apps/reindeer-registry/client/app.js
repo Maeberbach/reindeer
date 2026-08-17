@@ -320,8 +320,8 @@ function go(name, opts = {}) {
     if (!cap.geoChecked) {
       loadSites().then(() => detectLocation());
     }
-    // Show site section if already checked
-    if (cap.geoChecked) syncSiteUI();
+    // Always update the site UI — breadcrumb shows even before geo check
+    syncSiteUI();
   }
   if (name === 'handoff') {
     api('/api/household-link').then((hl) => {
@@ -386,6 +386,11 @@ document.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-go]');
   if (!btn) return;
   if (btn.dataset.go === 'capture') resetCapture();
+  // The main "rooms in your house" tile resets to primary/home site.
+  // Site tiles set activeSiteId themselves before calling go('walk').
+  if (btn.dataset.go === 'walk' && !btn.dataset.siteId) {
+    activeSiteId = null;
+  }
   go(btn.dataset.go);
 });
 
@@ -429,10 +434,14 @@ let cap = null;
 
 
 function resetCapture() {
+  // Inherit the active site so items captured during a site walk
+  // are tagged to that site automatically.
+  const activeSite = sitesList.find((s) => s.site_id === activeSiteId);
   cap = { file: null, dataUrl: null, title: '', maker: '', marks: '', story: '', valueCents: null, valueBasis: 'unknown',
           room: '', category: '', recipient: '', relationship: '', note: '', ai: null,
           important: false, importantFeeling: false, importantMoney: false,
-          siteId: null, siteName: '', capturedLat: null, capturedLon: null,
+          siteId: activeSiteId || null, siteName: activeSite ? activeSite.name : '',
+          capturedLat: null, capturedLon: null,
           geoChecked: false, offsite: false };
   ['#capTitle', '#capMaker', '#capMarks', '#capStory', '#capValue', '#capRecipient', '#capRelationship', '#capOwnerNote', '#capRoomOther']
     .forEach((s) => { $(s).value = ''; });
@@ -592,6 +601,17 @@ function syncSiteUI() {
   const display = $('#capSiteDisplay');
   const warning = $('#capOffsiteWarning');
   if (!section || !display) return;
+  // Update the site breadcrumb at the top of the capture screen
+  const crumb = $('#capSiteBreadcrumb');
+  if (crumb) {
+    const site = sitesList.find((s) => s.site_id === (cap.siteId || activeSiteId));
+    if (site && !site.is_primary) {
+      crumb.hidden = false;
+      crumb.textContent = `Adding to ${site.name}`;
+    } else {
+      crumb.hidden = true;
+    }
+  }
 
   // Show the site section
   section.hidden = false;
@@ -3210,6 +3230,19 @@ function renderWalk() {
     const site = sitesList.find((s) => s.site_id === activeSiteId);
     walkH.textContent = site ? `${site.name} — your rooms` : 'Your rooms';
   }
+
+  // Show the site bar with a "back to all places" button when in a non-primary site
+  const siteBar = $('#walkSiteBar');
+  if (siteBar) {
+    const site = sitesList.find((s) => s.site_id === activeSiteId);
+    if (site && !site.is_primary) {
+      siteBar.hidden = false;
+      const nameEl = $('#walkSiteName');
+      if (nameEl) nameEl.textContent = site.name;
+    } else {
+      siteBar.hidden = true;
+    }
+  }
   $('#walkRooms').innerHTML = walk.rooms.map((r) => {
     const st = ROOM_STATUS[r.walkthrough_state] ?? ROOM_STATUS.not_started;
     const bits = [];
@@ -3779,6 +3812,18 @@ async function uploadQueue() {
 /* ------------------------------------------------- wiring the walk screens */
 $('#walkNewRoom')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#walkAddRoom').click(); });
 
+// "All places" button on the walk screen — returns to home and
+// scrolls to the sites section so the owner can pick another site.
+$('#walkSiteBack')?.addEventListener('click', () => {
+  activeSiteId = null;
+  go('home');
+  // Scroll to the sites section after the home screen renders
+  setTimeout(() => {
+    const ss = $('#homeSitesSection');
+    if (ss && !ss.hidden) ss.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 100);
+});
+
 $('#walkAddRoom').onclick = async () => {
   const name = $('#walkNewRoom').value.trim();
   if (!name) { toast('Type a name for the room first.', true); return; }
@@ -3790,7 +3835,7 @@ $('#walkAddRoom').onclick = async () => {
   try {
     const created = await api('/api/rooms', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, site_id: activeSiteId || null }),
     });
     registry.rooms.push(created);
     renderRoomChips();

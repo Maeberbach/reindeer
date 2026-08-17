@@ -1133,3 +1133,35 @@ hr.softrule {
 @media (hover: none) {
   .site-tile-del { display: flex; opacity: 0.4; }
 }
+
+/* ---- Site breadcrumb on capture screen ---- */
+.cap-site-breadcrumb {
+  margin: 0 0 12px 0;
+  padding: 6px 12px;
+  background: var(--accent, #f0e6d0);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted, #6b5510);
+}
+
+/* ---- Walk screen site bar ---- */
+.walk-site-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #e8dcc4);
+  border-radius: 10px;
+}
+.walk-site-back {
+  font-size: 14px;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+.walk-site-name {
+  font-weight: 700;
+  font-size: 16px;
+}
