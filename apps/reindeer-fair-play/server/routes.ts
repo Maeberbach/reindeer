@@ -4,9 +4,14 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { storage } from "./storage";
+import { storage, sqlite, ESTATE_ID } from "./storage";
 import { enforcePause } from "./middleware/enforcePause";
 import { requireLicenseForWrite } from "./middleware/licenseMiddleware";
+import {
+  requireSubscriptionForWrite,
+  getEstateSubscription,
+} from "./middleware/subscriptionMiddleware";
+import { isSubscriptionGateEnabled } from "./featureFlags";
 import {
   HEIR_CAPABILITIES,
   canHeirDo,
@@ -32,7 +37,7 @@ import {
   canHelperDo,
   isHelperParticipant,
 } from "@shared/schema";
-import type { Participant } from "@shared/schema";
+import type { Participant, EstateSubscription } from "@shared/schema";
 import { looksLikeSameThing } from "./duplicates/match";
 import { analyzeItem } from "./ai/analyzer";
 import {
@@ -515,6 +520,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // Once a captain exists, session details are no longer public.
     }
     if (req.method === "POST" && req.path === "/session/welcome") return next();
+    // Trustee onboarding: activating a license key may happen before any
+    // heir is signed in. The handler validates the key itself; allowing it
+    // here does not grant access to any estate data.
+    if (req.method === "POST" && req.path === "/license/activate") return next();
     if (req.actor) return next();
     res.status(401).json({ message: SIGN_IN_REQUIRED_MESSAGE });
   });
@@ -525,6 +534,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // (POST/PUT/PATCH/DELETE) — reads are never blocked. No-op while
   // FEATURE_FLAGS.licenseKeys is false (testing mode).
   app.use("/api", requireLicenseForWrite);
+
+  /* ---------- per-estate subscription gate (write gate) ---------- */
+  // Mounted after attachActor + deny-by-default + requireLicenseForWrite, so the
+  // actor is resolved and authenticated first. Only blocks writes
+  // (POST/PUT/PATCH/DELETE) — reads are never blocked. No-op while
+  // FEATURE_FLAGS.subscriptionGate is false (testing mode).
+  app.use("/api", requireSubscriptionForWrite);
 
   /* ---------- v8 high-value fiduciary workflow ---------- */
   app.use("/api/fiduciary", createFiduciaryRouter());
@@ -2787,6 +2803,116 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (e) {
       fail(res, e);
     }
+  });
+
+  /* ---------- subscription status ---------- */
+  /**
+   * GET /api/subscription/status
+   * Returns the current estate's subscription state. Reads are never
+   * blocked, so this is always available to a signed-in heir. The
+   * `gate_enabled` flag tells the client whether the server is actually
+   * enforcing the gate (false in testing mode).
+   */
+  app.get("/api/subscription/status", async (req, res) => {
+    if (!req.actor) {
+      return res.status(401).json({ message: SIGN_IN_REQUIRED_MESSAGE });
+    }
+    const sub = getEstateSubscription(ESTATE_ID);
+    if (!sub) {
+      return res.json({
+        scope_id: ESTATE_ID,
+        status: "active",
+        subscription_expires_at: null,
+        license_expires_at: null,
+        gate_enabled: isSubscriptionGateEnabled(),
+      });
+    }
+    res.json({
+      scope_id: ESTATE_ID,
+      status: sub.status,
+      subscription_expires_at: sub.subscription_expires_at,
+      license_expires_at: sub.license_expires_at,
+      gate_enabled: isSubscriptionGateEnabled(),
+    });
+  });
+
+  /* ---------- license activation (trustee onboarding) ---------- */
+  /**
+   * POST /api/license/activate
+   * Trustee onboarding path. Accepts a Reindeer license key (issued by the
+   * registry) and activates / refreshes the subscription for this estate.
+   * Idempotent: re-activating an already-active estate updates the stored
+   * key and expiry rather than failing.
+   *
+   * While the subscription gate is OFF this still records the key so that
+   * flipping the flag later does not strand estates that onboarded during
+   * testing. The handler is reachable without a signed-in session (see the
+   * deny-by-default allowlist) because the trustee activates the license
+   * before any heir signs in.
+   */
+  app.post("/api/license/activate", async (req, res) => {
+    const body = z
+      .object({
+        licenseKey: z.string().min(1, "A license key is required."),
+        trusteeAccountId: z.string().optional(),
+        licenseExpiresAt: z.string().optional(),
+        stripeCustomerId: z.string().optional(),
+        stripeSubscriptionId: z.string().optional(),
+      })
+      .parse(req.body);
+
+    const now = new Date().toISOString();
+    const existing = sqlite
+      .prepare("SELECT scope_id FROM estate_subscriptions WHERE scope_id = ?")
+      .get(ESTATE_ID) as { scope_id: string } | undefined;
+
+    if (existing) {
+      const stmt = sqlite.prepare(
+        "UPDATE estate_subscriptions SET " +
+          "status = 'active', license_key = ?, license_expires_at = ?, " +
+          "trustee_account_id = COALESCE(?, trustee_account_id), " +
+          "stripe_customer_id = COALESCE(?, stripe_customer_id), " +
+          "stripe_subscription_id = COALESCE(?, stripe_subscription_id), " +
+          "updated_at = ? " +
+          "WHERE scope_id = ?",
+      );
+      stmt.run(
+        body.licenseKey,
+        body.licenseExpiresAt ?? null,
+        body.trusteeAccountId ?? null,
+        body.stripeCustomerId ?? null,
+        body.stripeSubscriptionId ?? null,
+        now,
+        ESTATE_ID,
+      );
+    } else {
+      const stmt = sqlite.prepare(
+        "INSERT INTO estate_subscriptions " +
+          "(scope_id, status, license_key, license_expires_at, " +
+          "trustee_account_id, stripe_customer_id, stripe_subscription_id, " +
+          "license_pool_slots, created_at, updated_at) " +
+          "VALUES (?, 'active', ?, ?, ?, ?, ?, 0, ?, ?)",
+      );
+      stmt.run(
+        ESTATE_ID,
+        body.licenseKey,
+        body.licenseExpiresAt ?? null,
+        body.trusteeAccountId ?? null,
+        body.stripeCustomerId ?? null,
+        body.stripeSubscriptionId ?? null,
+        now,
+        now,
+      );
+    }
+
+    const updated = getEstateSubscription(ESTATE_ID);
+    res.json({
+      ok: true,
+      scope_id: ESTATE_ID,
+      status: updated?.status ?? "active",
+      license_expires_at: updated?.license_expires_at ?? null,
+      gate_enabled: isSubscriptionGateEnabled(),
+    });
   });
 
   return httpServer;
