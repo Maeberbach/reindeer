@@ -4470,7 +4470,7 @@ async function loadHouseholdLink() {
       <div class="link-card" style="margin-top:20px">
         <div><b>Helpers (${assistants.length}/10)</b></div>
         <ul class="plain-list">
-          ${assistants.map((a) => `<li>${escapeHtml(a.display_name || a.email)}</li>`).join('')}
+          ${assistants.map((a) => `<li>${escapeHtml(a.display_name || a.email)} <button class="linky" data-revoke="${a.participant_id}" style="font-size:0.85em;margin-left:8px">remove</button></li>`).join('')}
         </ul>
       </div>` : ''}
       ${pendingInvites.length ? `
@@ -4595,7 +4595,7 @@ async function loadHouseholdLink() {
     <div class="link-card" style="margin-bottom:16px">
       <div><b>Helpers (${assistants.length}/10)</b></div>
       <ul class="plain-list">
-        ${assistants.map((a) => `<li>${escapeHtml(a.display_name || a.email)}</li>`).join('')}
+        ${assistants.map((a) => `<li>${escapeHtml(a.display_name || a.email)} <button class="linky" data-revoke="${a.participant_id}" style="font-size:0.85em;margin-left:8px">remove</button></li>`).join('')}
       </ul>
     </div>` : ''}
 
@@ -4699,17 +4699,21 @@ async function loadHouseholdLink() {
     } catch (e) { toast(e.message, true); }
   };
 
-  // Wire up revoke buttons for pending invites
+  // Wire up revoke/remove buttons for pending invites and active helpers
   body.querySelectorAll('[data-revoke]').forEach((btn) => {
     btn.onclick = async () => {
       const pid = btn.dataset.revoke;
-      if (!confirm('Revoke this invite? They will not be able to sign in with the old link.')) return;
+      const isRemove = btn.textContent.trim() === 'remove';
+      const msg = isRemove
+        ? 'Remove this helper? Their access will be revoked but any photos they took stay on record.'
+        : 'Revoke this invite? They will not be able to sign in with the old link.';
+      if (!confirm(msg)) return;
       try {
         await api('/api/household-link/revoke', {
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ participant_id: pid }),
         });
-        toast('Invite revoked.');
+        toast(isRemove ? 'Helper removed.' : 'Invite revoked.');
         loadHouseholdLink();
       } catch (e) { toast(e.message, true); }
     };

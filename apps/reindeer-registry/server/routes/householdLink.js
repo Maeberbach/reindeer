@@ -255,10 +255,12 @@ export function createHouseholdLinkRouter({ registry, participants, auth, resolv
 
   /**
    * POST /household-link/revoke
-   *   Owner or partner. Removes a pending invite (status='invited' or
-   *   'invited-assistant') so it no longer shows in the pending list.
-   *   If the participant already signed in (status='active'), returns 400
-   *   — they're a real participant now and must be unlinked instead.
+   *   Owner or partner. Removes a pending invite OR an active helper.
+   *   - Pending invites (status='invited'/'invited-assistant'): deleted entirely.
+   *   - Active assistants (status='active', role='assistant'): set to
+   *     status='revoked' so their magic link no longer works, but the
+   *     audit trail of what they photographed is preserved.
+   *   Active partners (co-owners) cannot be removed here — use unlink.
    */
   r.post('/household-link/revoke', ownerOrPartner, (req, res, next) => {
     try {
@@ -266,13 +268,19 @@ export function createHouseholdLinkRouter({ registry, participants, auth, resolv
       if (!participant_id) return res.status(400).json({ error: 'A participant id is needed.' });
       const p = participants.get(participant_id);
       if (!p) return res.status(404).json({ error: 'That person is not on this Registry.' });
-      if (p.status !== 'invited' && p.status !== 'invited-assistant') {
-        return res.status(400).json({ error: 'That person has already signed in. You can unlink instead.' });
+      if (p.status === 'invited' || p.status === 'invited-assistant') {
+        // Pending invite — delete it; they never signed in.
+        db.prepare('DELETE FROM participants WHERE participant_id = ?').run(participant_id);
+        res.json({ ok: true });
+      } else if (p.status === 'active' && p.role === 'assistant') {
+        // Active helper — revoke their access. Set status to 'revoked' so
+        // their magic link stops working, but keep the row for the audit
+        // trail of what they captured.
+        db.prepare('UPDATE participants SET status = ? WHERE participant_id = ?').run('revoked', participant_id);
+        res.json({ ok: true });
+      } else {
+        return res.status(400).json({ error: 'Only pending invites and helpers can be revoked. To remove a co-owner, use unlink.' });
       }
-      // Delete the pending invite — they haven't signed in yet so there's
-      // nothing to preserve.
-      db.prepare('DELETE FROM participants WHERE participant_id = ?').run(participant_id);
-      res.json({ ok: true });
     } catch (e) { next(e); }
   });
 

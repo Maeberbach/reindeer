@@ -140,7 +140,7 @@ export class AuthService {
     const session = this.sessions.resolve(rawToken);
     if (!session) return null;
     const participant = this.participants.get(session.participant_id);
-    if (!participant || participant.status === 'disabled') return null;
+    if (!participant || participant.status === 'disabled' || participant.status === 'revoked') return null;
     return { session, participant };
   }
 
