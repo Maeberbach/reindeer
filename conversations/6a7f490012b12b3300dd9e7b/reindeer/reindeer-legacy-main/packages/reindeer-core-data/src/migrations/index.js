@@ -908,4 +908,47 @@ export const MIGRATIONS = [
       CHECK (ownership_tag IN ('mine', 'theirs', 'ours'));
     `,
   },
+  {
+    id: 23,
+    name: 'estate_subscriptions_and_access_log',
+    // Per-estate subscription infrastructure.
+    //
+    // estate_subscriptions: one row per estate (scope_id) tracking the
+    // subscription state. The 'status' column drives the subscription gate:
+    //   - active:  full read/write access
+    //   - expired: write operations blocked (HTTP 402), reads allowed
+    //   - locked:  write operations blocked (HTTP 402), reads allowed
+    // The gate is controlled by FEATURE_FLAGS.subscriptionGate (currently OFF).
+    //
+    // estate_access_log: append-only audit of subscription-relevant events
+    // (license issued, subscription expired, access blocked, webhook received).
+    // Kept separate from the core audit_log so subscription analytics do not
+    // interleave with item-change audit chains.
+    sql: `
+      CREATE TABLE estate_subscriptions (
+        subscription_id   TEXT PRIMARY KEY,
+        scope_id          TEXT NOT NULL UNIQUE,
+        license_key       TEXT,
+        status            TEXT NOT NULL DEFAULT 'active'
+          CHECK (status IN ('active', 'expired', 'locked')),
+        current_period_start TEXT,
+        current_period_end   TEXT,
+        stripe_customer_id   TEXT,
+        stripe_subscription_id TEXT,
+        created_at        TEXT NOT NULL,
+        updated_at        TEXT NOT NULL
+      );
+      CREATE INDEX idx_estate_subscriptions_scope ON estate_subscriptions(scope_id);
+      CREATE INDEX idx_estate_subscriptions_status ON estate_subscriptions(status);
+
+      CREATE TABLE estate_access_log (
+        log_id      TEXT PRIMARY KEY,
+        scope_id    TEXT NOT NULL,
+        event       TEXT NOT NULL,
+        detail      TEXT NOT NULL DEFAULT '{}',
+        created_at  TEXT NOT NULL
+      );
+      CREATE INDEX idx_estate_access_log_scope ON estate_access_log(scope_id, created_at);
+    `,
+  },
 ];

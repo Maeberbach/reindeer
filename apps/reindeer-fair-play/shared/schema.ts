@@ -1984,3 +1984,51 @@ export type InterestLevel = (typeof INTEREST_LEVELS)[number];
 export type ItemInterest = typeof itemInterests.$inferSelect;
 export const insertItemInterestSchema = createInsertSchema(itemInterests).omit({ id: true });
 export type InsertItemInterest = z.infer<typeof insertItemInterestSchema>;
+
+/* ================================================================== */
+/* estate_subscriptions — per-estate subscription / license state      */
+/* ================================================================== */
+/**
+ * One row per estate, keyed by scope_id (the estate identifier — ESTATE_ID
+ * for the single-estate install, a per-estate ULID when multiEstate is on).
+ *
+ * Drives the subscription gate (FEATURE_FLAGS.subscriptionGate). While the
+ * gate is off (current testing mode) this table is informational only —
+ * writes are never blocked. When the gate is on, requireSubscriptionForWrite
+ * reads this row and returns 402 for estates whose status is
+ * 'expired' | 'locked' | 'cancelled', or whose subscription_expires_at /
+ * license_expires_at has lapsed. Reads are never blocked; data is never
+ * deleted for non-payment.
+ *
+ * Mirrors the estate_subscriptions table added to apps/reindeer-discovery.
+ */
+export const estateSubscriptions = sqliteTable("estate_subscriptions", {
+  /** The estate identifier this subscription governs. */
+  scopeId: text("scope_id").primaryKey(),
+  /** 'active' | 'trialing' | 'expired' | 'locked' | 'cancelled'. */
+  status: text("status").notNull().default("active"),
+  /** ISO-8601 timestamp; null for lifetime / manual subscriptions. */
+  subscriptionExpiresAt: text("subscription_expires_at"),
+  /** Stripe customer id when billing through Stripe. */
+  stripeCustomerId: text("stripe_customer_id"),
+  /** Stripe subscription / price id when billing through Stripe. */
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  /** Reindeer license key (JWT) issued by the registry, for offline / non-Stripe estates. */
+  licenseKey: text("license_key"),
+  /** ISO-8601 expiry for the offline license key. */
+  licenseExpiresAt: text("license_expires_at"),
+  /** The trustee / fiduciary account this estate is bound to (registry account id). */
+  trusteeAccountId: text("trustee_account_id"),
+  /** Pool slots granted by a multi-estate license (0 for single-estate). */
+  licensePoolSlots: integer("license_pool_slots").notNull().default(0),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export type EstateSubscription = typeof estateSubscriptions.$inferSelect;
+export type InsertEstateSubscription = typeof estateSubscriptions.$inferInsert;
+export const insertEstateSubscriptionSchema = createInsertSchema(
+  estateSubscriptions,
+).omit({});
+export type InsertEstateSubscriptionZod = z.infer<typeof insertEstateSubscriptionSchema>;
+

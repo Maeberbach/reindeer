@@ -28,6 +28,12 @@ export const FEATURE_FLAGS = {
   // When ON: each estate DB is encrypted with a key derived from
   // REINDEER_MASTER_KEY + estateId. Requires that env var to be set.
   encryption: false,
+
+  // Per-estate subscription gate.
+  // When true, write endpoints are blocked for estates whose
+  // subscription is expired or locked (HTTP 402 Payment Required).
+  // OFF for now — all access is unlimited during testing.
+  subscriptionGate: false,
 };
 
 /**
@@ -61,4 +67,13 @@ export function isEncryptionEnabled(): boolean {
 
 export function isMultiEstateEnabled(): boolean {
   return FEATURE_FLAGS.multiEstate === true;
+}
+
+/**
+ * Returns true if the per-estate subscription gate is active.
+ * When false, write access is unlimited (testing mode) and
+ * requireSubscriptionForWrite is a no-op.
+ */
+export function isSubscriptionGateEnabled(): boolean {
+  return FEATURE_FLAGS.subscriptionGate === true;
 }

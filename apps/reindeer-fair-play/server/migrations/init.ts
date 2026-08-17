@@ -693,5 +693,30 @@ CREATE UNIQUE INDEX IF NOT EXISTS item_interests_unique
   ON item_interests (session_id, participant_id, item_id);
 CREATE INDEX IF NOT EXISTS item_interests_item
   ON item_interests (session_id, item_id);
+
+/* ------------------------------------------------------------------ */
+/* estate_subscriptions — per-estate subscription / license state      */
+/* ------------------------------------------------------------------ */
+/*
+ * One row per estate, keyed by scope_id. Drives the subscription gate
+ * (FEATURE_FLAGS.subscriptionGate). While the gate is off this table is
+ * informational only. When on, requireSubscriptionForWrite reads it and
+ * returns 402 for estates whose status is expired/locked/cancelled or
+ * whose subscription_expires_at / license_expires_at has lapsed.
+ * Mirrors apps/reindeer-discovery estate_subscriptions.
+ */
+CREATE TABLE IF NOT EXISTS estate_subscriptions (
+  scope_id                TEXT PRIMARY KEY,
+  status                  TEXT NOT NULL DEFAULT 'active',
+  subscription_expires_at TEXT,
+  stripe_customer_id      TEXT,
+  stripe_subscription_id  TEXT,
+  license_key             TEXT,
+  license_expires_at      TEXT,
+  trustee_account_id      TEXT,
+  license_pool_slots      INTEGER NOT NULL DEFAULT 0,
+  created_at              TEXT NOT NULL,
+  updated_at              TEXT NOT NULL
+);
 `);
 }

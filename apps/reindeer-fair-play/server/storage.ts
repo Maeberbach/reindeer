@@ -112,7 +112,7 @@ if (_dbDir && _dbDir !== ".") fs.mkdirSync(_dbDir, { recursive: true });
  * Each install is one estate; when multi-estate is enabled, each estate
  * will have its own ULID and DB file path.
  */
-const ESTATE_ID = process.env.REINDEER_FAIR_PLAY_ESTATE_ID ?? "fair-play-estate";
+export const ESTATE_ID = process.env.REINDEER_FAIR_PLAY_ESTATE_ID ?? "fair-play-estate";
 
 /**
  * Open the estate database, encrypted with SQLCipher when the encryption
