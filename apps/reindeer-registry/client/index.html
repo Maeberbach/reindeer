@@ -563,7 +563,7 @@
   -->
   <section class="screen" data-screen="room" hidden>
     <p class="roomname" id="roomTitle"></p>
-    <p class="lede" id="roomLede">Walk slowly around the room with the camera. Getting it recorded is what matters.</p>
+    <p class="lede" id="roomLede">Take several photos around the room. Getting it recorded is what matters.</p>
 
     <div class="roomstats" id="roomStats"></div>
 
@@ -575,7 +575,12 @@
         <input type="file" id="roomPhotos" accept="image/*" multiple hidden>
       </label>
 
-      <label class="tile filetile">
+      <!--
+        Video recording tile — hidden for now, kept coded for future use.
+        The roomVideo input and its JS handler (app.js $('#roomVideo').onchange)
+        remain wired; just not shown to users yet.
+      -->
+      <label class="tile filetile" data-video-tile hidden>
         <span class="ico">🎥</span>
         <span class="lbl">Record a video instead</span>
         <span class="hint">Walk around slowly. Hold on anything important for a moment.</span>
@@ -779,10 +784,14 @@
     -->
     <div id="batchIntake">
     <h2>Add a lot of things at once</h2>
-    <p class="lede">Two ways. Walk through a room with the camera running, or choose photos.
-      Either way, everything we can see goes on your list.</p>
+    <p class="lede">Choose photos and everything we can see goes on your list.</p>
 
-    <div class="lane">
+    <!--
+      Video walkthrough lane — hidden for now, kept coded for future use.
+      The batchVideo input, videoState div, and JS handler (app.js
+      $('#batchVideo').onchange) remain wired; just not shown yet.
+    -->
+    <div class="lane" data-video-lane hidden>
       <h3>Walk through a room</h3>
       <p class="reassure">Hold the phone up and walk slowly. Pause a moment on anything you want
         recorded. A minute or two of one room works better than a long tour of the house.</p>
