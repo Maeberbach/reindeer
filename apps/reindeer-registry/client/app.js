@@ -932,49 +932,10 @@ $('#capPhoto').onchange = async (e) => {
   if (!f) return;
   cap.file = f;
   cap.dataUrl = await downscale(f, 1600);
-  $('#capPreview').src = cap.dataUrl;
-  $('#capPreview').hidden = false;
-
-  // Show the details section
-  showCapDetails();
-
-  // Recognition — same async AI label detection as before.
-  // Runs in the background; the owner can fill in details while it thinks.
-  const setNote = (html) => {
-    const el = $('#aiNote');
-    if (!el) return;
-    el.hidden = false;
-    el.innerHTML = html;
-  };
-  setNote('<em>Identifying…</em>');
-
-  try {
-    const fd = new FormData();
-    fd.append('photo', f);
-    const r = await fetch(`${API}/api/vision/identify`, { method: 'POST', body: fd });
-    if (!r.ok) throw new Error(r.statusText);
-    const data = await r.json();
-    if (data.label) {
-      cap.ai = { label: data.label, confidence: data.confidence ?? null };
-      // Only pre-fill if the owner hasn't typed anything yet
-      if (!$('#capTitle').value.trim()) {
-        $('#capTitle').value = data.label;
-      }
-      setNote(`AI suggests: <strong>${escapeHtml(data.label)}</strong>${data.confidence ? ` (${Math.round(data.confidence * 100)}%)` : ''}`);
-    } else {
-      $('#aiNote').hidden = true;
-    }
-  } catch {
-    $('#aiNote').hidden = true;
-  }
-};
-
-$('#capPhoto').onchange = async (e) => {
-  const f = e.target.files[0];
-  if (!f) return;
-  cap.file = f;
-  cap.dataUrl = await downscale(f, 1600);
   $('#capPreview').src = cap.dataUrl; $('#capPreview').hidden = false;
+
+  // Show the details section so the owner can type while AI thinks
+  showCapDetails();
 
   // Recognition can take most of a minute. Saying so, on the screen and not in
   // a toast that vanishes, is the difference between waiting and concluding the

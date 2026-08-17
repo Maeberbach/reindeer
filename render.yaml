@@ -12,6 +12,8 @@ services:
         sync: false
       - key: REINDEER_VISION_KEY
         sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
       - key: REINDEER_INVENTORY_DIR
         value: /var/data
     disk:
@@ -36,6 +38,8 @@ services:
         value: /var/data/data.db
       - key: REINDEER_FAIR_PLAY_AUTH_SECRET
         generateValue: true
+      - key: ANTHROPIC_API_KEY
+        sync: false
     disk:
       name: fair-play-data
       mountPath: /var/data
