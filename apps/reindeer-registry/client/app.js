@@ -289,7 +289,11 @@ function go(name, opts = {}) {
   if (name === 'promise') renderPromise();
   // Landing on the menu ends the gifting walk, so "Add one item" is never
   // silently shortened by a mode the owner has already left behind.
-  if (name === 'home') { promiseMode = false; renderResume(); refreshQueueBadge(); renderCounters(); renderPartnerCard(); showAdminTile(); }
+  if (name === 'home') {
+    promiseMode = false; renderResume(); refreshQueueBadge(); renderCounters(); renderPartnerCard(); showAdminTile();
+    // Update the quick-start tile based on whether items exist
+    updateHomeTile();
+  }
   if (name === 'batch') { const bi = $('#batchIntake'); if (bi) bi.hidden = false; }
   if (name === 'list') loadList();
   if (name === 'signing') loadExecution();
@@ -576,6 +580,9 @@ $('#capPhoto').onchange = async (e) => {
         + 'so please type what this is. Nothing has been guessed for you.');
       return;
     }
+    // In guided intro mode, even without AI detection, show the accept bar
+    // so the owner can type a name and save in one go.
+    if (guidedIntroMode) showAcceptBar('', null);
     const best = detections.sort((a, b) => b.confidence - a.confidence)[0];
     if (best) {
       cap.ai = best;
@@ -585,6 +592,9 @@ $('#capPhoto').onchange = async (e) => {
       if (box && !box.value.trim()) box.value = best.label;
       setNote(`This looks like: ${escapeHtml(best.label)}${best.category_hint ? ` (${escapeHtml(best.category_hint)})` : ''}. Change it if that is not right.`);
       if (best.category_hint) cap.category = best.category_hint;
+      // In guided intro mode, show the accept bar so the owner can confirm
+      // the AI label and save in one tap without scrolling through details.
+      if (guidedIntroMode) showAcceptBar(best.label, best.category_hint);
     } else {
       setNote('<b>Photo saved.</b> Nothing was recognised in it, so please type what this is.');
     }
@@ -731,6 +741,57 @@ function buildIdentifiers() {
   return out;
 }
 
+// ---- Guided intro: AI accept bar ----
+// When the owner taps "Add your first item" and takes a photo, the AI
+// identifies it. Instead of silently filling a form field, show a
+// prominent bar: "AI suggests: [label]" with an Accept button that
+// saves the item immediately and returns home. The full details form
+// is still below for anyone who wants to add more.
+function showAcceptBar(label, categoryHint) {
+  let bar = $('#capAcceptBar');
+  if (!bar) return; // element doesn't exist (shouldn't happen)
+  bar.hidden = false;
+  const labelText = label
+    ? `AI suggests: <strong>${escapeHtml(label)}</strong>${categoryHint ? ` (${escapeHtml(categoryHint)})` : ''}`
+    : 'Type a name for this item, or just save the photo.';
+  $('#capAcceptLabel').innerHTML = labelText;
+  const input = $('#capAcceptName');
+  if (input && label) input.value = label;
+  if (input) input.placeholder = label ? 'Change the name if this is not right' : 'What is this?';
+  // Focus the accept input so the owner can edit right away
+  if (input) setTimeout(() => input.focus(), 100);
+}
+
+// Accept & Save button — saves the item with the AI label (or edited name)
+// and returns home. Quick path for the "Add your first item" flow.
+$('#capAcceptBtn')?.addEventListener('click', async () => {
+  const acceptInput = $('#capAcceptName');
+  if (acceptInput && acceptInput.value.trim()) {
+    cap.title = acceptInput.value.trim();
+    // Also sync the main title field so saveItem picks it up
+    const mainTitle = $('#capTitle');
+    if (mainTitle && !mainTitle.value.trim()) mainTitle.value = cap.title;
+  }
+  // Collect minimal fields and save
+  cap.story = '';
+  cap.recipient = '';
+  cap.relationship = '';
+  cap.note = '';
+  return saveItem();
+});
+
+// "Edit details" button — hides the accept bar and reveals the full form
+$('#capEditDetailsBtn')?.addEventListener('click', () => {
+  const bar = $('#capAcceptBar');
+  if (bar) bar.hidden = true;
+  // Sync any typed name to the main title field
+  const acceptInput = $('#capAcceptName');
+  if (acceptInput && acceptInput.value.trim()) {
+    const mainTitle = $('#capTitle');
+    if (mainTitle && !mainTitle.value.trim()) mainTitle.value = acceptInput.value.trim();
+  }
+});
+
 async function saveItem() {
   try {
     const item = await api('/api/items', {
@@ -791,7 +852,7 @@ async function saveItem() {
     if (promiseMode) { promiseKept += 1; return go('memo'); }
     if (quickTestMode) { quickTestMode = false; return go('whosdoing'); }
     if (recipientPracticeMode) { recipientPracticeMode = false; return go('walk'); }
-    if (guidedIntroMode) { guidedIntroMode = false; return go('home'); }
+    if (guidedIntroMode) { guidedIntroMode = false; updateHomeTileAfterFirstItem(); return go('home'); }
     go('home');
   } catch (e) { toast(e.message, true); }
 }
@@ -2187,6 +2248,32 @@ async function renderPartnerCard() {
  *
  * Never combined into a percentage — see the note in the markup.
  */
+// After the first item is saved in guided intro mode, update the home
+// tile to offer "Add another item?" and a hint about the room walkthrough.
+function updateHomeTileAfterFirstItem() {
+  const tile = $('#homeQuickStart');
+  if (!tile) return;
+  const lbl = tile.querySelector('.lbl');
+  const hint = tile.querySelector('.hint');
+  if (lbl) lbl.textContent = 'Add another item?';
+  if (hint) hint.textContent = 'Or try the room-by-room walkthrough to capture a whole room at once.';
+}
+
+// On every home render, check if items already exist and update the tile.
+async function updateHomeTile() {
+  const tile = $('#homeQuickStart');
+  if (!tile) return;
+  try {
+    const { items } = await api('/api/items');
+    if (items.length > 0) {
+      const lbl = tile.querySelector('.lbl');
+      const hint = tile.querySelector('.hint');
+      if (lbl) lbl.textContent = 'Add another item?';
+      if (hint) hint.textContent = 'Or try the room-by-room walkthrough to capture a whole room at once.';
+    }
+  } catch { /* fail-silent — keep default tile text */ }
+}
+
 async function renderCounters() {
   let items = [];
   try { ({ items } = await api('/api/items')); } catch { return; }
