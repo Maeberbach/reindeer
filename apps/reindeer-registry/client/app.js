@@ -4179,13 +4179,6 @@ function renderMemo() {
   versionsBtn.hidden = !hasSigned;
   versionsBtn.style.display = hasSigned ? '' : 'none';
 
-  // The primary action \u2014 "Print and sign" \u2014 is only meaningful when
-  // there is at least one entry with a person named. Otherwise it's a
-  // dead-end, so we disable it and tell the owner why in the label.
-  const canSign = entries.some((e) => !!e.assigned_to_heir_id);
-  const signBtn = $('#memoSignBtn');
-  signBtn.disabled = !canSign;
-  signBtn.textContent = canSign ? 'Print and sign' : 'Print and sign \u2014 add at least one first';
 }
 
 /*
@@ -4414,10 +4407,6 @@ $('#memoEntryNote').addEventListener('input', (e) => {
  * will wire the real destinations. For now they route to the existing
  * giftsign / giftversions screens so the buttons don't dead-end mid-slice.
  */
-$('#memoSignBtn').onclick = () => {
-  toast('The sign flow lands next step. For now, use the older screen.');
-  go('giftsign');
-};
 $('#memoVersionsBtn').onclick = () => go('giftversions');
 
 /* ================================================================== */
