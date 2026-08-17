@@ -310,7 +310,19 @@ function go(name, opts = {}) {
   // Slice B \u2014 the new memorandum writer. Each mount re-reads
   // /api/memorandum so entries, conflicts, and the version chip are
   // never stale relative to what the partner just did.
-  if (name === 'memo') loadMemo();
+  if (name === 'memo') {
+    // Only owners and co-owners can see the designated-items list.
+    // Helpers are redirected home — they can't designate gifts.
+    api('/api/household-link').then((hl) => {
+      const me = (hl?.participants || []).find((p) => p.is_me);
+      if (me?.role === 'assistant') {
+        toast('Only the owners can designate specific gifts to people.', true);
+        go('home');
+      } else {
+        loadMemo();
+      }
+    }).catch(() => loadMemo());
+  }
   if (name === 'memoentry' && !opts.editing) resetMemoEntry();
   // Slice 4 \u2014 household-link screen. Refreshes its data on every mount
   // so link state stays fresh without an app-wide state store.
@@ -2194,6 +2206,12 @@ async function renderPartnerCard() {
     document.querySelectorAll('[data-go="householdlink"]').forEach(el => {
       if (el.closest('.quietrow')) el.style.display = 'none';
     });
+    // Helpers cannot designate gifts, sign, or hand off — hide those tiles.
+    document.querySelectorAll('[data-go="memo"], [data-go="signing"], [data-go="handoff"]').forEach(el => {
+      el.style.display = 'none';
+    });
+    const cc = $('#homeConflictCounter');
+    if (cc) cc.style.display = 'none';
     return;
   }
 
@@ -4170,15 +4188,6 @@ function renderMemo() {
     });
   }
 
-  // Footer buttons. The versions link only appears once at least one
-  // version has been signed, otherwise there's nothing to look at.
-  // memoState.versions comes from the server and includes the current
-  // in-flight draft, so filter to entries that were actually signed.
-  const hasSigned = memoState.versions.some((v) => v.is_signed === true || v.is_signed === 1);
-  const versionsBtn = $('#memoVersionsBtn');
-  versionsBtn.hidden = !hasSigned;
-  versionsBtn.style.display = hasSigned ? '' : 'none';
-
 }
 
 /*
@@ -4407,7 +4416,7 @@ $('#memoEntryNote').addEventListener('input', (e) => {
  * will wire the real destinations. For now they route to the existing
  * giftsign / giftversions screens so the buttons don't dead-end mid-slice.
  */
-$('#memoVersionsBtn').onclick = () => go('giftversions');
+
 
 /* ================================================================== */
 /* Slice 4 \u2014 household link screen.                                 */
