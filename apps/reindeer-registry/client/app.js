@@ -1514,7 +1514,9 @@ async function runFinishActions({ email }) {
 
 ${ownerName} has put together an inventory of their possessions and their wishes about who should receive each item. The attached file contains everything — the full list, every photo, and every story.
 
-To open it, go to ${window.location.origin.replace('registry', 'fair-play')} and use the "Import from Registry" option.
+To open it, go to ${window.location.origin.replace('registry', 'fair-play')} and use the "Import from Registry" option. You will also need a data access code from ${ownerName} — they will share it with you separately.
+
+Keep this file with the estate planning documents. It is the personal property memorandum referenced by the will.
 
 This package was prepared on ${new Date().toLocaleDateString('en-US', { dateStyle: 'long' })}.`;
 
@@ -1577,6 +1579,11 @@ This package was prepared on ${new Date().toLocaleDateString('en-US', { dateStyl
   ].join('');
   FINISH_OPTS.forEach((id) => { $(id).checked = false; });
   updateFinishButton();
+
+  // Show the data access code + safe keeping instructions after actions complete
+  if (done.length) {
+    $('#finalInstructions').hidden = false;
+  }
 }
 
 function triggerDownload(url) {
