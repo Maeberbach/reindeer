@@ -961,4 +961,36 @@ export const MIGRATIONS = [
       ON estate_access_log(scope_id, created_at DESC);
     `,
   },
+  {
+    id: 25,
+    name: 'geo_sites',
+    sql: `
+    -- Authorized locations where items can be added. The home/primary
+    -- site is created with the scope; additional sites (storage unit,
+    -- second home, vacation home) are added by the owner. Each site has
+    -- optional GPS coordinates for geosyncing — when the capture flow
+    -- detects the device is at a known site, items are auto-tagged.
+    CREATE TABLE sites (
+      site_id     TEXT PRIMARY KEY,
+      scope_id    TEXT NOT NULL REFERENCES scopes(scope_id) ON DELETE CASCADE,
+      name        TEXT NOT NULL,
+      kind        TEXT NOT NULL DEFAULT 'home',
+      lat         REAL,
+      lon         REAL,
+      radius_m    INTEGER NOT NULL DEFAULT 100,
+      is_primary  INTEGER NOT NULL DEFAULT 0,
+      created_at  TEXT NOT NULL
+    );
+    CREATE INDEX idx_sites_scope ON sites(scope_id);
+
+    -- Tag each item with the site it was added from. NULL means the
+    -- item was added before geosyncing or from an unrecognized location.
+    ALTER TABLE items ADD COLUMN site_id TEXT REFERENCES sites(site_id) ON DELETE SET NULL;
+    ALTER TABLE items ADD COLUMN site_name TEXT NOT NULL DEFAULT '';
+
+    -- Track where each item was captured (lat/lon at time of add).
+    ALTER TABLE items ADD COLUMN captured_lat REAL;
+    ALTER TABLE items ADD COLUMN captured_lon REAL;
+    `,
+  },
 ];

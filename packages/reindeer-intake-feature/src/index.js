@@ -5,3 +5,4 @@ export { SimpleDuplicateDetector, titleSimilarity } from './duplicates.js';
 export { createIntakeRouter, reindeerErrorHandler } from './server/router.js';
 export { createExecutionRouter } from './server/executionRouter.js';
 export { createPeopleRouter } from './server/peopleRouter.js';
+export { createSitesRouter } from './server/sitesRouter.js';

@@ -16,6 +16,10 @@ const toRow = (i) => ({
   // validator has already trimmed and length-checked it before we get here.
   owner_important_comment: i.owner_important_comment ?? '',
   ownership_tag: i.ownership_tag ?? 'mine',
+  site_id: i.site_id ?? null,
+  site_name: i.site_name ?? '',
+  captured_lat: i.captured_lat ?? null,
+  captured_lon: i.captured_lon ?? null,
 });
 
 const fromRow = (r) => r && ({
@@ -26,6 +30,10 @@ const fromRow = (r) => r && ({
   owner_high_value: !!r.owner_high_value,
   owner_high_value_reason: r.owner_high_value_reason ?? '',
   owner_important_comment: r.owner_important_comment ?? '',
+  site_id: r.site_id ?? null,
+  site_name: r.site_name ?? '',
+  captured_lat: r.captured_lat ?? null,
+  captured_lon: r.captured_lon ?? null,
 });
 
 export class SqliteItemRepository extends ItemRepository {
@@ -46,12 +54,14 @@ export class SqliteItemRepository extends ItemRepository {
         description, story, quantity, condition, identifiers, value_estimate_cents, value_basis,
         high_value_flag, owner_high_value, owner_high_value_reason, owner_important_comment,
         ownership_tag,
-        ai_confidence, review_state, print_state, export_state, created_at, updated_at)
+        ai_confidence, review_state, print_state, export_state, created_at, updated_at,
+        site_id, site_name, captured_lat, captured_lon)
       VALUES (@item_id, @scope_id, @origin_app, @origin_item_id, @title, @category_id, @room_id,
         @description, @story, @quantity, @condition, @identifiers, @value_estimate_cents, @value_basis,
         @high_value_flag, @owner_high_value, @owner_high_value_reason, @owner_important_comment,
         @ownership_tag,
-        @ai_confidence, @review_state, @print_state, @export_state, @created_at, @updated_at)
+        @ai_confidence, @review_state, @print_state, @export_state, @created_at, @updated_at,
+        @site_id, @site_name, @captured_lat, @captured_lon)
     `).run({ ...row, scope_id: ctx.scopeId });
 
     if (input.recipient_hint) await this.setRecipientHint(value.item_id, input.recipient_hint, ctx);
@@ -121,6 +131,8 @@ export class SqliteItemRepository extends ItemRepository {
         high_value_flag=@high_value_flag,
         ownership_tag=@ownership_tag,
         owner_high_value=@owner_high_value, owner_high_value_reason=@owner_high_value_reason,
+        site_id=@site_id, site_name=@site_name,
+        captured_lat=@captured_lat, captured_lon=@captured_lon,
         owner_important_comment=@owner_important_comment,
         ai_confidence=@ai_confidence, review_state=@review_state,
         print_state=@print_state, export_state=@export_state, updated_at=@updated_at

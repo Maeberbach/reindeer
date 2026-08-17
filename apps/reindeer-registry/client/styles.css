@@ -1060,3 +1060,30 @@ hr.softrule {
 .contested-special h3 { margin: 0 0 4px 0; font-size: 18px; font-weight: 600; }
 .contested-special .why { margin: 0 0 10px 0; font-size: 14px; line-height: 1.45; color: var(--ink-2, #6c5f4b); }
 .contested-special button { width: 100%; }
+
+/* -------------------------------------------------- Geosyncing */
+
+.site-display { margin-bottom: 8px; }
+
+.site-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 8px;
+  background: var(--accent-soft, #f7f0e8);
+  border: 1px solid var(--border, #e5dccb);
+  font-size: 14px; font-weight: 500;
+}
+.site-badge.site-unknown {
+  background: #fff4d6; border-color: #c89b1a;
+  color: #6b5510;
+}
+
+.offsite-warning {
+  margin-top: 12px; padding: 14px 16px;
+  border: 1px solid #c89b1a; border-radius: 12px;
+  background: #fff8e6;
+}
+.offsite-warning p { margin: 0 0 8px 0; font-size: 15px; line-height: 1.5; }
+.offsite-warning .offsite-detail { font-size: 14px; color: #6b5510; }
+.offsite-actions { display: grid; gap: 8px; margin-top: 12px; }
+.offsite-add-form { display: grid; gap: 8px; margin-top: 12px; }
+.offsite-add-form button { margin-top: 4px; }

@@ -259,6 +259,13 @@ export function makeItemRecord(input = {}) {
     // docs/decisions/2026-08-06-important-comment.md.
     owner_important_comment: input.owner_important_comment ?? '',
     ownership_tag: input.ownership_tag ?? 'mine',
+    // Geosyncing: which authorized site the item was added from, and
+    // the GPS coordinates captured at add time. site_id is NULL when
+    // the item predates geosyncing or was added from an unknown location.
+    site_id: input.site_id ?? null,
+    site_name: input.site_name ?? '',
+    captured_lat: input.captured_lat ?? null,
+    captured_lon: input.captured_lon ?? null,
     ai_confidence: input.ai_confidence ?? null,
     review_state: input.review_state ?? REVIEW_STATE.DRAFT,
     print_state: input.print_state ?? PRINT_STATE.UNPRINTED,

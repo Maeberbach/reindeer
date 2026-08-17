@@ -689,6 +689,33 @@
         </div>
       </div>
 
+      <!-- Geosyncing: site detection -->
+      <div class="cap-section" id="capSiteSection" hidden>
+        <label class="fieldlabel">Site</label>
+        <div id="capSiteDisplay" class="site-display"></div>
+        <select id="capSiteSelect" class="bigin" hidden></select>
+      </div>
+
+      <!-- Offsite warning -->
+      <div class="offsite-warning" id="capOffsiteWarning" hidden>
+        <p><strong>⚠ You appear to be away from your registered sites.</strong></p>
+        <p class="offsite-detail">Items can be added from a storage unit, second home, or vacation site — but only if that site is registered first. This prevents confusion when items from different locations are mixed together.</p>
+        <div class="offsite-actions">
+          <button class="ghost wide" id="capAddSiteBtn">Register this location as a new site</button>
+          <button class="ghost wide" id="capSkipGeoBtn">Add anyway from an unknown location</button>
+        </div>
+        <div class="offsite-add-form" id="capAddSiteForm" hidden>
+          <input type="text" id="capSiteName" class="bigin" placeholder="Name this site (e.g. Storage unit, Lake house)">
+          <select id="capSiteKind" class="bigin">
+            <option value="storage">Storage unit</option>
+            <option value="second_home">Second home</option>
+            <option value="vacation">Vacation home</option>
+            <option value="other">Other location</option>
+          </select>
+          <button class="primary" id="capSiteSaveBtn">Register site</button>
+        </div>
+      </div>
+
       <!-- Story -->
       <div class="cap-section">
         <label class="fieldlabel" for="capStory">Tell its story (optional)</label>

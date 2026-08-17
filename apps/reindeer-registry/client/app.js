@@ -306,7 +306,14 @@ function go(name, opts = {}) {
     }).catch(() => loadExecution());
   }
   if (name === 'people') loadPeople();
-  if (name === 'capture') { /* chips are rendered when details show */ }
+  if (name === 'capture') {
+    // Trigger geosyncing when entering capture
+    if (!cap.geoChecked) {
+      loadSites().then(() => detectLocation());
+    }
+    // Show site section if already checked
+    if (cap.geoChecked) syncSiteUI();
+  }
   if (name === 'handoff') {
     api('/api/household-link').then((hl) => {
       const me = (hl?.participants || []).find((p) => p.is_me);
@@ -415,7 +422,9 @@ let cap = null;
 function resetCapture() {
   cap = { file: null, dataUrl: null, title: '', maker: '', marks: '', story: '', valueCents: null, valueBasis: 'unknown',
           room: '', category: '', recipient: '', relationship: '', note: '', ai: null,
-          important: false, importantFeeling: false, importantMoney: false };
+          important: false, importantFeeling: false, importantMoney: false,
+          siteId: null, siteName: '', capturedLat: null, capturedLon: null,
+          geoChecked: false, offsite: false };
   ['#capTitle', '#capMaker', '#capMarks', '#capStory', '#capValue', '#capRecipient', '#capRelationship', '#capOwnerNote', '#capRoomOther']
     .forEach((s) => { $(s).value = ''; });
   $('#capValueBasis').value = 'unknown';
@@ -498,6 +507,145 @@ function wireImportantControl() {
   });
 }
 wireImportantControl();
+
+/*
+ * Geosyncing: detect the device location when the capture flow starts and
+ * match it to a registered site. If no site matches, show an offsite
+ * warning so the owner can register the location or proceed.
+ *
+ * The owner can always add or delete items from any location — geosyncing
+ * is about TAGGING where items were added, not restricting access.
+ */
+
+let sitesList = [];
+let currentSite = null;
+
+async function loadSites() {
+  try {
+    sitesList = await api('/api/sites');
+    return sitesList;
+  } catch (e) {
+    console.warn('Could not load sites:', e.message);
+    return [];
+  }
+}
+
+function detectLocation() {
+  if (!navigator.geolocation) {
+    console.info('Geolocation not available — skipping site detection');
+    cap.geoChecked = true;
+    syncSiteUI();
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      cap.capturedLat = pos.coords.latitude;
+      cap.capturedLon = pos.coords.longitude;
+      cap.geoChecked = true;
+      await matchSite();
+      syncSiteUI();
+    },
+    (err) => {
+      console.info('Geolocation denied or unavailable:', err.message);
+      cap.geoChecked = true;
+      syncSiteUI();
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+  );
+}
+
+async function matchSite() {
+  if (cap.capturedLat == null || cap.capturedLon == null) return;
+  try {
+    const res = await api('/api/sites/match', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ lat: cap.capturedLat, lon: cap.capturedLon }),
+    });
+    if (res.matched && res.site) {
+      currentSite = res.site;
+      cap.siteId = res.site.site_id;
+      cap.siteName = res.site.name;
+      cap.offsite = false;
+    } else {
+      currentSite = null;
+      cap.siteId = null;
+      cap.siteName = '';
+      cap.offsite = true;
+    }
+  } catch (e) {
+    console.warn('Site match failed:', e.message);
+    cap.offsite = false; // don't block on API failure
+  }
+}
+
+function syncSiteUI() {
+  const section = $('#capSiteSection');
+  const display = $('#capSiteDisplay');
+  const warning = $('#capOffsiteWarning');
+  if (!section || !display) return;
+
+  // Show the site section
+  section.hidden = false;
+
+  if (currentSite) {
+    display.innerHTML = `<span class="site-badge">${escapeHtml(currentSite.name)}</span>`;
+    warning.hidden = true;
+  } else if (cap.offsite) {
+    display.innerHTML = '<span class="site-badge site-unknown">Unknown location</span>';
+    warning.hidden = false;
+  } else {
+    // Geo not available or denied — don't block, just tag as unknown
+    display.innerHTML = '<span class="site-badge site-unknown">Location not detected</span>';
+    warning.hidden = true;
+  }
+}
+
+// Wire the offsite warning buttons
+function wireSiteControls() {
+  const addBtn = $('#capAddSiteBtn');
+  const skipBtn = $('#capSkipGeoBtn');
+  const form = $('#capAddSiteForm');
+  const saveBtn = $('#capSiteSaveBtn');
+  if (!addBtn) return;
+
+  addBtn.onclick = () => {
+    form.hidden = !form.hidden;
+  };
+
+  skipBtn.onclick = () => {
+    $('#capOffsiteWarning').hidden = true;
+    // Item will be saved with site_id = null and coordinates captured
+  };
+
+  if (saveBtn) {
+    saveBtn.onclick = async () => {
+      const name = $('#capSiteName').value.trim();
+      const kind = $('#capSiteKind').value;
+      if (!name) return;
+      try {
+        const site = await api('/api/sites', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            name, kind,
+            lat: cap.capturedLat, lon: cap.capturedLon,
+            radius_m: 150,
+          }),
+        });
+        sitesList.push(site);
+        currentSite = site;
+        cap.siteId = site.site_id;
+        cap.siteName = site.name;
+        cap.offsite = false;
+        form.hidden = true;
+        $('#capOffsiteWarning').hidden = true;
+        syncSiteUI();
+      } catch (e) {
+        alert('Could not save the site: ' + e.message);
+      }
+    };
+  }
+}
+wireSiteControls();
 
 function reasonFromCap(c) {
   if (!c.important) return '';
@@ -868,6 +1016,10 @@ async function saveItem() {
         owner_high_value: cap.important === true,
         owner_high_value_reason: reasonFromCap(cap),
         ai_confidence: cap.ai?.confidence ?? null,
+        site_id: cap.siteId || null,
+        site_name: cap.siteName || '',
+        captured_lat: cap.capturedLat,
+        captured_lon: cap.capturedLon,
         identifiers: buildIdentifiers(),
         recipient_hint: cap.recipient
           ? { recipient_name: cap.recipient, relationship: cap.relationship, owner_note: cap.note }
