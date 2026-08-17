@@ -443,6 +443,10 @@
           <option value="storage">Storage unit</option>
           <option value="other">Other location</option>
         </select>
+        <label class="fieldlabel" for="homeSiteAddress">Address (optional)</label>
+        <input type="text" id="homeSiteAddress" class="bigin" placeholder="123 Main St, City, State — or leave blank to use GPS">
+        <button class="ghost wide" id="homeSiteGpsBtn">📍 Use my current location (GPS)</button>
+        <span id="homeSiteGpsResult" class="reassure" hidden></span>
         <button class="primary" id="homeSiteSaveBtn">Add this site</button>
       </div>
     </div>
@@ -956,6 +960,7 @@
       <p class="lawlede"><strong>This is the one thing you cannot do on a screen.</strong></p>
       <p>The law that lets people sign contracts and tax returns electronically has a short list of things it deliberately leaves out. Wills are on that list &mdash; and so is any paper that takes effect through a will, which is what your list does.</p>
       <p>So there is no <em>Sign here</em> button in this app. A signature typed or drawn on a screen would look finished and then fail at the one moment it was ever needed. You need to print the page and sign it with a pen.</p>
+      <p><strong>Only a signed paper document carries any legal weight.</strong> The photograph you take in the next step is for documentation only &mdash; it shows your trustee that the signed page exists and what it says. It is not a substitute for the signed original.</p>
       <p class="lawnote">It is three minutes of work. Then it is done.</p>
     </div>
 
@@ -986,7 +991,7 @@
         <span class="stepnum">4</span>
         <div class="stepbody">
           <h3>Take a photo of the signed page</h3>
-          <p>Then your trustee can see that it exists and what it says, without anyone having to move the original.</p>
+          <p>This photograph is for documentation only &mdash; it shows your trustee that the signed page exists and what it says. It does not replace the signed original, which is the only copy with legal weight.</p>
           <label class="bigfile">
             <input type="file" accept="image/*,application/pdf" capture="environment" id="signScan">
             <span>Photograph or scan the signed page</span>

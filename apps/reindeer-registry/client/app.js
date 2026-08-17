@@ -721,13 +721,42 @@ async function renderSites() {
         e.stopPropagation();
         const siteId = b.dataset.siteId;
         const siteName = b.dataset.siteName;
-        if (!confirm(`Remove "${siteName}" from your estate?\\n\\nItems recorded at this site will keep their data but won't be grouped under it anymore.`)) return;
+        // Count items at this site so the owner knows what they're dealing with
+        let itemCount = 0;
         try {
-          await api(`/api/sites/${siteId}`, { method: 'DELETE' });
+          const { items } = await api('/api/items');
+          itemCount = items.filter((i) => i.site_id === siteId).length;
+        } catch {}
+        // Build a richer confirmation that offers retag + add-site options
+        const msg = itemCount > 0
+          ? `"${siteName}" has ${itemCount} item${itemCount === 1 ? '' : 's'} recorded at it.\n\n` +
+            'Choose what to do with those items:\n\n' +
+            'OK — Move them to Home, then remove this site\n' +
+            'Cancel — Keep this site for now\n\n' +
+            'To add a different site instead, cancel and use the "Add a site" button.'
+          : `Remove "${siteName}" from your estate?\n\nNo items are recorded at this site.\n\n` +
+            'OK — Remove it\n' +
+            'Cancel — Keep it';
+        if (!confirm(msg)) return;
+        try {
+          if (itemCount > 0) {
+            // Retag items to primary (home) site before deleting
+            await api(`/api/sites/${siteId}/retag`, {
+              method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({}),
+            });
+          }
+          await api(`/api/sites/${siteId}`, {
+            method: 'DELETE',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({}),
+          });
           sitesList = sitesList.filter((s) => s.site_id !== siteId);
           if (activeSiteId === siteId) activeSiteId = null;
           await renderSites();
-          toast(`Removed "${siteName}".`);
+          toast(itemCount > 0
+            ? `Moved ${itemCount} item${itemCount === 1 ? '' : 's'} to Home and removed "${siteName}".`
+            : `Removed "${siteName}".`);
         } catch (err) {
           toast('Could not remove the site: ' + (err.message || 'unknown error'), true);
         }
@@ -746,23 +775,67 @@ function wireHomeSiteControls() {
   const form = $('#homeAddSiteForm');
   const saveBtn = $('#homeSiteSaveBtn');
   if (!addBtn) return;
+  let gpsCoords = null;
 
   addBtn.onclick = () => {
     form.hidden = !form.hidden;
     if (!form.hidden) $('#homeSiteName')?.focus();
   };
 
+  // GPS button — detect current location for the new site
+  const gpsBtn = $('#homeSiteGpsBtn');
+  const gpsResult = $('#homeSiteGpsResult');
+  if (gpsBtn) {
+    gpsBtn.onclick = () => {
+      if (!navigator.geolocation) {
+        toast('GPS is not available on this device.', true);
+        return;
+      }
+      gpsBtn.textContent = '📍 Detecting your location…';
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          gpsCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+          if (gpsResult) {
+            gpsResult.hidden = false;
+            gpsResult.textContent = `Location captured: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+          }
+          gpsBtn.textContent = '📍 Location captured ✓';
+        },
+        (err) => {
+          gpsBtn.textContent = '📍 Use my current location (GPS)';
+          toast('Could not get your location: ' + err.message, true);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+      );
+    };
+  }
+
   if (saveBtn) {
     saveBtn.onclick = async () => {
       const name = $('#homeSiteName').value.trim();
       const kind = $('#homeSiteKind').value;
+      const address = $('#homeSiteAddress')?.value.trim() || '';
       if (!name) return;
       try {
+        // If GPS was captured, use it. If an address was typed but no GPS,
+        // we still save (address is informational for now — geocoding is
+        // a future enhancement). If neither, just save the name.
+        const body = { name, kind };
+        if (gpsCoords) {
+          body.lat = gpsCoords.lat;
+          body.lon = gpsCoords.lon;
+          body.radius_m = 150;
+        }
+        if (address) body.address = address;
         await api('/api/sites', {
           method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ name, kind }),
+          body: JSON.stringify(body),
         });
         $('#homeSiteName').value = '';
+        if ($('#homeSiteAddress')) $('#homeSiteAddress').value = '';
+        gpsCoords = null;
+        if (gpsBtn) gpsBtn.textContent = '📍 Use my current location (GPS)';
+        if (gpsResult) gpsResult.hidden = true;
         form.hidden = true;
         await renderSites();
         toast(`Added "${name}" as a new site.`);

@@ -26,32 +26,33 @@ export class SitesRegistry {
     ).get(siteId, ctx.scopeId);
   }
 
-  create(ctx, { name, kind = 'other', lat = null, lon = null, radius_m = 100 }) {
+  create(ctx, { name, kind = 'other', address = '', lat = null, lon = null, radius_m = 100 }) {
     const siteId = ulid();
     const now = new Date().toISOString();
     this.db.prepare(
-      `INSERT INTO sites (site_id, scope_id, name, kind, lat, lon, radius_m, is_primary, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)`,
-    ).run(siteId, ctx.scopeId, name, kind, lat, lon, radius_m, now);
+      `INSERT INTO sites (site_id, scope_id, name, kind, address, lat, lon, radius_m, is_primary, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+    ).run(siteId, ctx.scopeId, name, kind, address, lat, lon, radius_m, now);
     this.audit?.append?.({
       action: 'site.create', entity: 'site', entity_id: siteId,
-      payload: { name, kind },
+      payload: { name, kind, address },
     }, ctx);
     return this.get(ctx, siteId);
   }
 
-  update(ctx, siteId, { name, lat, lon, radius_m } = {}) {
+  update(ctx, siteId, { name, address, lat, lon, radius_m } = {}) {
     const existing = this.get(ctx, siteId);
     if (!existing) return null;
     const merged = {
       name: name ?? existing.name,
+      address: address !== undefined ? address : existing.address,
       lat: lat !== undefined ? lat : existing.lat,
       lon: lon !== undefined ? lon : existing.lon,
       radius_m: radius_m ?? existing.radius_m,
     };
     this.db.prepare(
-      `UPDATE sites SET name = ?, lat = ?, lon = ?, radius_m = ? WHERE site_id = ? AND scope_id = ?`,
-    ).run(merged.name, merged.lat, merged.lon, merged.radius_m, siteId, ctx.scopeId);
+      `UPDATE sites SET name = ?, address = ?, lat = ?, lon = ?, radius_m = ? WHERE site_id = ? AND scope_id = ?`,
+    ).run(merged.name, merged.address, merged.lat, merged.lon, merged.radius_m, siteId, ctx.scopeId);
     return this.get(ctx, siteId);
   }
 
