@@ -281,7 +281,7 @@ function go(name, opts = {}) {
     // Slice 4 \u2014 couple mode.
     householdlink: 'Send invite', helperinvite: 'Invite a helper',
     // Ship B \u2014 contested categories.
-    contested: 'Possessions with high emotional connections that can cause conflict', reminders: 'Holiday reminders',
+    contested: 'Things families fight over', reminders: 'Holiday reminders',
     admin: 'Estate license keys',
   }[name] ?? 'Reindeer: Registry';
   window.scrollTo(0, 0);
@@ -4869,13 +4869,13 @@ function renderContestedCards() {
   if (!wrap) return;
   wrap.innerHTML = CONTESTED_CATEGORIES.map((c, i) => `
     <article class="contested-card" data-idx="${i}">
-      <h3>${escapeHtml(c.key)}</h3>
-      <p class="why">${escapeHtml(c.why)}</p>
-      <p class="advice"><strong>Hint:</strong> ${escapeHtml(c.advice)}</p>
-      ${c.notice ? `<div class="trustee-notice"><strong>A word about firearms.</strong> ${escapeHtml(c.notice)}</div>` : ''}
-      <div class="detrow">
-        <button class="primary contested-add" data-cat="${escapeHtml(c.key)}">Add ${escapeHtml(c.key)} items</button>
+      <div class="contested-card-head">
+        <h3>${escapeHtml(c.key)}</h3>
       </div>
+      <p class="why">${escapeHtml(c.why)}</p>
+      <p class="advice">${escapeHtml(c.advice)}</p>
+      ${c.notice ? `<div class="trustee-notice">${escapeHtml(c.notice)}</div>` : ''}
+      <button class="primary wide contested-add" data-cat="${escapeHtml(c.key)}">Add ${escapeHtml(c.key)} items</button>
     </article>
   `).join('');
   $$('#contestedCards .contested-add').forEach((btn) => {

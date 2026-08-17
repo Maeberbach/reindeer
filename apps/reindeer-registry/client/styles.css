@@ -865,25 +865,30 @@ select.bigin{appearance:none; background-image:linear-gradient(45deg,transparent
 .quiet-hint{color:var(--ink-2); font-size:14px; margin-left:6px}
 
 /* -------------------------------------------------- Ship B: contested screen */
-.contested-cards { display: grid; gap: 16px; margin-top: 16px; }
+.contested-cards { display: grid; gap: 12px; margin-top: 14px; }
 .contested-card {
-  background: #fff; border: 1px solid #e5dccb;
-  border-radius: 14px; padding: 18px 20px;
+  background: var(--card, #fff); border: 1px solid var(--border, #e5dccb);
+  border-radius: 12px; padding: 14px 16px;
 }
-.contested-card h3 { margin: 0 0 6px 0; font-size: 22px; }
+.contested-card-head { display: flex; align-items: baseline; gap: 8px; }
+.contested-card h3 { margin: 0; font-size: 18px; font-weight: 600; }
 .contested-card .why {
-  margin: 0 0 10px 0; color: #6c5f4b; font-size: 16px; line-height: 1.4;
+  margin: 4px 0 8px 0; color: var(--ink-2, #6c5f4b);
+  font-size: 14px; line-height: 1.45;
 }
 .contested-card .advice {
-  margin: 0 0 12px 0; font-size: 17px; line-height: 1.5;
+  margin: 0 0 12px 0; font-size: 15px; line-height: 1.5;
+  color: var(--ink, inherit);
 }
 .contested-card .trustee-notice {
-  background: #fff4d6; border-left: 4px solid #c89b1a;
-  padding: 12px 14px; border-radius: 8px;
-  margin: 0 0 14px 0; font-size: 16px; line-height: 1.45;
+  background: #fff4d6; border-left: 3px solid #c89b1a;
+  padding: 10px 12px; border-radius: 6px;
+  margin: 0 0 12px 0; font-size: 14px; line-height: 1.45;
 }
-.contested-card .trustee-notice strong { display: block; margin-bottom: 4px; }
-.contested-card .detrow { margin-top: 8px; }
+.contested-card .contested-add {
+  margin-top: 2px;
+  width: 100%;
+}
 
 /* Softer rule between the categories list and the holiday picker. */
 hr.softrule {
@@ -906,10 +911,10 @@ hr.softrule {
 
 /* Nudge at the bottom of contested categories → room walkthrough */
 .contested-done{
-  margin-top:24px; padding:20px; border:1px solid var(--border);
+  margin-top:20px; padding:16px; border:1px solid var(--border);
   border-radius:var(--radius); background:var(--accent-soft); text-align:center;
 }
-.contested-done button{ margin-top:8px }
+.contested-done button{ margin-top:6px }
 
 #homeBtn{margin-left:auto}
 
