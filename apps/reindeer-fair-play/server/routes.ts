@@ -11,7 +11,7 @@ import {
   requireSubscriptionForWrite,
   getEstateSubscription,
 } from "./middleware/subscriptionMiddleware";
-import { isSubscriptionGateEnabled, isHeirVisibilityEnabled } from "./featureFlags";
+import { FEATURE_FLAGS, isSubscriptionGateEnabled, isHeirVisibilityEnabled } from "./featureFlags";
 import {
   HEIR_CAPABILITIES,
   canHeirDo,
@@ -2962,6 +2962,68 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       license_expires_at: updated?.license_expires_at ?? null,
       gate_enabled: isSubscriptionGateEnabled(),
     });
+  });
+
+  // ─── Admin: Feature flag status & runtime toggle ──────────────
+  //
+  // Mirror of the Registry admin feature-flags endpoints. Lets a
+  // Reindeer Corp admin inspect and flip feature flags at runtime
+  // before client distribution. Persisted in estate_settings table.
+
+  // Create estate_settings table if it doesn't exist
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS estate_settings (
+      scope_id  TEXT NOT NULL,
+      key       TEXT NOT NULL,
+      value     TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (scope_id, key)
+    );
+  `);
+
+  // GET /api/admin/feature-flags — current flag state
+  app.get("/api/admin/feature-flags", requireCaptain, async (_req, res) => {
+    const overrides = sqlite.prepare('SELECT key, value FROM estate_settings WHERE scope_id = ?').all(ESTATE_ID);
+    const overrideMap: Record<string, string> = {};
+    for (const row of overrides) overrideMap[row.key] = row.value;
+
+    res.json({
+      flags: {
+        heirVisibility: overrideMap.heirVisibility !== undefined
+          ? overrideMap.heirVisibility === 'true'
+          : FEATURE_FLAGS.heirVisibility,
+        subscriptionGate: overrideMap.subscriptionGate !== undefined
+          ? overrideMap.subscriptionGate === 'true'
+          : FEATURE_FLAGS.subscriptionGate,
+      },
+      effective: {
+        heirVisibility: isHeirVisibilityEnabled(),
+        subscriptionGate: isSubscriptionGateEnabled(),
+      },
+    });
+  });
+
+  // POST /api/admin/feature-flags — toggle a flag at runtime
+  app.post("/api/admin/feature-flags", requireCaptain, async (req, res) => {
+    const { flag, value } = req.body || {};
+    const allowedFlags = ['heirVisibility', 'subscriptionGate'];
+    if (!allowedFlags.includes(flag)) {
+      return res.status(400).json({ error: `Unknown flag: ${flag}. Allowed: ${allowedFlags.join(', ')}` });
+    }
+    if (typeof value !== 'boolean') {
+      return res.status(400).json({ error: 'value must be a boolean' });
+    }
+
+    const now = new Date().toISOString();
+    sqlite.prepare(
+      'INSERT INTO estate_settings (scope_id, key, value, updated_at) VALUES (?, ?, ?, ?) ' +
+      'ON CONFLICT(scope_id, key) DO UPDATE SET value = ?, updated_at = ?'
+    ).run(ESTATE_ID, flag, String(value), now, String(value), now);
+
+    // Update in-memory flag for immediate effect
+    FEATURE_FLAGS[flag] = value;
+
+    res.json({ ok: true, flag, value, message: `${flag} is now ${value ? 'ON' : 'OFF'}` });
   });
 
   return httpServer;

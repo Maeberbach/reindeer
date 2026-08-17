@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
 import { openDb, defaultDataDir, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry } from '@reindeer/core-data';
 import { SCOPE_TYPE } from '@reindeer/core-api';
-import { isSubscriptionGateEnabled, isHeirVisibilityEnabled } from './featureFlags.js';
+import { FEATURE_FLAGS, isSubscriptionGateEnabled, isHeirVisibilityEnabled, isMultiEstateEnabled } from './featureFlags.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -203,10 +203,15 @@ app.get('/api/health', (req, res) => res.json({
 
 // ─── Sites: list all sites for this estate ─────────────────────
 app.get('/api/sites', heirSession, (req, res) => {
-  const sites = db.prepare(`SELECT site_id, name, type, address, latitude, longitude
+  const sites = db.prepare(`SELECT site_id, name, kind, lat, lon, is_primary
                            FROM sites WHERE scope_id = ? ORDER BY
-                           CASE WHEN type = 'primary' THEN 0 ELSE 1 END, name`).all(SCOPE_ID);
-  res.json({ sites });
+                           CASE WHEN is_primary = 1 THEN 0 ELSE 1 END, name`).all(SCOPE_ID);
+  // Also include the "home" pseudo-site for items with null site_id
+  const allSites = [
+    { site_id: null, name: 'Home', kind: 'home', is_primary: 1 },
+    ...sites.map(s => ({ ...s, is_primary: !!s.is_primary })),
+  ];
+  res.json({ sites: allSites });
 });
 
 // ─── Owner auth ───────────────────────────────────────────────
@@ -613,6 +618,67 @@ app.get('/api/subscription/status', (req, res) => {
   res.json({ status: sub.status, expires_at: sub.subscription_expires_at });
 });
 
+// ─── Admin: Feature flag status & runtime toggle ──────────────
+//
+// Mirror of the Registry/FairPlay admin feature-flags endpoints.
+// Lets a Reindeer Corp admin inspect and flip feature flags at
+// runtime before client distribution. Persisted in estate_settings.
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS estate_settings (
+    scope_id  TEXT NOT NULL,
+    key       TEXT NOT NULL,
+    value     TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (scope_id, key)
+  );
+`);
+
+app.get('/api/admin/feature-flags', ownerAuth, (req, res) => {
+  const overrides = db.prepare('SELECT key, value FROM estate_settings WHERE scope_id = ?').all(SCOPE_ID);
+  const overrideMap = {};
+  for (const row of overrides) overrideMap[row.key] = row.value;
+
+  res.json({
+    flags: {
+      heirVisibility: overrideMap.heirVisibility !== undefined
+        ? overrideMap.heirVisibility === 'true'
+        : FEATURE_FLAGS.heirVisibility,
+      subscriptionGate: overrideMap.subscriptionGate !== undefined
+        ? overrideMap.subscriptionGate === 'true'
+        : FEATURE_FLAGS.subscriptionGate,
+      multiEstate: overrideMap.multiEstate !== undefined
+        ? overrideMap.multiEstate === 'true'
+        : FEATURE_FLAGS.multiEstate,
+    },
+    effective: {
+      heirVisibility: isHeirVisibilityEnabled(),
+      subscriptionGate: isSubscriptionGateEnabled(),
+      multiEstate: isMultiEstateEnabled(),
+    },
+  });
+});
+
+app.post('/api/admin/feature-flags', ownerAuth, (req, res) => {
+  const { flag, value } = req.body || {};
+  const allowedFlags = ['heirVisibility', 'subscriptionGate', 'multiEstate'];
+  if (!allowedFlags.includes(flag)) {
+    return res.status(400).json({ error: `Unknown flag: ${flag}. Allowed: ${allowedFlags.join(', ')}` });
+  }
+  if (typeof value !== 'boolean') {
+    return res.status(400).json({ error: 'value must be a boolean' });
+  }
+
+  const now = new Date().toISOString();
+  db.prepare('INSERT INTO estate_settings (scope_id, key, value, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(scope_id, key) DO UPDATE SET value = ?, updated_at = ?')
+    .run(SCOPE_ID, flag, String(value), now, String(value), now);
+
+  // Update in-memory flag for immediate effect
+  FEATURE_FLAGS[flag] = value;
+
+  res.json({ ok: true, flag, value, message: `${flag} is now ${value ? 'ON' : 'OFF'}` });
+});
+
 const PORT = process.env.PORT || 3220;
 app.listen(PORT, () => console.log(`Reindeer: Discovery listening on :${PORT}`));
 
@@ -681,23 +747,23 @@ app.post('/api/owner/import', ownerAuth, express.raw({ type: 'application/octet-
       if (existing) {
         db.prepare(`UPDATE items SET title=?, category_id=?, room_id=?, description=?, story=?, quantity=?, condition=?,
           value_estimate_cents=?, value_basis=?, high_value_flag=?, owner_high_value=?, owner_high_value_reason=?,
-          owner_important_comment=?, review_state='kept', updated_at=? WHERE item_id=? AND scope_id=?`)
+          owner_important_comment=?, site_id=?, site_name=?, review_state='kept', updated_at=? WHERE item_id=? AND scope_id=?`)
           .run(src.title, cat?.category_id || null, room?.room_id || null, src.description || '', src.story || '',
                src.quantity || 1, src.condition || 'unknown', src.value_estimate_cents || null, src.value_basis || 'unknown',
                src.high_value_flag ? 1 : 0, src.owner_high_value ? 1 : 0, src.owner_high_value_reason || '',
-               src.owner_important_comment || '', now, src.item_id, SCOPE_ID);
+               src.owner_important_comment || '', src.site_id || null, src.site_name || '', now, src.item_id, SCOPE_ID);
         result.updated++;
       } else {
         db.prepare(`INSERT INTO items (item_id, scope_id, origin_app, origin_item_id, title, category_id, room_id,
           description, story, quantity, condition, identifiers, value_estimate_cents, value_basis,
           high_value_flag, owner_high_value, owner_high_value_reason, owner_important_comment, ownership_tag,
-          ai_confidence, review_state, print_state, export_state, created_at, updated_at)
-          VALUES (?, ?, 'inventory', ?, ?, ?, ?, ?, ?, ?, ?, '{}', ?, ?, ?, ?, ?, ?, NULL, 'kept', 'unprinted', 'never', ?, ?)`)
+          ai_confidence, site_id, site_name, review_state, print_state, export_state, created_at, updated_at)
+          VALUES (?, ?, 'inventory', ?, ?, ?, ?, ?, ?, ?, ?, '{}', ?, ?, ?, ?, ?, ?, NULL, ?, ?, 'kept', 'unprinted', 'never', ?, ?)`)
           .run(src.item_id, SCOPE_ID, src.origin_item_id || src.item_id, src.title, cat?.category_id || null,
                room?.room_id || null, src.description || '', src.story || '', src.quantity || 1,
                src.condition || 'unknown', src.value_estimate_cents || null, src.value_basis || 'unknown',
                src.high_value_flag ? 1 : 0, src.owner_high_value ? 1 : 0, src.owner_high_value_reason || '',
-               src.owner_important_comment || '', '', now, now);
+               src.owner_important_comment || '', '', src.site_id || null, src.site_name || '', now, now);
         result.created++;
       }
 
