@@ -25,12 +25,18 @@ export function createSitesRouter(deps) {
     res.json(sites.list(ctx));
   }));
 
-  // Create a new site
+  // Create a new site — seeds default rooms into it so the owner
+  // starts with the usual living room, kitchen, bedroom, etc.
   r.post('/sites', wrap(async (req, res) => {
     const ctx = ctxOf(req);
     const { name, kind, lat, lon, radius_m } = req.body || {};
     if (!name || !name.trim()) return res.status(400).json({ error: 'Site name is required' });
-    res.json(sites.create(ctx, { name: name.trim(), kind: kind || 'other', lat, lon, radius_m }));
+    const site = sites.create(ctx, { name: name.trim(), kind: kind || 'other', lat, lon, radius_m });
+    // Seed default rooms for this site
+    if (deps.registry && deps.registry.seedDefaults) {
+      deps.registry.seedDefaults(ctx.scopeId, site.site_id);
+    }
+    res.json(site);
   }));
 
   // Update a site

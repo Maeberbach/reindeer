@@ -21,8 +21,9 @@ export function createIntakeRouter(deps) {
   // ---- registry -----------------------------------------------------------
   r.get('/registry', wrap(async (req, res) => {
     const ctx = ctxOf(req);
+    const siteId = req.query.site_id || null;
     res.json({
-      rooms: registry.rooms(ctx),
+      rooms: registry.rooms(ctx, siteId),
       categories: registry.categories(ctx),
       more_rooms: registry.moreRooms(ctx),
       more_categories: registry.moreCategories(ctx),
@@ -36,9 +37,10 @@ export function createIntakeRouter(deps) {
 
   r.post('/rooms', wrap(async (req, res) => {
     const ctx = ctxOf(req);
+    const siteId = req.body.site_id || null;
     // `is_custom: false` marks a room taken off the offered list rather than
     // invented, so it is not shown back to the owner as one of theirs.
-    res.json(registry.resolveRoom(req.body.name, ctx, { isCustom: req.body.is_custom !== false }));
+    res.json(registry.resolveRoom(req.body.name, ctx, { isCustom: req.body.is_custom !== false, siteId }));
   }));
 
   r.delete('/rooms/:roomId', wrap(async (req, res) => {
@@ -64,7 +66,8 @@ export function createIntakeRouter(deps) {
   // The room, not the item, is the unit of work. These three routes are the
   // whole of it: where am I, this room is finished, I want back into that room.
   r.get('/walkthrough', wrap(async (req, res) => {
-    res.json(registry.walkthrough(ctxOf(req)));
+    const siteId = req.query.site_id || null;
+    res.json(registry.walkthrough(ctxOf(req), siteId));
   }));
 
   r.post('/rooms/:roomId/state', wrap(async (req, res) => {
@@ -75,7 +78,8 @@ export function createIntakeRouter(deps) {
     // Return the whole walk, not just the room: the client's next screen is
     // always "what is left", so this saves it a second round trip on a phone
     // that may be on one bar of signal.
-    res.json({ room, walkthrough: registry.walkthrough(ctx) });
+    const siteId = req.query.site_id || null;
+    res.json({ room, walkthrough: registry.walkthrough(ctx, siteId) });
   }));
 
   // ---- items --------------------------------------------------------------

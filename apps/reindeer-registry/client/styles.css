@@ -1087,3 +1087,23 @@ hr.softrule {
 .offsite-actions { display: grid; gap: 8px; margin-top: 12px; }
 .offsite-add-form { display: grid; gap: 8px; margin-top: 12px; }
 .offsite-add-form button { margin-top: 4px; }
+
+/* -------------------------------------------------- Sites section */
+
+.sites-section {
+  margin-top: 24px; margin-bottom: 24px;
+}
+.sites-heading {
+  font-size: 18px; font-weight: 650; margin: 0 0 12px 0;
+  color: var(--accent, #6b5510);
+}
+.sites-section .partner-card { margin-top: 12px; }
+.site-add-form {
+  display: grid; gap: 8px; margin-top: 12px;
+}
+.site-add-form button { margin-top: 4px; }
+
+/* Alldone tiles */
+.alldone-tiles {
+  margin-top: 16px;
+}

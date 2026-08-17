@@ -260,7 +260,7 @@ app.use('/api', createRemindersRouter({ reminderPrefs, resolveScope }));
 app.use('/api', createIntakeRouter({ itemRepo, mediaStore, scopeMediaStore, registry, vision, duplicates, audit, resolveScope }));
 app.use('/api', createExecutionRouter({ db, scopeMediaStore, audit, resolveScope }));
 app.use('/api', createPeopleRouter({ people, audit, resolveScope }));
-app.use('/api', createSitesRouter({ sites, resolveScope }));
+app.use('/api', createSitesRouter({ sites, registry, resolveScope }));
 app.use('/api', createPrintRouter({ itemRepo, resolveScope, ownerName: OWNER_NAME }));
 app.use('/api', createDeliveryRouter({ delivery, trustees, resolveScope }));
 app.use('/api/two-outputs', createTwoOutputsRouter({ heirs, willsCaretakers, twoOutputs, addendumVersions, resolveScope }));

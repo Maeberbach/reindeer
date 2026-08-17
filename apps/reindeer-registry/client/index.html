@@ -420,6 +420,34 @@
     </div>
 
     <!--
+      Other sites — second home, vacation property, storage unit.
+      Each site branches to its own set of rooms. The primary "Home"
+      site is the default and doesn't show as a separate tile unless
+      additional sites exist.
+    -->
+    <div class="sites-section" id="homeSitesSection" hidden>
+      <h3 class="sites-heading">Your places</h3>
+      <div class="tiles" id="homeSitesTiles"></div>
+      <button class="partner-card" id="homeAddSite">
+        <span class="ico">📍</span>
+        <span class="txt">
+          <span class="lbl">Add another site</span>
+          <span class="hint">A second home, vacation property, or storage unit — each with its own rooms.</span>
+        </span>
+      </button>
+      <div class="site-add-form" id="homeAddSiteForm" hidden>
+        <input type="text" id="homeSiteName" class="bigin" placeholder="Name this place (e.g. Lake House, Storage Unit)">
+        <select id="homeSiteKind" class="bigin">
+          <option value="second_home">Second home</option>
+          <option value="vacation">Vacation home</option>
+          <option value="storage">Storage unit</option>
+          <option value="other">Other location</option>
+        </select>
+        <button class="primary" id="homeSiteSaveBtn">Add this site</button>
+      </div>
+    </div>
+
+    <!--
       Counters — moved to the bottom. Two honest numbers: assigned and unassigned.
     -->
     <div class="counters" id="homeCounters" hidden>
@@ -447,7 +475,6 @@
       because they are concluding actions, not starting points.
     -->
     <div class="tiles">
-      <button class="tile" data-go="signing"><span class="ico">✍️</span><span class="lbl">Sign it and give it to your trustee</span><span class="hint">Print it, sign it by hand, photograph the signed page</span></button>
       <button class="tile" data-go="handoff"><span class="ico">✅</span><span class="lbl">Send it to FairPlay or Discovery</span><span class="hint">Or email it, print it, or save a copy</span></button>
       <button class="tile" data-go="admin" id="adminTile" hidden><span class="ico">🔑</span><span class="lbl">Estate license keys</span><span class="hint">Generate a key for your trustee or attorney</span></button>
     </div>
@@ -555,7 +582,10 @@
     <div id="walkDone" class="alldone" hidden>
       <p class="alldone-title">Every room is finished.</p>
       <p>You have been through the whole house. You can still go back into any room and add more.</p>
-      <button class="primary wide" data-go="handoff">See what to do next</button>
+      <div class="tiles alldone-tiles">
+        <button class="tile" data-go="signing"><span class="ico">✍️</span><span class="lbl">Sign it and give it to your trustee</span><span class="hint">Print it, sign it by hand, photograph the signed page</span></button>
+        <button class="tile" data-go="handoff"><span class="ico">✅</span><span class="lbl">Send it to FairPlay or Discovery</span><span class="hint">Or email it, print it, or save a copy</span></button>
+      </div>
     </div>
   </section>
 

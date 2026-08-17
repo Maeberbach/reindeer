@@ -293,6 +293,8 @@ function go(name, opts = {}) {
     promiseMode = false; renderResume(); refreshQueueBadge(); renderCounters(); renderPartnerCard(); showAdminTile();
     // Update the quick-start tile based on whether items exist
     updateHomeTile();
+    // Render site tiles (second home, vacation, storage)
+    renderSites();
   }
   if (name === 'batch') { const bi = $('#batchIntake'); if (bi) bi.hidden = false; }
   if (name === 'list') loadList();
@@ -646,6 +648,85 @@ function wireSiteControls() {
   }
 }
 wireSiteControls();
+
+/*
+ * Home screen site tiles.
+ *
+ * Sites are a branching layer above rooms. The primary "Home" site is the
+ * default and doesn't need a separate tile unless other sites exist. When
+ * additional sites are added, each gets a tile that opens the walk screen
+ * scoped to that site's rooms.
+ *
+ * Tapping "Add another site" creates a new site with its own room set —
+ * the default rooms are seeded into it so the owner starts with the usual
+ * living room, kitchen, bedroom, etc.
+ */
+
+let activeSiteId = null; // null = primary/home site
+
+async function renderSites() {
+  const section = $('#homeSitesSection');
+  const tilesEl = $('#homeSitesTiles');
+  if (!section || !tilesEl) return;
+
+  let sites = [];
+  try { sites = await api('/api/sites'); } catch { return; }
+
+  // Show the section only if there are non-primary sites
+  const extraSites = sites.filter((s) => !s.is_primary);
+  section.hidden = extraSites.length === 0;
+
+  if (extraSites.length === 0) return;
+
+  tilesEl.innerHTML = extraSites.map((s) => {
+    const ico = s.kind === 'vacation' ? '🏖️' : s.kind === 'storage' ? '📦' : s.kind === 'second_home' ? '🏡' : '📍';
+    return `<button class="tile" data-site-id="${s.site_id}">
+      <span class="ico">${ico}</span>
+      <span class="lbl">${escapeHtml(s.name)}</span>
+      <span class="hint">Tap to walk through its rooms</span>
+    </button>`;
+  }).join('');
+
+  $$('#homeSitesTiles [data-site-id]').forEach((b) => {
+    b.onclick = () => {
+      activeSiteId = b.dataset.siteId;
+      go('walk');
+    };
+  });
+}
+
+function wireHomeSiteControls() {
+  const addBtn = $('#homeAddSite');
+  const form = $('#homeAddSiteForm');
+  const saveBtn = $('#homeSiteSaveBtn');
+  if (!addBtn) return;
+
+  addBtn.onclick = () => {
+    form.hidden = !form.hidden;
+    if (!form.hidden) $('#homeSiteName')?.focus();
+  };
+
+  if (saveBtn) {
+    saveBtn.onclick = async () => {
+      const name = $('#homeSiteName').value.trim();
+      const kind = $('#homeSiteKind').value;
+      if (!name) return;
+      try {
+        await api('/api/sites', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ name, kind }),
+        });
+        $('#homeSiteName').value = '';
+        form.hidden = true;
+        await renderSites();
+        toast(`Added "${name}" as a new site.`);
+      } catch (e) {
+        toast('Could not add the site: ' + e.message, true);
+      }
+    };
+  }
+}
+wireHomeSiteControls();
 
 function reasonFromCap(c) {
   if (!c.important) return '';
@@ -2637,8 +2718,13 @@ async function addOfferedCategory(name) {
  * about, so they are shown first and marked as theirs.
  */
 function renderRoomChips() {
-  const mine = registry.rooms.filter((r) => r.is_custom);
-  const standard = registry.rooms.filter((r) => !r.is_custom);
+  // Filter rooms by active site (null = primary/home)
+  const siteRooms = registry.rooms.filter((r) => {
+    if (activeSiteId) return r.site_id === activeSiteId || (r.site_id == null && activeSiteId === null);
+    return r.site_id == null || r.site_id === undefined;
+  });
+  const mine = siteRooms.filter((r) => r.is_custom);
+  const standard = siteRooms.filter((r) => !r.is_custom);
   const chip = (r) => `<button class="chip${r.is_custom ? ' chip-mine' : ''}" aria-pressed="false"`
     + ` data-room="${escapeHtml(r.name)}">${escapeHtml(r.name)}</button>`;
   $('#roomChips').innerHTML = [...mine, ...standard].map(chip).join('');
@@ -2954,8 +3040,9 @@ async function serverReachable() {
 /* ---------------------------------------------------------------- the walk */
 
 async function loadWalk() {
+  const siteQs = activeSiteId ? `?site_id=${encodeURIComponent(activeSiteId)}` : '';
   try {
-    walk = await api('/api/walkthrough');
+    walk = await api('/api/walkthrough' + siteQs);
   } catch {
     // Offline: still show the rooms, from whatever the last load knew.
     walk = walk ?? { rooms: registry.rooms.map((r) => ({ ...r, walkthrough_state: 'not_started', item_count: 0 })),
@@ -2982,6 +3069,12 @@ function renderWalk() {
     ? `${c.total} rooms on your list.`
     : `${c.settled} of ${c.total} rooms finished.`;
 
+  // Show site name in the walk header if viewing a non-primary site
+  const walkH = document.querySelector('.walkh');
+  if (walkH) {
+    const site = sitesList.find((s) => s.site_id === activeSiteId);
+    walkH.textContent = site ? `${site.name} — your rooms` : 'Your rooms';
+  }
   $('#walkRooms').innerHTML = walk.rooms.map((r) => {
     const st = ROOM_STATUS[r.walkthrough_state] ?? ROOM_STATUS.not_started;
     const bits = [];

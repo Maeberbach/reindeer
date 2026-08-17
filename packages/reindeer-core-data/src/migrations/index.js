@@ -991,6 +991,12 @@ export const MIGRATIONS = [
     -- Track where each item was captured (lat/lon at time of add).
     ALTER TABLE items ADD COLUMN captured_lat REAL;
     ALTER TABLE items ADD COLUMN captured_lon REAL;
+
+    -- Scope rooms to a site so each site (home, second home, vacation
+    -- property) carries its own room list. Existing rooms get NULL
+    -- site_id (treated as the primary/home site).
+    ALTER TABLE rooms ADD COLUMN site_id TEXT REFERENCES sites(site_id) ON DELETE SET NULL;
+    CREATE INDEX IF NOT EXISTS idx_rooms_site ON rooms(scope_id, site_id);
     `,
   },
 ];

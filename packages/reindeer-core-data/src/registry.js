@@ -159,17 +159,24 @@ export class Registry {
     return MORE_CATEGORIES.filter((n) => !have.has(n.toLowerCase()));
   }
 
-  seedDefaults(scopeId) {
-    const room = this.db.prepare('INSERT OR IGNORE INTO rooms (room_id, scope_id, name, is_custom, sort_order) VALUES (?,?,?,0,?)');
+  seedDefaults(scopeId, siteId = null) {
+    const room = this.db.prepare('INSERT OR IGNORE INTO rooms (room_id, scope_id, name, is_custom, sort_order, site_id) VALUES (?,?,?,0,?,?)');
     const cat = this.db.prepare('INSERT OR IGNORE INTO categories (category_id, scope_id, name, is_custom, sort_order) VALUES (?,?,?,0,?)');
     const tx = this.db.transaction(() => {
-      DEFAULT_ROOMS.forEach((n, i) => room.run(ulid(), scopeId, n, i));
+      DEFAULT_ROOMS.forEach((n, i) => room.run(ulid(), scopeId, n, i, siteId));
       DEFAULT_CATEGORIES.forEach((n, i) => cat.run(ulid(), scopeId, n, i));
     });
     tx();
   }
 
-  rooms(ctx) {
+  rooms(ctx, siteId = null) {
+    // When a siteId is given, return only rooms for that site.
+    // NULL site_id rooms belong to the primary/home site.
+    if (siteId !== null) {
+      return this.db.prepare(
+        'SELECT * FROM rooms WHERE scope_id = ? AND (site_id = ? OR (site_id IS NULL AND ? IS NULL)) ORDER BY sort_order, name',
+      ).all(ctx.scopeId, siteId, siteId);
+    }
     return this.db.prepare('SELECT * FROM rooms WHERE scope_id = ? ORDER BY sort_order, name').all(ctx.scopeId);
   }
 
@@ -214,16 +221,26 @@ export class Registry {
    * full. Someone may have nothing in the shed worth recording, and saying so is
    * a complete answer.
    */
-  walkthrough(ctx) {
-    const rooms = this.db.prepare(`
-      SELECT r.room_id, r.name, r.is_custom, r.sort_order,
-             r.walkthrough_state, r.documented_at, r.completed_at,
-             (SELECT COUNT(*) FROM items i
-                WHERE i.room_id = r.room_id AND i.scope_id = r.scope_id
-                  AND i.review_state <> 'discarded') AS item_count
-        FROM rooms r
-       WHERE r.scope_id = ?
-       ORDER BY r.sort_order, r.name`).all(ctx.scopeId);
+  walkthrough(ctx, siteId = null) {
+    const rooms = (siteId !== null
+      ? this.db.prepare(`
+        SELECT r.room_id, r.name, r.is_custom, r.sort_order,
+               r.walkthrough_state, r.documented_at, r.completed_at,
+               (SELECT COUNT(*) FROM items i
+                  WHERE i.room_id = r.room_id AND i.scope_id = r.scope_id
+                    AND i.review_state <> 'discarded') AS item_count
+          FROM rooms r
+         WHERE r.scope_id = ? AND (r.site_id = ? OR (r.site_id IS NULL AND ? IS NULL))
+         ORDER BY r.sort_order, r.name`).all(ctx.scopeId, siteId, siteId)
+      : this.db.prepare(`
+        SELECT r.room_id, r.name, r.is_custom, r.sort_order,
+               r.walkthrough_state, r.documented_at, r.completed_at,
+               (SELECT COUNT(*) FROM items i
+                  WHERE i.room_id = r.room_id AND i.scope_id = r.scope_id
+                    AND i.review_state <> 'discarded') AS item_count
+          FROM rooms r
+         WHERE r.scope_id = ?
+         ORDER BY r.sort_order, r.name`).all(ctx.scopeId));
 
     const done = rooms.filter((r) => r.walkthrough_state === 'done');
     const skipped = rooms.filter((r) => r.walkthrough_state === 'skipped');
@@ -261,15 +278,18 @@ export class Registry {
    * otherwise "Attic" would be presented back to them as though they had
    * thought of it.
    */
-  resolveRoom(name, ctx, { createIfMissing = true, isCustom = true } = {}) {
+  resolveRoom(name, ctx, { createIfMissing = true, isCustom = true, siteId = null } = {}) {
     if (!name) return null;
-    const found = this.db.prepare('SELECT * FROM rooms WHERE scope_id = ? AND name = ? COLLATE NOCASE').get(ctx.scopeId, name);
+    // Search within the same site (NULL = primary/home)
+    const found = this.db.prepare(
+      'SELECT * FROM rooms WHERE scope_id = ? AND name = ? COLLATE NOCASE AND (site_id IS ? OR (site_id IS NULL AND ? IS NULL))',
+    ).get(ctx.scopeId, name, siteId, siteId);
     if (found) return found;
     if (!createIfMissing) return null;
     const id = ulid();
     const custom = isCustom && !MORE_ROOMS.some((n) => n.toLowerCase() === name.toLowerCase()) ? 1 : 0;
-    this.db.prepare('INSERT INTO rooms (room_id, scope_id, name, is_custom, sort_order) VALUES (?,?,?,?,?)')
-      .run(id, ctx.scopeId, name, custom, custom ? 999 : 500);
+    this.db.prepare('INSERT INTO rooms (room_id, scope_id, name, is_custom, sort_order, site_id) VALUES (?,?,?,?,?,?)')
+      .run(id, ctx.scopeId, name, custom, custom ? 999 : 500, siteId);
     return this.db.prepare('SELECT * FROM rooms WHERE room_id = ?').get(id);
   }
 
