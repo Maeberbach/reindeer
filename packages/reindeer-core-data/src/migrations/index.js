@@ -927,4 +927,38 @@ export const MIGRATIONS = [
     );
     `,
   },
+  {
+    id: 24,
+    name: 'estate_subscriptions',
+    sql: `
+    -- Per-estate subscription and licensing tables.
+    -- Tracks subscription status, Stripe references, and license keys.
+    -- The subscription gate middleware checks estate_subscriptions.status
+    -- before allowing write operations (when FEATURE_FLAGS.subscriptionGate is ON).
+    CREATE TABLE IF NOT EXISTS estate_subscriptions (
+      scope_id                TEXT PRIMARY KEY,
+      status                  TEXT NOT NULL DEFAULT 'active',
+      subscription_expires_at TEXT,
+      stripe_customer_id      TEXT,
+      stripe_subscription_id  TEXT,
+      license_key             TEXT,
+      license_expires_at      TEXT,
+      trustee_account_id      TEXT,
+      license_pool_slots      INTEGER DEFAULT 0,
+      created_at              TEXT NOT NULL,
+      updated_at              TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS estate_access_log (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      scope_id    TEXT NOT NULL,
+      event       TEXT NOT NULL,
+      details     TEXT,
+      created_at  TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_estate_access_log_scope
+      ON estate_access_log(scope_id, created_at DESC);
+    `,
+  },
 ];

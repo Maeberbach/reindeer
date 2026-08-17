@@ -25,6 +25,12 @@ export const FEATURE_FLAGS = {
   // When ON: each estate DB is encrypted with a key derived from
   // REINDEER_MASTER_KEY + estateId. Requires that env var to be set.
   encryption: false,
+
+  // Per-estate subscription gate.
+  // OFF for now — all access is unlimited during testing.
+  // When ON: write operations blocked for expired/locked estates (HTTP 402).
+  // Can also be enabled via env: REINDEER_FEATURE_SUBSCRIPTION_GATE=true
+  subscriptionGate: false,
 };
 
 /**
@@ -47,6 +53,10 @@ export function isPasswordLoginEnabled() {
  * Returns true if multi-estate mode is enabled.
  * When false, uses hardcoded SCOPE_ID (single estate).
  */
+export function isMultiEstateEnabled() {
+  return FEATURE_FLAGS.multiEstate === true;
+}
+
 /**
  * Returns true if estate database encryption is enabled.
  * When false, databases are stored as plain SQLite (testing mode).
@@ -56,6 +66,12 @@ export function isEncryptionEnabled() {
   return FEATURE_FLAGS.encryption === true;
 }
 
-export function isMultiEstateEnabled() {
-  return FEATURE_FLAGS.multiEstate === true;
+/**
+ * Returns true if the per-estate subscription gate is active.
+ * When false, all access is unlimited (testing mode).
+ * Can be overridden via REINDEER_FEATURE_SUBSCRIPTION_GATE env var.
+ */
+export function isSubscriptionGateEnabled() {
+  if (process.env.REINDEER_FEATURE_SUBSCRIPTION_GATE === 'true') return true;
+  return FEATURE_FLAGS.subscriptionGate === true;
 }

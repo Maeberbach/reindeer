@@ -15,7 +15,7 @@ import { createIntakeRouter, createExecutionRouter, createPeopleRouter, reindeer
 import { createPrintRouter } from '@reindeer/print-feature';
 import { writeBundle } from '@reindeer/exchange';
 import { TrusteeRepository, DeliveryService, createDeliveryRouter, createLinkRouter, mailerFromEnv, createMailerFromConfig, getSmtpSettingsFromDb, saveSmtpSettingsToDb, TwoOutputsService, createTwoOutputsRouter } from '@reindeer/delivery';
-import { requireLicenseForWrite } from './licenseMiddleware.js';
+import { requireLicenseForWrite, requireSubscriptionForWrite } from './licenseMiddleware.js';
 import { FEATURE_FLAGS as REGISTRY_FLAGS } from './featureFlags.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -145,6 +145,7 @@ const twoOutputs = new TwoOutputsService({
 });
 
 const app = express();
+app.locals.db = db;
 app.use(express.json({ limit: '60mb' }));
 
 // Session attach BEFORE any /api route so downstream handlers can see req.participant.
@@ -231,12 +232,24 @@ app.get('/api/health', (req, res) => res.json({
   media: mediaStore.tally(resolveScope(req) || { scopeType: SCOPE_TYPE.INVENTORY, scopeId: SCOPE_ID, actorId: 'health' }),
 }));
 
+// Stripe webhook stub (public endpoint — no auth required)
+// Must be before authRequired so Stripe server-to-server calls aren't blocked.
+app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), (req, res) => {
+  // When Stripe is configured, this handles:
+  //   invoice.paid -> set status=active, extend subscription_expires_at
+  //   customer.subscription.updated -> update subscription status
+  //   customer.subscription.deleted -> set status=expired
+  console.log('[Stripe webhook] Received event:', req.headers['stripe-signature'] || 'no signature');
+  res.status(200).json({ received: true });
+});
+
 // Every other /api route requires a real session (or the bootstrap-owner shortcut).
 app.use('/api', authRequired);
 
 // License enforcement gate — no-op while FEATURE_FLAGS.licenseKeys is false.
 // Mounted after authRequired so the session is resolved before we check license.
 app.use(requireLicenseForWrite);
+app.use(requireSubscriptionForWrite);
 
 app.use('/api', createScopeSummaryRouter({ registry, participants, resolveScope }));
 app.use('/api', createHouseholdLinkRouter({ registry, participants, auth, resolveScope }));
@@ -324,6 +337,48 @@ app.post('/api/two-outputs/freeze', express.json(), async (req, res, next) => {
       already_frozen: !!(row.frozen_at && row.frozen_by_participant_id !== frozenByParticipantId && frozenByParticipantId != null),
     });
   } catch (e) { next(e); }
+});
+
+// --- Subscription endpoints ----------------------------------------------
+
+app.get('/api/subscription/status', (req, res) => {
+  const scopeId = req.session?.scopeId || process.env.REINDEER_SCOPE_ID || "inventory-default";
+  try {
+    const sub = db.prepare("SELECT status, subscription_expires_at, license_key FROM estate_subscriptions WHERE scope_id = ?").get(scopeId);
+    if (!sub) {
+      return res.json({ status: "active", expires_at: null, plan: "trial" });
+    }
+    res.json({ status: sub.status, expires_at: sub.subscription_expires_at, plan: sub.license_key ? "license" : "subscription" });
+  } catch (e) {
+    res.json({ status: "active", expires_at: null, plan: "trial" });
+  }
+});
+
+// License key generation (owner/admin only)
+app.post('/api/admin/generate-license', (req, res) => {
+  // Check owner auth
+  if (!req.session || (req.session.role !== "owner" && req.session.role !== "bootstrap-owner")) {
+    return res.status(403).json({ error: "Owner access required" });
+  }
+  const { duration_days = 90, trustee_account_id = null, license_pool_slots = 0 } = req.body || {};
+
+  const licenseKey = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + duration_days * 86400000).toISOString();
+  const scopeId = req.session?.scopeId || process.env.REINDEER_SCOPE_ID || "inventory-default";
+  try {
+    db.prepare(`
+      INSERT INTO estate_subscriptions (scope_id, status, license_key, license_expires_at, trustee_account_id, license_pool_slots, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(scope_id) DO UPDATE SET license_key = ?, license_expires_at = ?, trustee_account_id = ?, license_pool_slots = ?, updated_at = ?
+    `).run(scopeId, "active", licenseKey, expiresAt, trustee_account_id, license_pool_slots, now, now, licenseKey, expiresAt, trustee_account_id, license_pool_slots, now);
+    db.prepare("INSERT INTO estate_access_log (scope_id, event, details, created_at) VALUES (?, ?, ?, ?)").run(
+      scopeId, "license_activated", JSON.stringify({ duration_days, trustee_account_id }), now
+    );
+    res.json({ license_key: licenseKey, expires_at: expiresAt, slots: license_pool_slots });
+  } catch (e) {
+    res.status(500).json({ error: "Failed to generate license key", detail: e.message });
+  }
 });
 
 app.use(express.static(path.join(__dirname, '..', 'client')));
