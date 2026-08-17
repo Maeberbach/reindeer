@@ -975,7 +975,6 @@ export const MIGRATIONS = [
       scope_id    TEXT NOT NULL REFERENCES scopes(scope_id) ON DELETE CASCADE,
       name        TEXT NOT NULL,
       kind        TEXT NOT NULL DEFAULT 'home',
-      address     TEXT NOT NULL DEFAULT '',
       lat         REAL,
       lon         REAL,
       radius_m    INTEGER NOT NULL DEFAULT 100,
@@ -999,13 +998,12 @@ export const MIGRATIONS = [
     ALTER TABLE rooms ADD COLUMN site_id TEXT REFERENCES sites(site_id) ON DELETE SET NULL;
     CREATE INDEX IF NOT EXISTS idx_rooms_site ON rooms(scope_id, site_id);
     `,
-  });
-
-  migrations.push({
+  },
+  {
     id: 26,
-    description: 'Add address column to sites table for sites added by address',
-    up: `
+    name: 'site_address',
+    sql: `
     ALTER TABLE sites ADD COLUMN address TEXT NOT NULL DEFAULT '';
     `,
-  });
+  },
 ];
