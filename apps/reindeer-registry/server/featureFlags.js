@@ -31,6 +31,16 @@ export const FEATURE_FLAGS = {
   // When ON: write operations blocked for expired/locked estates (HTTP 402).
   // Can also be enabled via env: REINDEER_FEATURE_SUBSCRIPTION_GATE=true
   subscriptionGate: false,
+
+  // Heir visibility restrictions — controls what heirs/participants can see
+  // in Discovery and FairPlay. When ON (default for client distribution):
+  //   - value_estimate_cents, value_basis stripped from heir-facing endpoints
+  //   - recipient_hint, recipient_name, owner_note stripped
+  //   - owner_high_value, owner_high_value_reason stripped
+  //   - ownership_tag, ai_confidence stripped
+  // When OFF (testing mode): heirs see everything (useful for QA/demo).
+  // Toggled by Reindeer Corp admin before client distribution.
+  heirVisibility: true,
 };
 
 /**
@@ -74,4 +84,16 @@ export function isEncryptionEnabled() {
 export function isSubscriptionGateEnabled() {
   if (process.env.REINDEER_FEATURE_SUBSCRIPTION_GATE === 'true') return true;
   return FEATURE_FLAGS.subscriptionGate === true;
+}
+
+/**
+ * Returns true when heir visibility restrictions are active.
+ * When true, Discovery and FairPlay strip private fields (pricing,
+ * recipient, ownership tags) from heir/participant-facing endpoints.
+ * When false (testing mode), all fields are visible.
+ * Can be overridden via env: REINDEER_FEATURE_HEIR_VISIBILITY=false
+ */
+export function isHeirVisibilityEnabled() {
+  if (process.env.REINDEER_FEATURE_HEIR_VISIBILITY === 'false') return false;
+  return FEATURE_FLAGS.heirVisibility === true;
 }

@@ -11,7 +11,7 @@ import {
   requireSubscriptionForWrite,
   getEstateSubscription,
 } from "./middleware/subscriptionMiddleware";
-import { isSubscriptionGateEnabled } from "./featureFlags";
+import { isSubscriptionGateEnabled, isHeirVisibilityEnabled } from "./featureFlags";
 import {
   HEIR_CAPABILITIES,
   canHeirDo,
@@ -1605,8 +1605,57 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   /* ---------- items ---------- */
-  app.get("/api/items", async (_req, res) => {
-    res.json(await storage.listItems());
+  // ─── Sites: list all sites for this estate ─────────────────────
+  app.get("/api/sites", async (_req, res) => {
+    // Sites live in the Registry DB; FairPlay reads them from the imported
+    // item data (siteId/siteName on each item). Return distinct sites.
+    const allItems = await storage.listItems();
+    const siteMap = new Map<string, { siteId: string | null; siteName: string }>();
+    for (const item of allItems as any[]) {
+      const key = item.siteId ?? '__primary__';
+      if (!siteMap.has(key)) {
+        siteMap.set(key, { siteId: item.siteId ?? null, siteName: item.siteName || (item.siteId ? 'Site' : 'Home') });
+      }
+    }
+    // Always include Home (null site) even if no items
+    if (!siteMap.has('__primary__')) {
+      siteMap.set('__primary__', { siteId: null, siteName: 'Home' });
+    }
+    res.json({ sites: [...siteMap.values()] });
+  });
+
+  app.get("/api/items", async (req, res) => {
+    let allItems = await storage.listItems();
+
+    // Optional site filter: ?site_id=xxx filters to one site,
+    // ?site_id=__primary__ filters to the home site (null site_id).
+    const siteFilter = req.query.site_id as string | undefined;
+    if (siteFilter !== undefined) {
+      allItems = (allItems as any[]).filter((item) => {
+        if (siteFilter === '__primary__') return !item.siteId;
+        return item.siteId === siteFilter;
+      });
+    }
+
+    // Apply heir visibility filtering: when the flag is ON and the viewer
+    // is not the Captain (admin), strip private fields (estimated_value,
+    // value_basis, recipient_hint, owner_high_value, etc.) from each item.
+    if (isHeirVisibilityEnabled() && req.actor && !req.actor.isAdmin) {
+      const filtered = allItems.map((item: any) => {
+        const {
+          estimatedValue, aiEstimatedValue, approvedValue, valueSource, valueStatus,
+          recipientHint, recipientHintNote,
+          ownerAssignedName, ownerAssignedParticipantId, ownerAssignedSource,
+          ownerAssignedEvidence,
+          aiCategoryConfidence, aiSuggestions, aiSuggestsHighValue, aiHighValueReason,
+          ...heirVisible
+        } = item;
+        return heirVisible;
+      });
+      res.json(filtered);
+    } else {
+      res.json(allItems);
+    }
   });
 
   const itemInput = z.object({

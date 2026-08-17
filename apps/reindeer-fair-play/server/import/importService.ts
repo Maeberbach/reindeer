@@ -495,6 +495,8 @@ export async function stageBundle(
         category: srcItem.category_name ?? null,
         notes: srcItem.description ?? "",
         inventoryStory: srcItem.story ?? "",
+        siteId: (srcItem as any).site_id ?? null,
+        siteName: (srcItem as any).site_name ?? "",
         // The owner's Registry "Important" comment travels through as
         // content. Default '' when the envelope pre-dates the field (older
         // Registry versions). See docs/decisions/2026-08-06-fc-honors-owner-important.md.
@@ -921,11 +923,13 @@ export async function approveStaged(
         originApp: "reindeer_registry",
         originItemId: staged.originItemId,
         importBatchId: staged.batchId,
+        siteId: staged.siteId,
+        siteName: staged.siteName,
         // Owner-assignment fields land on the item exactly as computed
         // above. We DO NOT flip an already-awarded item back to
         // owner_assigned; only items still in `available` (the pool) are
         // moved into the owner_assigned bucket on a re-import. See guard
-        // below.
+        // below
         ownerAssignedName,
         ownerAssignedParticipantId,
         ownerAssignedSource,
@@ -964,6 +968,8 @@ export async function approveStaged(
       originApp: "reindeer_registry",
       originItemId: staged.originItemId,
       importBatchId: staged.batchId,
+      siteId: staged.siteId,
+      siteName: staged.siteName,
       // Owner-assignment lifts a new item straight into the
       // `owner_assigned` bucket, bypassing the ranked pool. Otherwise it
       // starts life in the pool as `available` like any other imported

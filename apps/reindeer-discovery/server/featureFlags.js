@@ -8,6 +8,10 @@
 export const FEATURE_FLAGS = {
   subscriptionGate: false,
   multiEstate: false,
+  // Heir visibility restrictions — when true, strip private fields
+  // (pricing, recipient, ownership tags, ai_confidence) from heir-facing
+  // endpoints. Toggled by Reindeer Corp admin before client distribution.
+  heirVisibility: true,
 };
 
 export function isSubscriptionGateEnabled() {
@@ -17,4 +21,9 @@ export function isSubscriptionGateEnabled() {
 
 export function isMultiEstateEnabled() {
   return FEATURE_FLAGS.multiEstate === true;
+}
+
+export function isHeirVisibilityEnabled() {
+  if (process.env.REINDEER_FEATURE_HEIR_VISIBILITY === 'false') return false;
+  return FEATURE_FLAGS.heirVisibility === true;
 }

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
 import { openDb, defaultDataDir, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry } from '@reindeer/core-data';
 import { SCOPE_TYPE } from '@reindeer/core-api';
-import { isSubscriptionGateEnabled } from './featureFlags.js';
+import { isSubscriptionGateEnabled, isHeirVisibilityEnabled } from './featureFlags.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -140,6 +140,24 @@ function ownerAuth(req, res, next) {
   next();
 }
 
+/**
+ * Strip private fields from an item when heir visibility restrictions are ON.
+ * When the flag is OFF (testing mode), the raw item is returned as-is.
+ * The owner (via ownerAuth) always sees everything regardless of the flag.
+ */
+function filterItemForHeir(item) {
+  if (!isHeirVisibilityEnabled()) return item;
+  // Remove fields heirs must never see
+  const {
+    value_estimate_cents, value_basis,
+    recipient_hint, recipient_name, recipient_relationship, owner_note,
+    owner_high_value, owner_high_value_reason,
+    ownership_tag, ai_confidence,
+    ...heirVisible
+  } = item;
+  return heirVisible;
+}
+
 // ─── Subscription gate middleware ─────────────────────────────
 //
 // Blocks write requests (POST/PUT/PATCH/DELETE) when the estate's
@@ -182,6 +200,14 @@ app.get('/api/health', (req, res) => res.json({
   ok: true, app: 'reindeer-discovery', scope: SCOPE_ID,
   data_dir: DATA_DIR,
 }));
+
+// ─── Sites: list all sites for this estate ─────────────────────
+app.get('/api/sites', heirSession, (req, res) => {
+  const sites = db.prepare(`SELECT site_id, name, type, address, latitude, longitude
+                           FROM sites WHERE scope_id = ? ORDER BY
+                           CASE WHEN type = 'primary' THEN 0 ELSE 1 END, name`).all(SCOPE_ID);
+  res.json({ sites });
+});
 
 // ─── Owner auth ───────────────────────────────────────────────
 app.post('/api/owner/login', (req, res) => {
@@ -276,9 +302,9 @@ app.delete('/api/heirs/:heirId', ownerAuth, (req, res) => {
 
 // ─── Items: list all (for heir browsing) ──────────────────────
 app.get('/api/items', heirSession, (req, res) => {
-  const { room, category, search } = req.query;
+  const { room, category, search, site_id } = req.query;
   let sql = `SELECT i.item_id, i.title, i.description, i.story, i.room_id, i.category_id,
-                    i.review_state, i.owner_important_comment,
+                    i.review_state, i.owner_important_comment, i.site_id, i.site_name,
                     r.name as room_name, c.name as category_name
                FROM items i
                LEFT JOIN rooms r ON i.room_id = r.room_id
@@ -288,6 +314,7 @@ app.get('/api/items', heirSession, (req, res) => {
 
   if (room) { sql += ` AND r.name = ?`; params.push(room); }
   if (category) { sql += ` AND c.name = ?`; params.push(category); }
+  if (site_id) { sql += ` AND COALESCE(i.site_id, '') = ?`; params.push(site_id); }
   if (search) {
     sql += ` AND (i.title LIKE ? OR i.description LIKE ? OR i.story LIKE ? OR i.owner_important_comment LIKE ?)`;
     const pat = `%${search}%`;
@@ -295,12 +322,15 @@ app.get('/api/items', heirSession, (req, res) => {
   }
 
   sql += ` ORDER BY i.created_at DESC`;
-  const items = db.prepare(sql).all(...params);
+  let items = db.prepare(sql).all(...params);
 
   for (const item of items) {
     const photos = db.prepare('SELECT photo_id, file_name, media_kind FROM item_photos WHERE item_id = ? AND media_kind = ? ORDER BY created_at LIMIT 1').all(item.item_id, 'photo');
     item.photo_url = photos.length > 0 ? `/api/items/${item.item_id}/photo` : null;
   }
+
+  // Apply heir visibility filtering (strips private fields when flag is on)
+  items = items.map(filterItemForHeir);
 
   res.json({ items });
 });
@@ -308,7 +338,7 @@ app.get('/api/items', heirSession, (req, res) => {
 // ─── Items: single item detail ────────────────────────────────
 app.get('/api/items/:itemId', heirSession, (req, res) => {
   const item = db.prepare(`SELECT i.item_id, i.title, i.description, i.story, i.room_id, i.category_id,
-                                 i.review_state, i.owner_important_comment,
+                                 i.review_state, i.owner_important_comment, i.site_id, i.site_name,
                                  r.name as room_name, c.name as category_name
                           FROM items i
                           LEFT JOIN rooms r ON i.room_id = r.room_id
@@ -319,7 +349,10 @@ app.get('/api/items/:itemId', heirSession, (req, res) => {
   const photos = db.prepare('SELECT photo_id, file_name, media_kind, label FROM item_photos WHERE item_id = ? ORDER BY created_at').all(item.item_id);
   item.photos = photos.map(p => ({ ...p, url: `/api/items/${item.item_id}/photo/${p.photo_id}` }));
 
-  res.json({ item });
+  // Apply heir visibility filtering
+  const filteredItem = filterItemForHeir(item);
+
+  res.json({ item: filteredItem });
 });
 
 // ─── Item photo ────────────────────────────────────────────────

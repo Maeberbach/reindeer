@@ -1642,6 +1642,9 @@ export const stagedItems = sqliteTable("staged_items", {
   inventoryStory: text("inventory_story").notNull().default(""),
   /** Owner's Important comment from Registry, staged for captain review. */
   ownerImportantComment: text("owner_important_comment").notNull().default(""),
+  /** Multi-site: which site this item belongs to. Null = primary/home. */
+  siteId: text("site_id"),
+  siteName: text("site_name").notNull().default(""),
   quantity: integer("quantity").notNull().default(1),
   conditionNote: text("condition_note").notNull().default(""),
   identifiers: text("identifiers").notNull().default("{}"),

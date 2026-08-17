@@ -190,6 +190,9 @@ CREATE TABLE IF NOT EXISTS items (
   origin_app TEXT,
   origin_item_id TEXT,
   import_batch_id TEXT,
+  /* multi-site: which site this item belongs to. Null = primary/home. */
+  site_id TEXT,
+  site_name TEXT NOT NULL DEFAULT '',
   quantity INTEGER NOT NULL DEFAULT 1,
   condition_note TEXT NOT NULL DEFAULT '',
   identifiers TEXT NOT NULL DEFAULT '{}',
@@ -207,6 +210,7 @@ CREATE TABLE IF NOT EXISTS items (
   locked_by_memorandum INTEGER NOT NULL DEFAULT 0,
   memorandum_owner_name TEXT NOT NULL DEFAULT ''
 );
+CREATE INDEX IF NOT EXISTS idx_items_site ON items (session_id, site_id);
 
 /* ------------------------------------------------------------------ */
 /* groupings + opt-ins                                                 */
@@ -527,6 +531,9 @@ CREATE TABLE IF NOT EXISTS staged_items (
   reviewed_by_participant_id INTEGER,
   /* v13 owner's Important comment through staging */
   owner_important_comment TEXT NOT NULL DEFAULT '',
+  /* multi-site provenance through staging */
+  site_id TEXT,
+  site_name TEXT NOT NULL DEFAULT '',
   /* v15 owner-assignment detector fields */
   detected_owner_assignment_name TEXT NOT NULL DEFAULT '',
   detected_owner_assignment_quote TEXT NOT NULL DEFAULT '',

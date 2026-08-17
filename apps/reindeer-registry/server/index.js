@@ -17,7 +17,7 @@ import { createPrintRouter } from '@reindeer/print-feature';
 import { writeBundle } from '@reindeer/exchange';
 import { TrusteeRepository, DeliveryService, createDeliveryRouter, createLinkRouter, mailerFromEnv, createMailerFromConfig, getSmtpSettingsFromDb, saveSmtpSettingsToDb, TwoOutputsService, createTwoOutputsRouter } from '@reindeer/delivery';
 import { requireLicenseForWrite, requireSubscriptionForWrite } from './licenseMiddleware.js';
-import { FEATURE_FLAGS as REGISTRY_FLAGS } from './featureFlags.js';
+import { FEATURE_FLAGS as REGISTRY_FLAGS, isHeirVisibilityEnabled, isSubscriptionGateEnabled } from './featureFlags.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -493,6 +493,97 @@ app.post('/api/admin/generate-license', (req, res) => {
   } catch (e) {
     res.status(500).json({ error: "Failed to generate license key", detail: e.message });
   }
+});
+
+// ─── Admin: Feature flag status & runtime toggle ──────────────
+//
+// These endpoints let a Reindeer Corp admin inspect and flip feature
+// flags at runtime before client distribution. The flags persist in
+// the database (estate_settings table) so they survive restarts.
+//
+// Only the owner can toggle flags — this is a Reindeer Corp admin
+// function, not a client feature.
+
+// Create the estate_settings table if it doesn't exist
+db.exec(`
+  CREATE TABLE IF NOT EXISTS estate_settings (
+    scope_id  TEXT NOT NULL,
+    key       TEXT NOT NULL,
+    value     TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (scope_id, key)
+  );
+`);
+
+// GET /api/admin/feature-flags — current flag state
+app.get('/api/admin/feature-flags', (req, res) => {
+  if (!req.session || (req.session.role !== "owner" && req.session.role !== "bootstrap-owner")) {
+    return res.status(403).json({ error: "Owner access required" });
+  }
+  const scopeId = req.session?.scopeId || process.env.REINDEER_SCOPE_ID || "inventory-default";
+
+  // Read any overrides from the DB
+  const overrides = db.prepare('SELECT key, value FROM estate_settings WHERE scope_id = ?').all(scopeId);
+  const overrideMap = {};
+  for (const row of overrides) overrideMap[row.key] = row.value;
+
+  res.json({
+    flags: {
+      heirVisibility: overrideMap.heirVisibility !== undefined
+        ? overrideMap.heirVisibility === 'true'
+        : REGISTRY_FLAGS.heirVisibility,
+      subscriptionGate: overrideMap.subscriptionGate !== undefined
+        ? overrideMap.subscriptionGate === 'true'
+        : REGISTRY_FLAGS.subscriptionGate,
+      multiEstate: overrideMap.multiEstate !== undefined
+        ? overrideMap.multiEstate === 'true'
+        : REGISTRY_FLAGS.multiEstate,
+      passwordLogin: overrideMap.passwordLogin !== undefined
+        ? overrideMap.passwordLogin === 'true'
+        : REGISTRY_FLAGS.passwordLogin,
+      licenseKeys: overrideMap.licenseKeys !== undefined
+        ? overrideMap.licenseKeys === 'true'
+        : REGISTRY_FLAGS.licenseKeys,
+      encryption: overrideMap.encryption !== undefined
+        ? overrideMap.encryption === 'true'
+        : REGISTRY_FLAGS.encryption,
+    },
+    effective: {
+      heirVisibility: isHeirVisibilityEnabled(),
+      subscriptionGate: isSubscriptionGateEnabled(),
+    },
+  });
+});
+
+// POST /api/admin/feature-flags — toggle a flag at runtime
+app.post('/api/admin/feature-flags', (req, res) => {
+  if (!req.session || (req.session.role !== "owner" && req.session.role !== "bootstrap-owner")) {
+    return res.status(403).json({ error: "Owner access required" });
+  }
+  const scopeId = req.session?.scopeId || process.env.REINDEER_SCOPE_ID || "inventory-default";
+  const { flag, value } = req.body || {};
+
+  const allowedFlags = ['heirVisibility', 'subscriptionGate', 'multiEstate', 'passwordLogin', 'licenseKeys', 'encryption'];
+  if (!allowedFlags.includes(flag)) {
+    return res.status(400).json({ error: `Unknown flag: ${flag}. Allowed: ${allowedFlags.join(', ')}` });
+  }
+  if (typeof value !== 'boolean') {
+    return res.status(400).json({ error: 'value must be a boolean' });
+  }
+
+  const now = new Date().toISOString();
+  db.prepare('INSERT INTO estate_settings (scope_id, key, value, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(scope_id, key) DO UPDATE SET value = ?, updated_at = ?')
+    .run(scopeId, flag, String(value), now, String(value), now);
+
+  // Update the in-memory flag so the change takes effect immediately
+  REGISTRY_FLAGS[flag] = value;
+
+  // Audit log
+  db.prepare("INSERT INTO estate_access_log (scope_id, event, details, created_at) VALUES (?, ?, ?, ?)").run(
+    scopeId, 'feature_flag_toggled', JSON.stringify({ flag, value }), now
+  );
+
+  res.json({ ok: true, flag, value, message: `${flag} is now ${value ? 'ON' : 'OFF'}` });
 });
 
 app.use(express.static(path.join(__dirname, '..', 'client')));
