@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SCOPE_TYPE } from '@reindeer-legacy/core-api';
-import { openDb, defaultDataDir, SqliteAuditLog, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry, PeopleRepo, HeirsRepo, WillsCaretakersRepo, AddendumVersionsRepo, ParticipantsRepo, MagicLinksRepo, SessionsRepo, MemorandumRepo, ReminderPrefsRepo } from '@reindeer-legacy/core-data';
+import { openDb, defaultDataDir, ulid, SqliteAuditLog, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry, PeopleRepo, HeirsRepo, WillsCaretakersRepo, AddendumVersionsRepo, ParticipantsRepo, MagicLinksRepo, SessionsRepo, MemorandumRepo, ReminderPrefsRepo } from '@reindeer-legacy/core-data';
 import { AuthService } from './auth/service.js';
 import { attachSession, authRequired } from './auth/middleware.js';
 import { createAuthRouter } from './auth/router.js';
@@ -15,8 +15,8 @@ import { createIntakeRouter, createExecutionRouter, createPeopleRouter, legacyEr
 import { createPrintRouter } from '@reindeer-legacy/print-feature';
 import { writeBundle } from '@reindeer-legacy/exchange';
 import { TrusteeRepository, DeliveryService, createDeliveryRouter, createLinkRouter, mailerFromEnv, TwoOutputsService, createTwoOutputsRouter } from '@reindeer-legacy/delivery';
-import { requireLicenseForWrite } from './licenseMiddleware.js';
-import { FEATURE_FLAGS as REGISTRY_FLAGS } from './featureFlags.js';
+import { requireLicenseForWrite, requireSubscriptionForWrite, getEstateSubscriptionStatus } from './licenseMiddleware.js';
+import { FEATURE_FLAGS as REGISTRY_FLAGS, isSubscriptionGateEnabled } from './featureFlags.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -187,6 +187,11 @@ app.use('/api', authRequired);
 // Mounted after authRequired so the session is resolved before we check license.
 app.use(requireLicenseForWrite);
 
+// Per-estate subscription gate — no-op while FEATURE_FLAGS.subscriptionGate is false.
+// Mounted after requireLicenseForWrite so the license check runs first.
+// When ON, blocks write methods (POST/PUT/PATCH/DELETE) for expired/locked estates (HTTP 402).
+app.use(requireSubscriptionForWrite(db, SCOPE_ID));
+
 app.use('/api', createScopeSummaryRouter({ registry, participants, resolveScope }));
 app.use('/api', createHouseholdLinkRouter({ registry, participants, auth, resolveScope }));
 app.use('/api', createMemorandumRouter({ memorandum, registry, participants, resolveScope }));
@@ -284,6 +289,103 @@ app.listen(PORT, () => {
   console.log(`Data: ${DATA_DIR}`);
   console.log(`Vision: ${vision.constructor.name === 'MockVisionProvider' ? 'mock provider (no REINDEER_VISION_KEY or OPENAI_API_KEY set)' : `live — ${vision.constructor.name}`}`);
   console.log(`Email: ${mailer.describe}`);
+});
+
+// ---------------------------------------------------------------------------
+// Per-estate subscription endpoints
+// ---------------------------------------------------------------------------
+
+// GET /api/subscription/status — returns the subscription state for this estate.
+// When the subscription gate is OFF (testing mode), always returns active.
+// Public to the authenticated session; no special role required.
+app.get('/api/subscription/status', (req, res) => {
+  const status = getEstateSubscriptionStatus(db, SCOPE_ID);
+  res.json({
+    scope_id: SCOPE_ID,
+    subscription_status: status,
+    gate_enabled: isSubscriptionGateEnabled(),
+  });
+});
+
+// POST /api/admin/generate-license — owner-only.
+// Generates a license key for the current estate and records it in
+// estate_subscriptions. The optional duration_days body parameter sets
+// the expiry; default is 365 days.
+// When the subscription gate is OFF this still works (stores the row) so
+// licenses can be pre-issued during testing.
+app.post('/api/admin/generate-license', (req, res, next) => {
+  try {
+    // Owner auth gate — same pattern as householdLink.js ownerOnly.
+    const p = req.participant;
+    if (!p) return res.status(401).json({ error: 'Sign in to continue.' });
+    if (p.participant_id !== 'bootstrap-owner' && p.role !== 'owner') {
+      return res.status(403).json({ error: 'Only the account owner can generate a license.' });
+    }
+
+    const durationDays = parseInt(req.body?.duration_days, 10);
+    const days = Number.isFinite(durationDays) && durationDays > 0 ? durationDays : 365;
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+    const licenseKey = `RL-${ulid()}-${crypto.randomBytes(4).toString('hex')}`;
+    const subscriptionId = ulid();
+
+    // Upsert the estate_subscriptions row for this scope.
+    const existing = db.prepare('SELECT subscription_id FROM estate_subscriptions WHERE scope_id = ?').get(SCOPE_ID);
+    if (existing) {
+      db.prepare(`
+        UPDATE estate_subscriptions
+        SET license_key = ?, status = 'active',
+            current_period_start = ?, current_period_end = ?, updated_at = ?
+        WHERE scope_id = ?
+      `).run(licenseKey, now.toISOString(), expiresAt.toISOString(), now.toISOString(), SCOPE_ID);
+    } else {
+      db.prepare(`
+        INSERT INTO estate_subscriptions
+          (subscription_id, scope_id, license_key, status,
+           current_period_start, current_period_end, created_at, updated_at)
+        VALUES (?, ?, ?, 'active', ?, ?, ?, ?)
+      `).run(subscriptionId, SCOPE_ID, licenseKey, now.toISOString(), expiresAt.toISOString(), now.toISOString(), now.toISOString());
+    }
+
+    // Record the event in the access log.
+    db.prepare(`
+      INSERT INTO estate_access_log (log_id, scope_id, event, detail, created_at)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(ulid(), SCOPE_ID, 'license_issued', JSON.stringify({ license_key: licenseKey, duration_days: days }), now.toISOString());
+
+    res.json({
+      ok: true,
+      license_key: licenseKey,
+      scope_id: SCOPE_ID,
+      issued_at: now.toISOString(),
+      expires_at: expiresAt.toISOString(),
+      duration_days: days,
+    });
+  } catch (e) { next(e); }
+});
+
+// POST /api/webhooks/stripe — Stripe webhook receiver (stub).
+// This endpoint is publicly accessible (no auth) because Stripe calls it
+// server-to-server. It currently logs the incoming payload and returns 200.
+// Future implementation will:
+//   - Verify the Stripe signature (Stripe-Signature header) against the webhook secret
+//   - Handle checkout.session.completed, customer.subscription.updated/deleted events
+//   - Update estate_subscriptions.status and current_period_* columns accordingly
+//   - Write to estate_access_log for each processed event
+app.post('/api/webhooks/stripe', express.json(), (req, res) => {
+  const eventType = req.body?.type || 'unknown';
+  const eventId = req.body?.id || 'unknown';
+  console.log(`[stripe-webhook] Received event ${eventId} type=${eventType}`);
+  console.log('[stripe-webhook] Payload:', JSON.stringify(req.body));
+
+  // TODO: When FEATURE_FLAGS.subscriptionGate is enabled, implement:
+  //   1. Verify Stripe-Signature header with the webhook secret
+  //   2. Switch on event type to update estate_subscriptions
+  //   3. Log to estate_access_log
+  // For now, acknowledge receipt so Stripe does not retry.
+
+  return res.status(200).json({ received: true, event_id: eventId, type: eventType });
 });
 
 export { app, db, itemRepo, mediaStore, scopeMediaStore, registry, audit, duplicates, trustees, delivery, resolveScope };
