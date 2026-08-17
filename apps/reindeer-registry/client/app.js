@@ -296,10 +296,26 @@ function go(name, opts = {}) {
   }
   if (name === 'batch') { const bi = $('#batchIntake'); if (bi) bi.hidden = false; }
   if (name === 'list') loadList();
-  if (name === 'signing') loadExecution();
+  if (name === 'signing') {
+    api('/api/household-link').then((hl) => {
+      const me = (hl?.participants || []).find((p) => p.is_me);
+      if (me?.role === 'assistant') {
+        toast('Only the owners can sign the memorandum.', true);
+        go('home');
+      } else { loadExecution(); }
+    }).catch(() => loadExecution());
+  }
   if (name === 'people') loadPeople();
   if (name === 'capture') { /* chips are rendered when details show */ }
-  if (name === 'handoff') { verifyRecord(); refreshFinishScreen(); }
+  if (name === 'handoff') {
+    api('/api/household-link').then((hl) => {
+      const me = (hl?.participants || []).find((p) => p.is_me);
+      if (me?.role === 'assistant') {
+        toast('Only the owners can send the final list.', true);
+        go('home');
+      } else { verifyRecord(); refreshFinishScreen(); }
+    }).catch(() => { verifyRecord(); refreshFinishScreen(); });
+  }
   if (name === 'admin') loadAdminLicenses();
   // The gifts family. Each mount refreshes its data so the roster/preview
   // reflect any items added or reassigned since the owner was last here.
@@ -323,7 +339,18 @@ function go(name, opts = {}) {
       }
     }).catch(() => loadMemo());
   }
-  if (name === 'memoentry' && !opts.editing) resetMemoEntry();
+  if (name === 'memoentry') {
+    // Only owners and co-owners can add/edit designated gifts.
+    api('/api/household-link').then((hl) => {
+      const me = (hl?.participants || []).find((p) => p.is_me);
+      if (me?.role === 'assistant') {
+        toast('Only the owners can designate specific gifts to people.', true);
+        go('home');
+      } else {
+        if (!opts.editing) resetMemoEntry();
+      }
+    }).catch(() => { if (!opts.editing) resetMemoEntry(); });
+  }
   // Slice 4 \u2014 household-link screen. Refreshes its data on every mount
   // so link state stays fresh without an app-wide state store.
   if (name === 'householdlink') loadHouseholdLink();
@@ -4402,6 +4429,7 @@ async function removeMemoEntry() {
 
 $('#memoAddBtn').onclick = () => go('memoentry');
 $('#memoPhotoBtn').onclick = () => { promiseMode = true; promiseKept = 0; resetCapture(); go('capture'); };
+$('#signVersionsBtn')?.addEventListener('click', () => go('giftversions'));
 $('#memoEntrySave').onclick = saveMemoEntry;
 $('#memoEntryCancel').onclick = () => go('memo', { back: true });
 $('#memoEntryRemove').onclick = removeMemoEntry;
