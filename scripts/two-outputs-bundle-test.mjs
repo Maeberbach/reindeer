@@ -24,19 +24,19 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import assert from 'node:assert/strict';
 
-import { SCOPE_TYPE, makeScopeCtx } from '@reindeer-legacy/core-api';
+import { SCOPE_TYPE, makeScopeCtx } from '@reindeer/core-api';
 import {
   openDb, SqliteAuditLog, SqliteItemRepository, FsMediaStore, ScopeMediaStore,
   Registry, HeirsRepo, WillsCaretakersRepo, AddendumVersionsRepo, ulid,
-} from '@reindeer-legacy/core-data';
+} from '@reindeer/core-data';
 import {
   writeInventoryBundle, readInventoryBundle,
   writeAddendumBundle, readAddendumBundle,
   writeBundle, readBundle,
   buildInventoryEnvelope, buildAddendumEnvelope,
   INVENTORY_BUNDLE_FORMAT, ADDENDUM_BUNDLE_FORMAT,
-} from '@reindeer-legacy/exchange';
-import { TrusteeRepository, TwoOutputsService, RecordingMailer } from '@reindeer-legacy/delivery';
+} from '@reindeer/exchange';
+import { TrusteeRepository, TwoOutputsService, RecordingMailer } from '@reindeer/delivery';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'two-outputs-bundle-'));
 let pass = 0;

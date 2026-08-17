@@ -24,8 +24,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { openDb, MemorandumRepo, SqliteAuditLog } from '@reindeer-legacy/core-data';
-import { SCOPE_TYPE, makeScopeCtx } from '@reindeer-legacy/core-api';
+import { openDb, MemorandumRepo, SqliteAuditLog } from '@reindeer/core-data';
+import { SCOPE_TYPE, makeScopeCtx } from '@reindeer/core-api';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'memorandum-test-'));
 const db = openDb(path.join(tmp, 'test.db'));

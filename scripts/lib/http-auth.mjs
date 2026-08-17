@@ -52,9 +52,9 @@ export async function consumeMagicLink(baseUrl, linkUrl) {
   // attributes.
   const cookie = setCookie.split(',')
     .map((c) => c.split(';')[0].trim())
-    .filter((c) => c.startsWith('legacy_session='))
+    .filter((c) => c.startsWith('reindeer_session='))
     .join('; ');
-  if (!cookie) throw new Error('verify did not set legacy_session cookie');
+  if (!cookie) throw new Error('verify did not set reindeer_session cookie');
   return cookie;
 }
 

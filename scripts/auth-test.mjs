@@ -7,7 +7,7 @@ import os from 'node:os';
 import {
   openDb, SqliteAuditLog, ParticipantsRepo, normalizeEmail,
   MagicLinksRepo, MAGIC_LINK_TTL_MINUTES, SessionsRepo, SESSION_TTL_MILLISECONDS,
-} from '@reindeer-legacy/core-data';
+} from '@reindeer/core-data';
 import { AuthService } from '../apps/reindeer-registry/server/auth/service.js';
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'legacy-auth-test-'));

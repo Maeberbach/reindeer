@@ -10,12 +10,12 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import assert from 'node:assert/strict';
 
-import { SCOPE_TYPE, makeScopeCtx, MAX_EMAIL_ATTACHMENT_BYTES } from '@reindeer-legacy/core-api';
-import { openDb, SqliteAuditLog, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry } from '@reindeer-legacy/core-data';
-import { TrusteeRepository, DeliveryService, RecordingMailer } from '@reindeer-legacy/delivery';
-import { MockVisionProvider, SimpleDuplicateDetector, screenHighValue } from '@reindeer-legacy/intake-feature';
-import { renderReport, renderItemSheet } from '@reindeer-legacy/print-feature';
-import { writeBundle, readBundle, importBundle } from '@reindeer-legacy/exchange';
+import { SCOPE_TYPE, makeScopeCtx, MAX_EMAIL_ATTACHMENT_BYTES } from '@reindeer/core-api';
+import { openDb, SqliteAuditLog, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry } from '@reindeer/core-data';
+import { TrusteeRepository, DeliveryService, RecordingMailer } from '@reindeer/delivery';
+import { MockVisionProvider, SimpleDuplicateDetector, screenHighValue } from '@reindeer/intake-feature';
+import { renderReport, renderItemSheet } from '@reindeer/print-feature';
+import { writeBundle, readBundle, importBundle } from '@reindeer/exchange';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'legacy-rt-'));
 let pass = 0;
@@ -260,7 +260,7 @@ await check('the envelope counts the owner\'s flagged items separately from high
   assert.equal(envelope.counts.high_value, 2);
 });
 await check('the CSV appends owner_important, owner_important_reason, and owner_important_comment at the end', async () => {
-  const { toCsv, CSV_COLUMNS } = await import('@reindeer-legacy/exchange');
+  const { toCsv, CSV_COLUMNS } = await import('@reindeer/exchange');
   const csv = toCsv(envelope);
   const headers = csv.split(/\r\n/)[0].split(',');
   assert.deepEqual(headers, CSV_COLUMNS);
@@ -647,7 +647,7 @@ await check('the envelope counts commented items as a subset of owner-flagged on
 });
 
 await check('the CSV\'s last column carries the comment verbatim, including a dollar figure', async () => {
-  const { toCsv } = await import('@reindeer-legacy/exchange');
+  const { toCsv } = await import('@reindeer/exchange');
   const csv = toCsv(cmtOut.envelope);
   const chestRow = csv.split(/\r\n/).find((r) => r.includes('Cedar hope chest'));
   assert.ok(chestRow, 'no chest row in CSV');

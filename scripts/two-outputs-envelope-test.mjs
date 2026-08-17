@@ -21,8 +21,8 @@ import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 
-import { SCOPE_TYPE, makeScopeCtx } from '@reindeer-legacy/core-api';
-import { openDb, SqliteAuditLog, SqliteItemRepository, FsMediaStore, Registry, ulid } from '@reindeer-legacy/core-data';
+import { SCOPE_TYPE, makeScopeCtx } from '@reindeer/core-api';
+import { openDb, SqliteAuditLog, SqliteItemRepository, FsMediaStore, Registry, ulid } from '@reindeer/core-data';
 import {
   buildInventoryEnvelope,
   buildAddendumEnvelope,
@@ -31,7 +31,7 @@ import {
   ENVELOPE_TYPE_INVENTORY,
   ENVELOPE_TYPE_ADDENDUM,
   TYPED_ENVELOPE_VERSION,
-} from '@reindeer-legacy/exchange';
+} from '@reindeer/exchange';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'two-outputs-'));
 let pass = 0;
