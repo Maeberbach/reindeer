@@ -2166,7 +2166,9 @@ async function renderPartnerCard() {
     } else {
       add.hidden = false;
       linked.hidden = true;
-      // Restore the quiet-row link text and onboarding tiles in case they were changed
+      // Restore the card label and quiet-row text in case they were changed
+      add.querySelector('.lbl').textContent = 'Add a co-owner or helper';
+      add.querySelector('.hint').textContent = 'Invite a co-owner to share your inventory, or a helper to assist with photos and documentation.';
       document.querySelectorAll('[data-go="householdlink"]').forEach(el => {
         if (el.closest('.quietrow')) el.textContent = 'Add a co-owner or helper';
         if (el.id === 'guidedAddPartner' || el.closest('.onboarding-tiles')) {
@@ -4578,8 +4580,8 @@ async function loadHouseholdLink() {
   const coOwnerSlotTaken = partners.length > 0 || !!pendingPartner;
 
   body.innerHTML = `
-    <h2>${coOwnerSlotTaken ? 'Add a helper' : 'Add a co-owner or helper'}</h2>
-    <p class="lede">${coOwnerSlotTaken ? 'Your co-owner slot is taken. You can still invite helpers to assist with photos and documentation.' : 'Invite someone to join your Registry. A co-owner shares your inventory and keeps their own gift list. A helper can take photos and document items for you.'}</p>
+    <h2>${coOwnerSlotTaken ? 'There can only be one co-owner' : 'Add a co-owner or helper'}</h2>
+    <p class="lede">${coOwnerSlotTaken ? 'There can only be one co-owner. Would you like to add a helper?' : 'Invite someone to join your Registry. A co-owner shares your inventory and keeps their own gift list. A helper can take photos and document items for you.'}</p>
 
     ${partners.length ? `
     <div class="link-card" style="margin-bottom:16px">
@@ -4605,12 +4607,6 @@ async function loadHouseholdLink() {
       </ul>
     </div>` : ''}
 
-    ${pendingPartner ? `
-    <div class="link-card" style="margin-bottom:20px;border-color:var(--primary)">
-      <div><b>Co-owner invite pending</b></div>
-      <p class="reassure" style="margin:8px 0 0">An invite has been sent to ${escapeHtml(pendingPartner.display_name || pendingPartner.email)}. Once they sign in, you can confirm the link. You can revoke the invite if needed.</p>
-    </div>` : ``}
-
     ${!coOwnerSlotTaken ? `
     <div class="invite-form">
       <h3>Invite a co-owner</h3>
@@ -4634,8 +4630,7 @@ async function loadHouseholdLink() {
     </div>
     <div id="helperResult3" hidden></div>
 
-    <p class="reassure" style="margin-top:16px">Your email app will open with a secure, one-time sign-in link for them. Just hit send — the link works once and expires in twenty minutes. You can revoke access anytime. Nothing here is a will.</p>
-    <button class="ghost wide" data-go="home" style="margin-top:8px">Back to home</button>
+    ${coOwnerSlotTaken ? `<button class="primary wide" data-go="home" style="margin-top:16px">No thanks — back to home</button>` : `<button class="ghost wide" data-go="home" style="margin-top:8px">Back to home</button>`}
   `;
 
   const inviteBtn = $('#inviteBtn');
