@@ -282,19 +282,21 @@ function go(name, opts = {}) {
     householdlink: 'Send invite', helperinvite: 'Invite a helper',
     // Ship B \u2014 contested categories.
     contested: 'Possessions with high emotional connections that can cause conflict', reminders: 'Holiday reminders',
+    admin: 'Estate license keys',
   }[name] ?? 'Reindeer: Registry';
   window.scrollTo(0, 0);
   if (name === 'walk') loadWalk();
   if (name === 'promise') renderPromise();
   // Landing on the menu ends the gifting walk, so "Add one item" is never
   // silently shortened by a mode the owner has already left behind.
-  if (name === 'home') { promiseMode = false; renderResume(); refreshQueueBadge(); renderCounters(); renderPartnerCard(); }
+  if (name === 'home') { promiseMode = false; renderResume(); refreshQueueBadge(); renderCounters(); renderPartnerCard(); showAdminTile(); }
   if (name === 'batch') { const bi = $('#batchIntake'); if (bi) bi.hidden = false; }
   if (name === 'list') loadList();
   if (name === 'signing') loadExecution();
   if (name === 'people') loadPeople();
   if (name === 'capture') { /* chips are rendered when details show */ }
   if (name === 'handoff') { verifyRecord(); refreshFinishScreen(); }
+  if (name === 'admin') loadAdminLicenses();
   // The gifts family. Each mount refreshes its data so the roster/preview
   // reflect any items added or reassigned since the owner was last here.
   if (name === 'gifts') loadGifts();
@@ -1514,7 +1516,7 @@ async function runFinishActions({ email }) {
 
 ${ownerName} has put together an inventory of their possessions and their wishes about who should receive each item. The attached file contains everything — the full list, every photo, and every story.
 
-To open it, go to ${window.location.origin.replace('registry', 'fair-play')} and use the "Import from Registry" option. You will also need a data access code from ${ownerName} — they will share it with you separately.
+To open it, go to ${window.location.origin.replace('registry', 'fair-play')} and use the "Import from Registry" option. You will also need a license key from ${ownerName} — they will share it with you separately.
 
 Keep this file with the estate planning documents. It is the personal property memorandum referenced by the will.
 
@@ -2416,6 +2418,99 @@ async function rememberTypedRoom(name) {
     cap.room = clean;
   }
 }
+
+// ---- ADMIN: LICENSE KEYS ----
+
+async function loadAdminLicenses() {
+  // Determine role from session
+  let role = '';
+  try {
+    const hl = await api('/api/household-link');
+    const me = (hl?.participants || []).find((p) => p.is_me);
+    if (me) role = me.role;
+  } catch {}
+  // Only owners/co-owners see the admin tile and can generate keys
+  const isOwner = role === 'owner' || role === 'bootstrap-owner' || role === 'partner';
+  const adminTile = $('#adminTile');
+  if (adminTile) adminTile.hidden = !isOwner;
+  loadLicenseList();
+}
+
+async function showAdminTile() {
+  let role = '';
+  try {
+    const hl = await api('/api/household-link');
+    const me = (hl?.participants || []).find((p) => p.is_me);
+    if (me) role = me.role;
+  } catch {}
+  const isOwner = role === 'owner' || role === 'bootstrap-owner' || role === 'partner';
+  const adminTile = $('#adminTile');
+  if (adminTile) adminTile.hidden = !isOwner;
+}
+
+async function loadLicenseList() {
+  const box = $('#licenseList');
+  box.innerHTML = '<p style="color:var(--muted)">Loading...</p>';
+  try {
+    const data = await api('/api/admin/licenses');
+    if (!data.licenses || data.licenses.length === 0) {
+      box.innerHTML = '<p style="color:var(--muted)">No license keys generated yet. Use the form below to create one.</p>';
+      return;
+    }
+    const rows = data.licenses.map((l) => {
+      const exp = l.license_expires_at ? new Date(l.license_expires_at).toLocaleDateString('en-US', { dateStyle: 'medium' }) : '—';
+      const slots = l.license_pool_slots || 0;
+      const created = l.created_at ? new Date(l.created_at).toLocaleDateString('en-US', { dateStyle: 'medium' }) : '—';
+      return '<div style="border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:12px">'
+        + '<div style="font-family:monospace;font-size:12px;color:var(--primary);font-weight:600;word-break:break-all">' + escapeHtml(l.license_key || '') + '</div>'
+        + '<div style="font-size:11px;color:var(--muted);margin-top:6px">'
+        + '<span>Status: <b>' + escapeHtml(l.status || 'active') + '</b></span> · '
+        + '<span>Expires: <b>' + exp + '</b></span>'
+        + (slots > 0 ? ' · <span>Pool slots: <b>' + slots + '</b></span>' : '')
+        + ' · <span>Created: ' + created + '</span>'
+        + '</div></div>';
+    }).join('');
+    box.innerHTML = '<h3 style="margin:0 0 12px;font-size:1rem">Current keys</h3>' + rows;
+  } catch (e) {
+    box.innerHTML = '<p style="color:var(--destructive)">Could not load keys: ' + escapeHtml(e.message) + '</p>';
+  }
+}
+
+$('#generateLicenseBtn').onclick = async () => {
+  const btn = $('#generateLicenseBtn');
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  const result = $('#licenseResult');
+  result.hidden = false;
+  result.innerHTML = 'Generating...';
+  try {
+    const duration = parseInt($('#licenseDuration').value, 10) || 90;
+    const slots = parseInt($('#licenseSlots').value, 10) || 0;
+    const data = await api('/api/admin/generate-license', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ duration_days: duration, license_pool_slots: slots }),
+    });
+    const exp = new Date(data.expires_at).toLocaleDateString('en-US', { dateStyle: 'long' });
+    result.innerHTML = '<div style="border:1.5px solid var(--primary);border-radius:8px;padding:16px;background:var(--card)">'
+      + '<p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">License key generated</p>'
+      + '<p style="margin:0 0 12px;font-family:monospace;font-size:14px;font-weight:bold;color:var(--primary);word-break:break-all">' + escapeHtml(data.license_key) + '</p>'
+      + '<p style="margin:0 0 8px;font-size:13px">Valid through: <b>' + exp + '</b>' + (data.slots ? ' · Pool slots: <b>' + data.slots + '</b>' : '') + '</p>'
+      + '<p style="margin:12px 0 0;font-size:13px;color:var(--muted)">Print the attorney/trustee letter to deliver this key with the estate documents. The letter is marked privileged and confidential — not for probate filing.</p>'
+      + '</div>'
+      + '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">'
+      + '<button class="primary" onclick="window.open(\'' + API + '/api/admin/license-letter\', \'_blank\')">Print attorney/trustee letter</button>'
+      + '<button class="ghost" onclick="navigator.clipboard.writeText(\'' + data.license_key + '\');this.textContent=\'Copied!\'">Copy key</button>'
+      + '</div>';
+    loadLicenseList();
+  } catch (e) {
+    result.innerHTML = '<p style="color:var(--destructive)">Failed to generate key: ' + escapeHtml(e.message) + '</p>';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Generate license key';
+};
+
+$('#adminBackBtn').onclick = () => go('home');
 
 // ------------------------------------------------------------------- boot
 (async function boot() {

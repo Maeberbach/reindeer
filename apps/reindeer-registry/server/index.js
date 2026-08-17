@@ -354,6 +354,117 @@ app.get('/api/subscription/status', (req, res) => {
   }
 });
 
+// List all license keys for this estate (owner only)
+app.get('/api/admin/licenses', (req, res) => {
+  if (!req.session || (req.session.role !== "owner" && req.session.role !== "bootstrap-owner")) {
+    return res.status(403).json({ error: "Owner access required" });
+  }
+  const scopeId = req.session?.scopeId || process.env.REINDEER_SCOPE_ID || "inventory-default";
+  try {
+    const rows = db.prepare(
+      "SELECT license_key, license_expires_at, trustee_account_id, license_pool_slots, status, created_at, updated_at FROM estate_subscriptions WHERE scope_id = ? ORDER BY created_at DESC"
+    ).all(scopeId);
+    res.json({ licenses: rows, scope_id: scopeId });
+  } catch (e) {
+    res.json({ licenses: [] });
+  }
+});
+
+// Generate the attorney/trustee letter as printable HTML
+app.get('/api/admin/license-letter', (req, res) => {
+  if (!req.session || (req.session.role !== "owner" && req.session.role !== "bootstrap-owner")) {
+    return res.status(403).json({ error: "Owner access required" });
+  }
+  const scopeId = req.session?.scopeId || process.env.REINDEER_SCOPE_ID || "inventory-default";
+  const ownerName = req.session?.ownerName || process.env.REINDEER_OWNER_NAME || 'The Estate Owner';
+  try {
+    const sub = db.prepare(
+      "SELECT license_key, license_expires_at, trustee_account_id, license_pool_slots FROM estate_subscriptions WHERE scope_id = ? ORDER BY created_at DESC LIMIT 1"
+    ).get(scopeId);
+    if (!sub) return res.status(404).json({ error: "No license key found. Generate one first." });
+
+    const expires = new Date(sub.license_expires_at).toLocaleDateString('en-US', { dateStyle: 'long' });
+    const today = new Date().toLocaleDateString('en-US', { dateStyle: 'long' });
+    const slots = sub.license_pool_slots || 0;
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+      <title>Estate License Letter — ${ownerName}</title>
+      <style>
+        @page { margin: 1in; }
+        body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; line-height: 1.5; color: #1a1a1a; max-width: 6.5in; margin: 0 auto; }
+        .privilege-bar { border: 2px solid #2d4a2e; padding: 8px 16px; text-align: center; margin-bottom: 24px; font-size: 9pt; letter-spacing: 1px; }
+        .privilege-bar .line1 { font-weight: bold; color: #2d4a2e; }
+        .privilege-bar .line2 { font-size: 8pt; color: #555; margin-top: 2px; }
+        .date { margin-bottom: 24px; }
+        h1 { font-size: 13pt; margin: 0 0 8px; }
+        h2 { font-size: 11pt; margin: 24px 0 8px; color: #2d4a2e; }
+        .key-box { border: 1.5px solid #2d4a2e; padding: 16px; margin: 16px 0; background: #f7faf7; }
+        .key-box .label { font-size: 9pt; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .key-box .key { font-family: 'Courier New', monospace; font-size: 14pt; font-weight: bold; color: #1a1a1a; margin-top: 4px; word-break: break-all; }
+        .key-meta { display: flex; gap: 32px; margin-top: 8px; font-size: 9pt; color: #666; }
+        .instructions { margin: 16px 0; }
+        .instructions ol { padding-left: 20px; }
+        .instructions li { margin-bottom: 8px; }
+        .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #ccc; font-size: 8pt; color: #888; }
+        .not-probate { margin: 16px 0; padding: 8px 12px; background: #fff8f0; border-left: 3px solid #b8860b; font-size: 9pt; }
+        @media print { .no-print { display: none; } body { max-width: none; } }
+      </style></head><body>
+
+      <div class="privilege-bar">
+        <div class="line1">ATTORNEY-CLIENT PRIVILEGED · WORK PRODUCT</div>
+        <div class="line2">PRIVILEGED AND CONFIDENTIAL — NOT FOR PROBATE FILING — NOT FOR PUBLIC RECORD</div>
+      </div>
+
+      <div class="date">${today}</div>
+
+      <h1>Reindeer Estate License Key</h1>
+      <p>This letter accompanies the personal property memorandum prepared for <b>${ownerName}</b>. It contains the license key required to access the estate's digital records in Reindeer: FairPlay.</p>
+
+      <div class="not-probate">
+        <b>Important:</b> This document is protected by attorney-client privilege and is attorney work product. It is NOT part of the probate estate inventory and must NOT be filed with any court. Keep this letter with the estate planning documents and deliver it privately to the trustee or personal representative.
+      </div>
+
+      <h2>License Key</h2>
+      <div class="key-box">
+        <div class="label">Estate License Key</div>
+        <div class="key">${sub.license_key}</div>
+        <div class="key-meta">
+          <span>Valid through: <b>${expires}</b></span>
+          ${slots > 0 ? `<span>Pool slots: <b>${slots}</b></span>` : ''}
+        </div>
+      </div>
+
+      <h2>Instructions for the Trustee or Personal Representative</h2>
+      <div class="instructions">
+        <ol>
+          <li>You will receive a <b>.reindeer file</b> containing the estate inventory. This file may come from the attorney holding the will, or directly from the estate owner's stored copies.</li>
+          <li>Go to <b>Reindeer: FairPlay</b> at the web address provided with the estate documents.</li>
+          <li>Use the <b>Import from Registry</b> option and select the .reindeer file.</li>
+          <li>When prompted, enter the license key shown above. This activates the estate for full read and write access.</li>
+          <li>Once imported, you can review the full inventory, see the owner's wishes about who should receive each item, and begin the distribution process.</li>
+          <li>If the license has expired, you can renew it by purchasing a trustee extension. Contact the estate's attorney or visit the Reindeer website.</li>
+        </ol>
+      </div>
+
+      <h2>Safe Keeping</h2>
+      <p>Keep this letter with the original will and estate planning documents. Do not file it with the court. The license key and the .reindeer file should be stored together but delivered privately to the trustee — not through any public probate process.</p>
+
+      <div class="footer">
+        Generated by Reindeer: Registry on ${today}. This document is privileged and confidential. It is attorney work product and is not discoverable in probate proceedings. Do not include this letter in any public filing.
+      </div>
+
+      <div class="no-print" style="margin-top:24px;text-align:center">
+        <button onclick="window.print()" style="padding:8px 24px;font-size:11pt;cursor:pointer;background:#2d4a2e;color:white;border:none;border-radius:4px">Print this letter</button>
+      </div>
+      </body></html>`;
+
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (e) {
+    res.status(500).json({ error: "Failed to generate letter", detail: e.message });
+  }
+});
+
 // License key generation (owner/admin only)
 app.post('/api/admin/generate-license', (req, res) => {
   // Check owner auth

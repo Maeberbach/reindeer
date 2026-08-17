@@ -168,12 +168,12 @@ export function renderReport(items, { title = 'Reindeer: Registry', groupBy = 'r
     body: summary + body + `<div class="sig"><div>Owner signature / date</div><div>Witness or trustee / date</div></div>
 
       <div style="margin-top:2rem;padding:1rem 1.25rem;border:1.5px solid #2d4a2e;border-radius:6px;background:#f7faf7;page-break-before:always">
-        <h2 style="margin:0 0 .5rem;color:#2d4a2e;font-size:14pt">Important — for your trustee and your lawyer</h2>
+        <h2 style="margin:0 0 .5rem;color:#2d4a2e;font-size:14pt">Important — before you finish</h2>
         <ol style="margin:0;padding-left:1.2rem;line-height:1.6;font-size:10pt">
-          <li><b>Send the data access code to your trustee.</b> The digital file (.reindeer) is protected by a code. Your trustee will need this code to open it after you&rsquo;re gone. Share it separately &mdash; in person or by phone, not by email.</li>
-          <li><b>Give the data file to your trustee and/or the lawyer holding your will.</b> Your .reindeer file should be stored with your estate planning documents. Send it to your trustee, your attorney, or both &mdash; whoever you trust to keep it safe and hand it over at the right time.</li>
+          <li><b>Generate a license key and send it to your trustee.</b> Use the Estate license keys page to generate a key. Print the attorney/trustee letter (marked privileged and confidential) and deliver it with the estate documents. Share the key separately &mdash; in person or by phone, not by email.</li>
+          <li><b>Give the data file and the license key letter to your trustee and/or the lawyer holding your will.</b> Your .reindeer file and the printed license key letter should be stored with your estate planning documents. Send them to your trustee, your attorney, or both &mdash; whoever you trust to keep them safe and hand them over at the right time.</li>
           <li><b>Keep your own copy somewhere safe.</b> A labeled USB drive, a safe deposit box, or a folder your executor knows about. The file is no good to anyone if they can&rsquo;t find it.</li>
-          <li><b>The code and the file must travel separately.</b> If someone finds the file, they cannot open it without the code. If someone has the code but no file, they cannot read your wishes. Give the code to your trustee by phone or in person. Send the file to your trustee and/or lawyer by any secure means.</li>
+          <li><b>The key and the file must travel separately.</b> If someone finds the file, they cannot open it without the key. If someone has the key but no file, they cannot read your wishes. Give the key to your trustee by phone or in person. Send the file to your trustee and/or lawyer by any secure means.</li>
         </ol>
         <p style="margin:.75rem 0 0;font-size:9pt;color:#666">This page is part of your Reindeer: Registry printed memorandum. It should be kept with your will and estate planning documents.</p>
       </div>`,

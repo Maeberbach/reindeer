@@ -447,6 +447,7 @@
     <div class="tiles">
       <button class="tile" data-go="signing"><span class="ico">✍️</span><span class="lbl">Sign it and give it to your trustee</span><span class="hint">Print it, sign it by hand, photograph the signed page</span></button>
       <button class="tile" data-go="handoff"><span class="ico">✅</span><span class="lbl">Send it to FairPlay or Discovery</span><span class="hint">Or email it, print it, or save a copy</span></button>
+      <button class="tile" data-go="admin" id="adminTile" hidden><span class="ico">🔑</span><span class="lbl">Estate license keys</span><span class="hint">Generate a key for your trustee or attorney</span></button>
     </div>
 
     <p class="reassure">Nothing here is a will. It records your wishes so your family is not guessing.</p>
@@ -1054,10 +1055,10 @@
     <div id="finalInstructions" class="note" hidden style="margin-top:1.5rem;border-top:1px solid var(--border);padding-top:1.5rem">
       <h3 style="margin:0 0 .5rem;font-size:1.05rem;color:var(--primary)">Important — don&rsquo;t skip this</h3>
       <ol style="margin:0;padding-left:1.2rem;line-height:1.6">
-        <li><b>Send the data access code to your trustee.</b> The .reindeer file you just exported is protected by a code. Your trustee or personal representative will need this code to open the file after you&rsquo;re gone. Share it with them now &mdash; separately from the file itself, ideally in person or by phone. Do not email the code and the file together.</li>
+        <li><b>Generate a license key and send it to your trustee.</b> Go to <b>Estate license keys</b> on the home screen to generate a key. The key lets your trustee open the .reindeer file in Reindeer: FairPlay. Print the attorney/trustee letter (marked privileged and confidential) and deliver it with the estate documents. Share the key separately from the file &mdash; in person or by phone, not by email.</li>
         <li><b>Give the data file to your trustee and/or the lawyer holding your will.</b> Your .reindeer file should be stored with your estate planning documents. Send it to your trustee, your attorney, or both &mdash; whoever you trust to keep it safe and hand it over at the right time. Tell them it is your personal property memorandum referenced by your will.</li>
         <li><b>Keep your own copy somewhere safe.</b> Download a copy to a place your trustee will know to look &mdash; a labeled USB drive, a safe deposit box, or a folder your executor is aware of. The file is no good to anyone if they can&rsquo;t find it.</li>
-        <li><b>The code and the file must travel separately.</b> If someone finds the file, they cannot open it without the code. If someone has the code but no file, they cannot read your wishes. Give the code to your trustee by phone or in person. Send the file to your trustee and/or lawyer by any secure means. Your will can reference both.</li>
+        <li><b>The key and the file must travel separately.</b> If someone finds the file, they cannot open it without the key. If someone has the key but no file, they cannot read your wishes. Give the key to your trustee by phone or in person. Send the file to your trustee and/or lawyer by any secure means. Your will can reference both.</li>
       </ol>
       <p style="margin:.75rem 0 0;color:var(--muted);font-size:.9rem">These instructions are also printed on the last page of your printable list, so a paper copy goes wherever your estate papers go.</p>
     </div>
@@ -1380,6 +1381,37 @@
     shared decision made by one hand. Every irreversible-feeling action
     (invite, confirm, unlink) confirms first.
   -->
+
+  <!-- ADMIN: LICENSE KEY MANAGEMENT -->
+  <section class="screen" data-screen="admin" hidden>
+    <h2>Estate License Keys</h2>
+    <p class="lede">Generate a license key for your trustee or attorney. The key lets them open your .reindeer file in Reindeer: FairPlay.</p>
+
+    <div id="licenseList" class="note">
+      <p style="color:var(--muted)">Loading…</p>
+    </div>
+
+    <h3 style="margin-top:2rem">Generate a new key</h3>
+    <div class="subfields" style="display:block">
+      <label class="fieldlabel" for="licenseDuration">Duration (days)</label>
+      <select id="licenseDuration" class="bigin">
+        <option value="30">30 days</option>
+        <option value="90" selected>90 days</option>
+        <option value="180">180 days</option>
+        <option value="365">1 year</option>
+      </select>
+
+      <label class="fieldlabel" for="licenseSlots" style="margin-top:12px">Trustee pool slots (0 for individual estate)</label>
+      <input type="number" id="licenseSlots" class="bigin" value="0" min="0" max="100" placeholder="0">
+
+      <button class="primary" id="generateLicenseBtn" style="margin-top:16px">Generate license key</button>
+    </div>
+
+    <div id="licenseResult" class="note" hidden style="margin-top:1.5rem"></div>
+
+    <button class="ghost wide" id="adminBackBtn" style="margin-top:1.5rem">Back to home</button>
+  </section>
+
   <section class="screen" data-screen="householdlink" hidden>
     <div id="householdLinkBody"><p class="reassure">Loading…</p></div>
   </section>
