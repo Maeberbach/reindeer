@@ -309,6 +309,13 @@ function go(name, opts = {}) {
   }
   if (name === 'people') loadPeople();
   if (name === 'capture') {
+    // Trigger geosyncing when entering capture — detect the device's
+    // location and warn if the owner is adding items to a site they're
+    // not physically at. Owners can override; helpers are blocked from
+    // adding to a site they're not at.
+    if (currentSite && currentSite.site_id !== activeSiteId) {
+      activeSiteId = currentSite.site_id;
+    }
     // Trigger geosyncing when entering capture
     if (!cap.geoChecked) {
       loadSites().then(() => detectLocation());
@@ -591,10 +598,28 @@ function syncSiteUI() {
 
   if (currentSite) {
     display.innerHTML = `<span class="site-badge">${escapeHtml(currentSite.name)}</span>`;
-    warning.hidden = true;
+    // Warn if the owner is physically at a different site than the
+    // one they're adding items to. Owners can override; the warning
+    // is advisory. Helpers are blocked from adding to a site they're
+    // not at (handled in the save flow).
+    if (activeSiteId && currentSite.site_id !== activeSiteId) {
+      const activeSite = sitesList.find((s) => s.site_id === activeSiteId);
+      const activeName = activeSite ? activeSite.name : 'the selected site';
+      warning.hidden = false;
+      const warnEl = warning.querySelector('.offsite-msg');
+      if (warnEl) {
+        warnEl.innerHTML = `You appear to be at <b>${escapeHtml(currentSite.name)}</b>, but you're adding items to <b>${escapeHtml(activeName)}</b>. Items should be captured at the location where they are.`;
+      }
+    } else {
+      warning.hidden = true;
+    }
   } else if (cap.offsite) {
     display.innerHTML = '<span class="site-badge site-unknown">Unknown location</span>';
     warning.hidden = false;
+    const warnEl = warning.querySelector('.offsite-msg');
+    if (warnEl) {
+      warnEl.textContent = 'You are not at a registered location. You can still add items, but they will be tagged with your GPS coordinates. Register this location to group items by site.';
+    }
   } else {
     // Geo not available or denied — don't block, just tag as unknown
     display.innerHTML = '<span class="site-badge site-unknown">Location not detected</span>';
@@ -680,18 +705,39 @@ async function renderSites() {
 
   tilesEl.innerHTML = extraSites.map((s) => {
     const ico = s.kind === 'vacation' ? '🏖️' : s.kind === 'storage' ? '📦' : s.kind === 'second_home' ? '🏡' : '📍';
-    return `<button class="tile" data-site-id="${s.site_id}">
-      <span class="ico">${ico}</span>
-      <span class="lbl">${escapeHtml(s.name)}</span>
-      <span class="hint">Tap to walk through its rooms</span>
-    </button>`;
+    return `<div class="site-tile-wrap" data-site-id="${s.site_id}">
+      <button class="tile" data-site-id="${s.site_id}">
+        <span class="ico">${ico}</span>
+        <span class="lbl">${escapeHtml(s.name)}</span>
+        <span class="hint">Tap to walk through its rooms</span>
+      </button>
+      <button class="site-tile-del" data-site-id="${s.site_id}" data-site-name="${escapeHtml(s.name)}" title="Remove this site">&times;</button>
+    </div>`;
   }).join('');
 
   $$('#homeSitesTiles [data-site-id]').forEach((b) => {
-    b.onclick = () => {
-      activeSiteId = b.dataset.siteId;
-      go('walk');
-    };
+    if (b.classList.contains('site-tile-del')) {
+      b.onclick = async (e) => {
+        e.stopPropagation();
+        const siteId = b.dataset.siteId;
+        const siteName = b.dataset.siteName;
+        if (!confirm(`Remove "${siteName}" from your estate?\\n\\nItems recorded at this site will keep their data but won't be grouped under it anymore.`)) return;
+        try {
+          await api(`/api/sites/${siteId}`, { method: 'DELETE' });
+          sitesList = sitesList.filter((s) => s.site_id !== siteId);
+          if (activeSiteId === siteId) activeSiteId = null;
+          await renderSites();
+          toast(`Removed "${siteName}".`);
+        } catch (err) {
+          toast('Could not remove the site: ' + (err.message || 'unknown error'), true);
+        }
+      };
+    } else {
+      b.onclick = () => {
+        activeSiteId = b.dataset.siteId;
+        go('walk');
+      };
+    }
   });
 }
 
@@ -727,6 +773,14 @@ function wireHomeSiteControls() {
   }
 }
 wireHomeSiteControls();
+
+// Print-by-room tile — opens the printable inventory anytime for review
+// or sharing to Discovery. The full sign-and-send flow is only on the
+// all-done (walk finished) page.
+$('#homePrintTile')?.addEventListener('click', () => {
+  window.open(`${API}/api/print/report`, '_blank');
+  toast('Opening your printable list, organized by room.');
+});
 
 function reasonFromCap(c) {
   if (!c.important) return '';
@@ -1824,9 +1878,17 @@ $('#finishGo').onclick = async () => {
     if (!name) return toast('Please write your trustee\u2019s name.', true);
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast('That email address does not look right. Please check it.', true);
     // Emailing cannot be undone, so it gets its own plain confirmation screen.
+    // Every send requires a signed page on file. If there isn't one,
+    // redirect to the signing page instead of sending.
+    if (!execution?.record) {
+      toast('You need to sign your list before sending it. Print it, sign it by hand, photograph the signed page.', true);
+      go('signing');
+      return;
+    }
     $('#confirmDetail').innerHTML =
       `<b>To:</b> ${escapeHtml(name)} &lt;${escapeHtml(email)}&gt;<br>`
-      + '<b>What they receive:</b> your full list, every photo, every story, and your wishes about who gets what. Your email app will open with everything attached — just hit send.';
+      + '<b>What they receive:</b> your full list, every photo, every story, and your wishes about who gets what. Your email app will open with everything attached — just hit send.<br>'
+      + `<br><b>⚠ Fresh signature required.</b> Your signed page on file was photographed on ${new Date(execution.record.captured_at).toLocaleDateString('en-US', { dateStyle: 'long' })}. Make sure you print a fresh copy, sign it by hand, and photograph the newly signed page before sending. Do not reuse an old signed page.`;
     go('confirmsend');
     return;
   }

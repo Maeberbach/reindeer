@@ -475,6 +475,7 @@
       because they are concluding actions, not starting points.
     -->
     <div class="tiles">
+      <button class="tile" id="homePrintTile"><span class="ico">🖨️</span><span class="lbl">Print your list</span><span class="hint">Opens a printable list, organized by room — for review or sharing</span></button>
       <button class="tile" data-go="handoff"><span class="ico">✅</span><span class="lbl">Send it to FairPlay or Discovery</span><span class="hint">Or email it, print it, or save a copy</span></button>
       <button class="tile" data-go="admin" id="adminTile" hidden><span class="ico">🔑</span><span class="lbl">Estate license keys</span><span class="hint">Generate a key for your trustee or attorney</span></button>
     </div>
@@ -584,7 +585,8 @@
       <p>You have been through the whole house. You can still go back into any room and add more.</p>
       <div class="tiles alldone-tiles">
         <button class="tile" data-go="signing"><span class="ico">✍️</span><span class="lbl">Sign it and give it to your trustee</span><span class="hint">Print it, sign it by hand, photograph the signed page</span></button>
-        <button class="tile" data-go="handoff"><span class="ico">✅</span><span class="lbl">Send it to FairPlay or Discovery</span><span class="hint">Or email it, print it, or save a copy</span></button>
+        <button class="tile" id="homePrintTile"><span class="ico">🖨️</span><span class="lbl">Print your list</span><span class="hint">Opens a printable list, organized by room — for review or sharing</span></button>
+      <button class="tile" data-go="handoff"><span class="ico">✅</span><span class="lbl">Send it to FairPlay or Discovery</span><span class="hint">Or email it, print it, or save a copy</span></button>
       </div>
     </div>
   </section>
@@ -726,10 +728,10 @@
         <select id="capSiteSelect" class="bigin" hidden></select>
       </div>
 
-      <!-- Offsite warning -->
+      <!-- Offsite / wrong-location warning -->
       <div class="offsite-warning" id="capOffsiteWarning" hidden>
-        <p><strong>⚠ You appear to be away from your registered sites.</strong></p>
-        <p class="offsite-detail">Items can be added from a storage unit, second home, or vacation site — but only if that site is registered first. This prevents confusion when items from different locations are mixed together.</p>
+        <p><strong>⚠ Location notice.</strong></p>
+        <p class="offsite-detail offsite-msg">Items can be added from a storage unit, second home, or vacation site — but only if that site is registered first. This prevents confusion when items from different locations are mixed together.</p>
         <div class="offsite-actions">
           <button class="ghost wide" id="capAddSiteBtn">Register this location as a new site</button>
           <button class="ghost wide" id="capSkipGeoBtn">Add anyway from an unknown location</button>

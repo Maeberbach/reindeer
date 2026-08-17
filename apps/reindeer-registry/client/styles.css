@@ -1107,3 +1107,29 @@ hr.softrule {
 .alldone-tiles {
   margin-top: 16px;
 }
+
+/* Site tile wrapper with delete button */
+.site-tile-wrap {
+  position: relative;
+}
+.site-tile-del {
+  position: absolute;
+  top: -6px; right: -6px;
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--border, #ddd);
+  background: var(--card, #fff);
+  color: var(--muted, #999);
+  font-size: 18px; line-height: 1;
+  cursor: pointer;
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 2;
+}
+.site-tile-wrap:hover .site-tile-del,
+.site-tile-wrap:focus-within .site-tile-del {
+  display: flex;
+}
+@media (hover: none) {
+  .site-tile-del { display: flex; opacity: 0.4; }
+}
