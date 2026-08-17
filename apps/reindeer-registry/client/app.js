@@ -4521,7 +4521,15 @@ async function loadHouseholdLink() {
           box.innerHTML = `<p class="reassure">Invitation sent to ${escapeHtml(email)}. Ask them to check their inbox; the link expires in twenty minutes.</p>`;
           toast('Helper invite sent.');
         }
-        loadHouseholdLink();
+        // Ask if they want to invite another helper
+        if (confirm('Would you like to invite another helper?')) {
+          $('#helperName2').value = '';
+          $('#helperEmail2').value = '';
+          $('#helperName2').focus();
+          box.hidden = true;
+        } else {
+          loadHouseholdLink();
+        }
       } catch (e) { toast(e.message, true); }
     };
     return;
@@ -4659,7 +4667,8 @@ async function loadHouseholdLink() {
     } catch (e) { toast(e.message, true); }
   };
 
-  $('#helperInviteBtn3').onclick = async () => {
+  const helperBtn3 = $('#helperInviteBtn3');
+  if (helperBtn3) helperBtn3.onclick = async () => {
     const email = $('#helperEmail3').value.trim();
     const display_name = $('#helperName3').value.trim();
     if (!email) { toast('Type their email.', true); return; }
@@ -4683,7 +4692,15 @@ async function loadHouseholdLink() {
         box.innerHTML = `<p class="reassure">Helper invite sent to ${escapeHtml(email)}. Ask them to check their inbox; the link expires in twenty minutes.</p>`;
         toast('Helper invite sent.');
       }
-      loadHouseholdLink();
+      // Ask if they want to invite another helper
+      if (confirm('Would you like to invite another helper?')) {
+        $('#helperName3').value = '';
+        $('#helperEmail3').value = '';
+        $('#helperName3').focus();
+        box.hidden = true;
+      } else {
+        loadHouseholdLink();
+      }
     } catch (e) { toast(e.message, true); }
   };
 
