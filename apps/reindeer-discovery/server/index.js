@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
 import { openDb, defaultDataDir, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry } from '@reindeer/core-data';
 import { SCOPE_TYPE } from '@reindeer/core-api';
+import { isSubscriptionGateEnabled } from './featureFlags.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -67,6 +68,18 @@ db.exec(`
     created_at   TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_discovery_looking_for_scope ON discovery_looking_for(scope_id, status);
+
+  CREATE TABLE IF NOT EXISTS estate_subscriptions (
+    scope_id               TEXT PRIMARY KEY,
+    status                 TEXT NOT NULL DEFAULT 'active',
+    subscription_expires_at TEXT,
+    stripe_customer_id     TEXT,
+    stripe_subscription_id TEXT,
+    license_key            TEXT,
+    license_expires_at     TEXT,
+    created_at             TEXT NOT NULL,
+    updated_at             TEXT NOT NULL
+  );
 `);
 
 const itemRepo = new SqliteItemRepository(db, null);
@@ -124,6 +137,39 @@ function heirRequired(req, res, next) {
 function ownerAuth(req, res, next) {
   const token = req.headers['x-owner-token'];
   if (!isOwnerSession(token)) return res.status(401).json({ error: 'Owner authentication required' });
+  next();
+}
+
+// ─── Subscription gate middleware ─────────────────────────────
+//
+// Blocks write requests (POST/PUT/PATCH/DELETE) when the estate's
+// subscription is expired or locked. Returns 402 Payment Required.
+// No-op when the subscriptionGate feature flag is off, so existing
+// functionality is unaffected until the flag is explicitly enabled.
+function requireSubscriptionForWrite(req, res, next) {
+  if (!isSubscriptionGateEnabled()) return next();
+
+  const method = req.method.toUpperCase();
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) return next();
+
+  const sub = db.prepare('SELECT status, subscription_expires_at FROM estate_subscriptions WHERE scope_id = ?').get(SCOPE_ID);
+
+  // No subscription record yet — treat as active (grace period).
+  if (!sub) return next();
+
+  // Check explicit status values that should block writes.
+  if (sub.status === 'expired' || sub.status === 'locked' || sub.status === 'cancelled') {
+    return res.status(402).json({ error: 'Estate subscription is not active. Write access is restricted.' });
+  }
+
+  // Check expiry timestamp — block if the subscription has lapsed.
+  if (sub.subscription_expires_at) {
+    const expiresAt = new Date(sub.subscription_expires_at);
+    if (!isNaN(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
+      return res.status(402).json({ error: 'Estate subscription has expired. Write access is restricted.' });
+    }
+  }
+
   next();
 }
 
@@ -311,6 +357,9 @@ app.get('/api/categories', heirSession, (req, res) => {
                           WHERE c.scope_id = ? GROUP BY c.category_id ORDER BY c.sort_order`).all(SCOPE_ID);
   res.json({ categories });
 });
+
+// ─── Subscription gate (no-op while flag is off) ──────────────
+app.use(requireSubscriptionForWrite);
 
 // ─── Heir interest (swipe reactions) ──────────────────────────
 app.post('/api/interest', heirSession, heirRequired, (req, res) => {
@@ -522,6 +571,13 @@ app.get('/api/owner/stats', ownerAuth, (req, res) => {
     contested: contestedCount,
     looking_for: lookingForCount,
   });
+});
+
+// ─── Subscription status ─────────────────────────────────────
+app.get('/api/subscription/status', (req, res) => {
+  const sub = db.prepare('SELECT status, subscription_expires_at FROM estate_subscriptions WHERE scope_id = ?').get(SCOPE_ID);
+  if (!sub) return res.json({ status: 'active', expires_at: null });
+  res.json({ status: sub.status, expires_at: sub.subscription_expires_at });
 });
 
 const PORT = process.env.PORT || 3220;
