@@ -154,7 +154,28 @@ app.post('/api/owner/logout', (req, res) => {
 
 // ─── Heir auth: join via invite link ──────────────────────────
 app.post('/api/heirs/join', (req, res) => {
-  const { invite_token, name } = req.body || {};
+  const { invite_token, name, direct_code } = req.body || {};
+
+  // Direct access mode: owner can join as an heir without invite token
+  if (!invite_token && direct_code) {
+    if (direct_code !== OWNER_CODE) return res.status(403).json({ error: 'Invalid passcode' });
+    const heirName = name || 'Owner';
+    // Find or create an heir record for the owner
+    let heir = db.prepare("SELECT * FROM discovery_heirs WHERE scope_id = ? AND name = 'Owner'").get(SCOPE_ID);
+    if (!heir) {
+      const heirId = crypto.randomUUID();
+      const now = new Date().toISOString();
+      db.prepare('INSERT INTO discovery_heirs (heir_id, scope_id, name, email, relationship, invite_token, review_state, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(heirId, SCOPE_ID, heirName, '', 'Owner', crypto.randomBytes(16).toString('base64url'), 'exploring', now, now);
+      heir = db.prepare('SELECT * FROM discovery_heirs WHERE heir_id = ?').get(heirId);
+    }
+    if (heir.review_state === 'locked') return res.status(403).json({ error: 'Review already completed' });
+    const sessionToken = crypto.randomBytes(32).toString('base64url');
+    db.prepare('UPDATE discovery_heirs SET name = COALESCE(?, name), session_token = ?, updated_at = ? WHERE heir_id = ?')
+      .run(name || heirName, sessionToken, new Date().toISOString(), heir.heir_id);
+    return res.json({ heir_id: heir.heir_id, session_token: sessionToken, name: heir.name, review_state: heir.review_state });
+  }
+
   if (!invite_token) return res.status(400).json({ error: 'Invite token required' });
   const heir = db.prepare('SELECT * FROM discovery_heirs WHERE invite_token = ?').get(invite_token);
   if (!heir) return res.status(404).json({ error: 'Invalid invite' });
@@ -516,8 +537,19 @@ app.post('/api/owner/import', ownerAuth, express.raw({ type: 'application/octet-
     if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
       return res.status(400).json({ message: 'No bundle bytes received.' });
     }
-    const { readBundle } = await import('@reindeer/exchange');
-    const { envelope, files, problems } = readBundle(req.body);
+    // Try to use @reindeer/exchange if available, otherwise manual parse
+    let envelope, files, problems;
+    try {
+      const exchange = await import('@reindeer/exchange');
+      const result = exchange.readBundle(req.body);
+      envelope = result.envelope;
+      files = result.files;
+      problems = result.problems;
+    } catch (importErr) {
+      return res.status(501).json({ 
+        message: 'Bundle import requires @reindeer/exchange package. Use "Load Sample Data" instead, or install the exchange package.' 
+      });
+    }
 
     const ctx = { scopeId: SCOPE_ID, actorId: 'owner' };
     const result = { created: 0, updated: 0, rooms: 0, categories: 0, photos: 0, problems: [...problems] };

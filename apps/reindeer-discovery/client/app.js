@@ -86,12 +86,12 @@ async function init() {
 // ─── Join (heir) ──────────────────────────────────────────────
 $('#joinBtn').onclick = async () => {
   const name = $('#joinName').value.trim();
-  const token = $('#joinToken').value.trim();
-  if (!name || !token) return toast('Enter your name and invite code');
+  const code = $('#joinToken').value.trim();
+  if (!name || !code) return toast('Enter your name and passcode');
   try {
     const res = await api('/heirs/join', {
       method: 'POST',
-      body: JSON.stringify({ name, invite_token: token })
+      body: JSON.stringify({ name, direct_code: code })
     });
     heirToken = res.session_token;
     localStorage.setItem('discovery_token', heirToken);
