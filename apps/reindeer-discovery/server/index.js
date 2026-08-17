@@ -697,8 +697,11 @@ app.post('/api/owner/sample-data', ownerAuth, (req, res) => {
     { title: 'Pocket Watch', room: 'Master Bedroom', cat: 'Jewelry', desc: 'Gold Waltham pocket watch with chain.', story: 'Great-grandfather carried this every day for 50 years. Still keeps perfect time.' },
   ];
 
-  const result = { created: 0, updated: 0, total: samples.length };
+  const result = { created: 0, updated: 0, skipped: 0, total: samples.length };
   for (const s of samples) {
+    // Skip if an item with the same title already exists in this scope
+    const existing = db.prepare('SELECT item_id FROM items WHERE scope_id = ? AND title = ?').get(SCOPE_ID, s.title);
+    if (existing) { result.skipped++; continue; }
     const itemId = crypto.randomUUID();
     db.prepare(`INSERT INTO items (item_id, scope_id, origin_app, title, category_id, room_id,
       description, story, quantity, condition, identifiers, value_estimate_cents, value_basis,
