@@ -2119,43 +2119,60 @@ async function renderPartnerCard() {
   const nameSpan = $('#homePartnerName');
   if (!add || !linked) return;
 
+  // Fetch household-link once — it has participants, pending invites, and roles.
+  // We already need it for role checks and pending-invite detection.
+  let hl = null;
+  try { hl = await api('/api/household-link'); } catch {}
+
   // Helpers don't see the "add co-owner/helper" card or the quiet-row link.
-  let myRoleHl = null;
-  try {
-    const hl = await api('/api/household-link');
-    const me = (hl?.participants || []).find((p) => p.is_me);
-    if (me) myRoleHl = me.role;
-  } catch {}
+  const me = (hl?.participants || []).find((p) => p.is_me);
+  const myRoleHl = me?.role;
   if (myRoleHl === 'assistant') {
     add.hidden = true;
     linked.hidden = true;
-    // Hide the quiet-row household link for helpers too
     document.querySelectorAll('[data-go="householdlink"]').forEach(el => {
       if (el.closest('.quietrow')) el.style.display = 'none';
     });
     return;
   }
 
+  // Check for pending co-owner invites (partner invited but not yet signed in).
+  // Only two owners allowed — once an invite is sent, suppress the add tile.
+  const pendingPartnerInvites = (hl?.pending_invites || []).filter(
+    (p) => p.role === 'partner'
+  );
+  const hasPendingPartner = pendingPartnerInvites.length > 0;
+
   try {
     const s = await api('/api/scope-summary');
     if (s?.household_mode === 'couple') {
+      // Already linked — show the linked card, hide the add tile
       add.hidden = true;
       linked.hidden = false;
-      // scope-summary does not include the partner's display name; fetch it
-      // from /api/household-link only when we already know we're in couple
-      // mode. Fail-silent to a generic label if the second call misses.
       let partnerName = 'your partner';
       try {
-        const hl = await api('/api/household-link');
-        // household-link returns participants[]; pick the one that is not me.
         const others = (hl?.participants || []).filter((p) => !p.is_me);
         const other = others[0];
         partnerName = other?.display_name || other?.email || partnerName;
       } catch { /* keep generic label */ }
       if (nameSpan) nameSpan.textContent = partnerName;
+    } else if (hasPendingPartner) {
+      // Co-owner invite sent but not yet accepted — suppress the add tile,
+      // show a "waiting" card instead of the linked card.
+      add.hidden = true;
+      linked.hidden = false;
+      const inviteeName = pendingPartnerInvites[0]?.display_name || pendingPartnerInvites[0]?.email || 'your co-owner';
+      if (nameSpan) nameSpan.textContent = inviteName + ' (invite sent)';
     } else {
       add.hidden = false;
       linked.hidden = true;
+      // Restore the quiet-row link text and onboarding tiles in case they were changed
+      document.querySelectorAll('[data-go="householdlink"]').forEach(el => {
+        if (el.closest('.quietrow')) el.textContent = 'Add a co-owner or helper';
+        if (el.id === 'guidedAddPartner' || el.closest('.onboarding-tiles')) {
+          el.style.display = '';
+        }
+      });
     }
   } catch {
     add.hidden = true;
@@ -4546,10 +4563,15 @@ async function loadHouseholdLink() {
     return;
   }
 
-  // Solo mode, owner. Show unified invite page: co-owner + helpers
+  // Solo mode, owner. Show unified invite page: co-owner + helpers.
+  // When a co-owner invite is pending, suppress the co-owner invite form —
+  // only two owners allowed, and the slot is taken (pending acceptance).
+  const pendingPartner = pendingInvites.find((p) => p.role === 'partner');
+  const coOwnerSlotTaken = partners.length > 0 || !!pendingPartner;
+
   body.innerHTML = `
-    <h2>Add a co-owner or helper</h2>
-    <p class="lede">Invite someone to join your Registry. A co-owner shares your inventory and keeps their own gift list. A helper can take photos and document items for you.</p>
+    <h2>${coOwnerSlotTaken ? 'Add a helper' : 'Add a co-owner or helper'}</h2>
+    <p class="lede">${coOwnerSlotTaken ? 'Your co-owner slot is taken. You can still invite helpers to assist with photos and documentation.' : 'Invite someone to join your Registry. A co-owner shares your inventory and keeps their own gift list. A helper can take photos and document items for you.'}</p>
 
     ${partners.length ? `
     <div class="link-card" style="margin-bottom:16px">
@@ -4575,6 +4597,13 @@ async function loadHouseholdLink() {
       </ul>
     </div>` : ''}
 
+    ${pendingPartner ? `
+    <div class="link-card" style="margin-bottom:20px;border-color:var(--primary)">
+      <div><b>Co-owner invite pending</b></div>
+      <p class="reassure" style="margin:8px 0 0">An invite has been sent to ${escapeHtml(pendingPartner.display_name || pendingPartner.email)}. Once they sign in, you can confirm the link. You can revoke the invite if needed.</p>
+    </div>` : ``}
+
+    ${!coOwnerSlotTaken ? `
     <div class="invite-form">
       <h3>Invite a co-owner</h3>
       <p class="reassure" style="margin-bottom:8px">Your legally bound partner. They will see everything you record and keep their own gift list. One co-owner maximum.</p>
@@ -4584,7 +4613,7 @@ async function loadHouseholdLink() {
       <input id="inviteEmail" type="email" autocomplete="email" placeholder="name@example.com">
       <button class="primary wide" id="inviteBtn">Send co-owner invite</button>
     </div>
-    <div id="inviteResult" hidden></div>
+    <div id="inviteResult" hidden></div>` : ''}
 
     <div class="invite-form" style="margin-top:24px">
       <h3>Invite a helper</h3>
@@ -4601,7 +4630,8 @@ async function loadHouseholdLink() {
     <button class="ghost wide" data-go="home" style="margin-top:8px">Back to home</button>
   `;
 
-  $('#inviteBtn').onclick = async () => {
+  const inviteBtn = $('#inviteBtn');
+  if (inviteBtn) inviteBtn.onclick = async () => {
     const email = $('#inviteEmail').value.trim();
     const display_name = $('#inviteName').value.trim();
     if (!email) { toast('Type their email.', true); return; }
