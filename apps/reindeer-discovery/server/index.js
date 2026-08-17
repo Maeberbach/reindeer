@@ -654,7 +654,7 @@ app.post('/api/owner/sample-data', ownerAuth, (req, res) => {
     let room = db.prepare('SELECT * FROM rooms WHERE scope_id = ? AND name = ?').get(SCOPE_ID, name);
     if (!room) {
       const id = crypto.randomUUID();
-      db.prepare('INSERT INTO rooms (room_id, scope_id, name, is_custom, walkthrough_state, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?, ?)')
+      db.prepare('INSERT INTO rooms (room_id, scope_id, name, is_custom, walkthrough_state) VALUES (?, ?, ?, 0, ?)')
         .run(id, SCOPE_ID, name, 'started', now, now);
       room = db.prepare('SELECT * FROM rooms WHERE room_id = ?').get(id);
     }
@@ -667,7 +667,7 @@ app.post('/api/owner/sample-data', ownerAuth, (req, res) => {
     let cat = db.prepare('SELECT * FROM categories WHERE scope_id = ? AND name = ?').get(SCOPE_ID, name);
     if (!cat) {
       const id = crypto.randomUUID();
-      db.prepare('INSERT INTO categories (category_id, scope_id, name, is_custom, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?)')
+      db.prepare('INSERT INTO categories (category_id, scope_id, name, is_custom) VALUES (?, ?, ?, 0)')
         .run(id, SCOPE_ID, name, now, now);
       cat = db.prepare('SELECT * FROM categories WHERE category_id = ?').get(id);
     }
@@ -704,7 +704,7 @@ app.post('/api/owner/sample-data', ownerAuth, (req, res) => {
       description, story, quantity, condition, identifiers, value_estimate_cents, value_basis,
       high_value_flag, owner_high_value, owner_high_value_reason, owner_important_comment, ownership_tag,
       ai_confidence, review_state, print_state, export_state, created_at, updated_at)
-      VALUES (?, ?, 'inventory', ?, ?, ?, ?, ?, 1, 'good', '{}', NULL, 'unknown', 0, 0, '', '', '', NULL, 'kept', 'unprinted', 'never', ?, ?)`)
+      VALUES (?, ?, 'inventory', ?, ?, ?, ?, ?, 1, 'good', '{}', NULL, 'unknown', 0, 0, '', '', 'mine', NULL, 'kept', 'unprinted', 'never', ?, ?)`)
       .run(itemId, SCOPE_ID, s.title, catIds[s.cat] || null, roomIds[s.room] || null,
            s.desc, s.story, now, now);
     result.created++;
