@@ -10,7 +10,7 @@ import { useAppState, useUser, STATE_KEY, money } from "@/lib/app";
 import { AppShell, PageHeader, LoadingRows } from "@/components/shell";
 import { FlagToggles } from "@/components/classification-flags";
 import { AskForAppraisalButton } from "@/components/ask-for-appraisal";
-import { InterestSummary } from "@/components/interest-selector";
+import { InterestSelector, InterestSummary } from "@/components/interest-selector";
 import { useSearch } from "wouter";
 import { RoomPicker, TaxonomyPicker, useTaxonomy, TAXONOMY_KEY } from "@/components/room-picker";
 import {
@@ -945,6 +945,11 @@ export default function InventoryPage() {
                       <FlagToggles item={i} compact />
                     </div>
                     <CategoryHistory itemId={i.id} />
+                    {userId && !inPractice && (
+                      <div className="mt-2">
+                        <InterestSelector item={i} participantId={userId} compact />
+                      </div>
+                    )}
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-1.5">
                     <Button
