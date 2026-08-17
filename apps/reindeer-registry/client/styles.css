@@ -1050,3 +1050,13 @@ hr.softrule {
   margin-bottom: 0.75rem;
 }
 .sign-footer{margin-top:24px; text-align:center}
+
+/* Special collections tile on contested page */
+.contested-special {
+  margin-top: 12px; padding: 14px 16px;
+  border: 1px solid var(--border, #e5dccb);
+  border-radius: 12px; background: var(--accent-soft, #f7f0e8);
+}
+.contested-special h3 { margin: 0 0 4px 0; font-size: 18px; font-weight: 600; }
+.contested-special .why { margin: 0 0 10px 0; font-size: 14px; line-height: 1.45; color: var(--ink-2, #6c5f4b); }
+.contested-special button { width: 100%; }

@@ -450,6 +450,22 @@ function showCapDetails() {
   renderPersonChips();
   renderRoomChips();
   renderCatChips();
+  // If arriving from Special collections, sync the Important checkbox and
+  // reveal the close-up / voice blocks the important flag unlocks.
+  if (cap.preSetImportant) {
+    const box = $('#capImportant');
+    const chipsWrap = $('#capImportantChips');
+    if (box) { box.checked = true; box.dispatchEvent(new Event('change')); }
+    // Re-apply the feeling reason we pre-set
+    if (cap.importantFeeling) {
+      const feelingChip = $$('#capImportantChips .chip').find((c) => c.dataset.reason === 'feeling');
+      if (feelingChip) { feelingChip.setAttribute('aria-pressed', 'true'); }
+    }
+    if (chipsWrap) chipsWrap.hidden = false;
+    if ($('#capCloseupBlock')) $('#capCloseupBlock').hidden = false;
+    if ($('#capVoiceBlock')) $('#capVoiceBlock').hidden = false;
+    cap.preSetImportant = false; // one-shot
+  }
   if (typeof updateGiftBlockVisibility === 'function') updateGiftBlockVisibility();
 }
 
@@ -4888,6 +4904,20 @@ function renderContestedCards() {
       go('capture');
     };
   });
+
+  // Special collections — items are pre-flagged as important so they
+  // migrate to FairPlay flagged for resolution.
+  const scBtn = $('#specialCollectionsBtn');
+  if (scBtn) {
+    scBtn.onclick = () => {
+      resetCapture();
+      cap.category = 'Special collections';
+      cap.important = true;
+      cap.importantFeeling = true;
+      cap.preSetImportant = true; // signal to showCapDetails to sync the UI
+      go('capture');
+    };
+  }
 }
 
 /*
