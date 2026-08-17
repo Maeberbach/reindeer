@@ -34,7 +34,7 @@ function ownerOnly(req, res, next) {
   if (!p) return res.status(401).json({ error: 'Sign in to continue.' });
   if (p.participant_id === 'bootstrap-owner') return next();
   if (p.role === 'owner') return next();
-  return res.status(403).json({ error: 'Only the account owner can invite a co-owner.' });
+  return res.status(403).json({ error: 'Only the owner can invite a co-owner.' });
 }
 
 /**
@@ -232,7 +232,7 @@ export function createHouseholdLinkRouter({ registry, participants, auth, resolv
       .map((p) => ({ participant_id: p.participant_id, email: p.email, display_name: p.display_name || '' }));
     if (!partnerPresent) {
       return res.status(400).json({
-        error: 'Both co-owners need to be on this Registry before you can link. Invite your co-owner and ask them to sign in first.',
+        error: 'Both partners need to be on this Registry before you can link. Invite your co-owner and ask them to sign in first.',
       });
     }
     const meId = me(req);
