@@ -443,8 +443,13 @@ function resetCapture() {
   // Inherit the active site so items captured during a site walk
   // are tagged to that site automatically.
   const activeSite = sitesList.find((s) => s.site_id === activeSiteId);
+  // Keep the room from the previous capture so "Take another photo" stays
+  // in the same room without re-asking. The owner is photographing items
+  // one after another in a single room — making them re-pick the room each
+  // time is a step that earns nothing.
+  const keepRoom = cap?.room || '';
   cap = { file: null, dataUrl: null, title: '', maker: '', marks: '', story: '', valueCents: null, valueBasis: 'unknown',
-          room: '', category: '', recipient: '', relationship: '', note: '', ai: null,
+          room: keepRoom, category: '', recipient: '', relationship: '', note: '', ai: null,
           important: false, importantFeeling: false, importantMoney: false,
           siteId: activeSiteId || null, siteName: activeSite ? activeSite.name : '',
           capturedLat: null, capturedLon: null,
@@ -481,6 +486,10 @@ function showCapDetails() {
   $('#capPhotoHint').hidden = true;
   $('#capDetails').hidden = false;
   $('#capNav').hidden = false;
+  // Show "Save & take another" when a room is locked — lets the owner rapid-fire
+  // through items in the same room without going through the post-save screen.
+  const anotherBtn = $('#stepNextAnother');
+  if (anotherBtn) anotherBtn.hidden = !cap.room;
   // Populate person and room chips now that the detail area is visible
   renderPersonChips();
   renderRoomChips();
@@ -901,6 +910,87 @@ $('#capRetake').onclick = () => {
 // "Take another photo" — reset and stay on capture screen for the next item
 $('#capAnotherTake').onclick = () => {
   resetCapture();
+};
+
+// "Save & take another" — save the current item, then immediately reset for
+// the next photo. The room stays locked so the owner can rapid-fire through
+// items in the same room without re-selecting it each time.
+$('#stepNextAnother').onclick = async () => {
+  if (!cap.dataUrl) return toast('Please take a photo first.', true);
+  // Collect fields same as stepNext
+  cap.title = $('#capTitle').value.trim();
+  cap.story = $('#capStory').value.trim();
+  cap.maker = $('#capMaker')?.value.trim() || '';
+  cap.marks = $('#capMarks')?.value.trim() || '';
+  cap.recipient = $('#capRecipient').value.trim();
+  cap.relationship = $('#capRelationship').value.trim();
+  cap.note = $('#capOwnerNote')?.value.trim() || '';
+  if ($('#capRoomOther')?.value.trim()) {
+    cap.room = $('#capRoomOther').value.trim();
+    rememberTypedRoom(cap.room);
+  }
+  const valStr = $('#capValue')?.value.trim() || '';
+  if (valStr) {
+    const v = parseFloat(valStr.replace(/[^0-9.]/g, ''));
+    if (!isNaN(v)) { cap.valueCents = Math.round(v * 100); cap.valueBasis = $('#capValueBasis')?.value || 'unknown'; }
+  }
+  const makeGiftEl = $('#capMakeGift');
+  cap.makeGift = !!(cap.recipient && makeGiftEl && makeGiftEl.checked);
+  if (promiseMode && !cap.recipient) {
+    return toast('This one is for someone in particular — please put in their name.', true);
+  }
+  // Save the item (without the post-save "take another" screen)
+  try {
+    const item = await api('/api/items', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        title: effectiveTitle(), story: cap.story,
+        room_name: cap.room || null, category_name: cap.category || null,
+        review_state: 'kept',
+        value_basis: cap.valueCents != null ? cap.valueBasis : 'unknown',
+        value_estimate_cents: cap.valueCents,
+        owner_high_value: cap.important === true,
+        owner_high_value_reason: reasonFromCap(cap),
+        ai_confidence: cap.ai?.confidence ?? null,
+        site_id: cap.siteId || null, site_name: cap.siteName || '',
+        captured_lat: cap.capturedLat, captured_lon: cap.capturedLon,
+        identifiers: buildIdentifiers(),
+        recipient_hint: cap.recipient
+          ? { recipient_name: cap.recipient, relationship: cap.relationship, owner_note: cap.note }
+          : null,
+      }),
+    });
+    if (cap.dataUrl) await uploadPhoto(item.item_id, cap.dataUrl);
+    if (cap.closeupDataUrl) {
+      try { await uploadCloseupPhoto(item.item_id, cap.closeupDataUrl); } catch (e) { console.warn('close-up skipped:', e.message); }
+    }
+    if (cap.voiceBlob) {
+      try { await uploadVoiceMemo(item.item_id, cap.voiceBlob); } catch (e) { console.warn('voice skipped:', e.message); }
+    }
+    if (cap.recipient) {
+      try { await addPerson(cap.recipient, cap.relationship, 'from_item'); } catch { }
+    }
+    if (cap.makeGift && cap.recipient) {
+      try { await assignItemToNamedRecipient(item.item_id, cap.recipient, cap.relationship); }
+      catch (e) { console.warn('gift assignment skipped:', e.message); }
+    }
+    toast('Saved. Take the next one.');
+    refreshCount();
+    // Reset the capture form but KEEP the room
+    const keepRoom = cap.room;
+    resetCapture();
+    // resetCapture preserves cap.room, but the form needs to start fresh
+    // with just the camera button visible
+    $('#capPreview').hidden = true;
+    $('#capRetake').hidden = true;
+    $('#capPhotoLabel').hidden = false;
+    $('#capPhotoHint').hidden = false;
+    $('#capPhoto').value = '';
+    $('#capDetails').hidden = true;
+    $('#capNav').hidden = true;
+    $('#capAnother').hidden = true;
+    $('#aiNote').hidden = true;
+  } catch (e) { toast(e.message, true); }
 };
 
 // "All done" — go back to where we came from
@@ -2853,6 +2943,46 @@ async function addOfferedCategory(name) {
  * the app had thrown it away. Their own room names are the ones they care most
  * about, so they are shown first and marked as theirs.
  */
+/** When a room is already selected, hide the room picker and show a breadcrumb
+ *  with a "Change room" link. The owner is photographing items one after another
+ *  in the same room — they do not need to see the full room list each time. */
+function updateRoomLockUI() {
+  const chips = $('#roomChips');
+  const other = $('#capRoomOther');
+  const moreWrap = $('#roomMoreWrap');
+  const section = chips?.closest('.cap-section');
+  if (!section) return;
+  const locked = !!cap.room;
+  // Toggle "Save & take another" visibility based on room lock
+  const anotherBtn = $('#stepNextAnother');
+  if (anotherBtn) anotherBtn.hidden = !locked;
+  if (locked) {
+    // Show a breadcrumb instead of the full picker
+    const label = section.querySelector('.fieldlabel');
+    if (label) label.innerHTML = `Room: <strong>${escapeHtml(cap.room)}</strong> `
+      + '<button class="linky" id="capChangeRoom" style="font-size:0.85rem">Change room</button>'
+      + '<button class="linky" id="capRoomDone" style="font-size:0.85rem;margin-left:8px">This room is finished</button>';
+    chips.hidden = true;
+    if (other) other.hidden = true;
+    if (moreWrap) moreWrap.hidden = true;
+    $('#capChangeRoom')?.addEventListener('click', () => {
+      cap.room = '';
+      chips.hidden = false;
+      if (other) other.hidden = false;
+      renderRoomChips();
+    });
+    $('#capRoomDone')?.addEventListener('click', () => {
+      cap.room = '';
+      go('home');
+    });
+  } else {
+    // Show the full picker
+    const label = section.querySelector('.fieldlabel');
+    if (label) label.textContent = 'Where is it kept?';
+    chips.hidden = false;
+  }
+}
+
 function renderRoomChips() {
   // Filter rooms by active site (null = primary/home)
   const siteRooms = registry.rooms.filter((r) => {
@@ -2870,8 +3000,16 @@ function renderRoomChips() {
       $$('#roomChips .chip').forEach((x) => x.setAttribute('aria-pressed', 'false'));
       b.setAttribute('aria-pressed', 'true');
       cap.room = b.dataset.room;
+      updateRoomLockUI();
     };
   });
+  // Pre-select the room carried over from a previous capture so "Take
+  // another photo" stays in the same room without the owner re-picking it.
+  if (cap.room) {
+    const pre = $$('#roomChips .chip').find((c) => c.dataset.room === cap.room);
+    if (pre) pre.setAttribute('aria-pressed', 'true');
+  }
+  updateRoomLockUI();
 
   renderRoomMore();
 }
