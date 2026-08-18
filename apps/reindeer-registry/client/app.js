@@ -1,4 +1,3 @@
-console.log('APP.JS LOADED'); var _bootDiag = document.getElementById('diagOutput'); if (_bootDiag) _bootDiag.textContent = 'app.js loaded, running...';
 /* Reindeer: Registry client.
    Guided, one-decision-per-screen capture. Cropping happens here on a canvas
    so the server needs no image library and raw source photos are never kept. */
@@ -496,7 +495,6 @@ function showCapDetails() {
   // Populate person and room chips now that the detail area is visible
   renderPersonChips();
   renderRoomChips();
-  _step('renderCatChips');
   renderCatChips();
   // If arriving from Special collections, sync the Important checkbox and
   // reveal the close-up / voice blocks the important flag unlocks.
@@ -765,9 +763,7 @@ async function renderSites() {
         // Count items at this site so the owner knows what they're dealing with
         let itemCount = 0;
         try {
-          _step('fetch_items');
-  const { items } = await api('/api/items');
-  _step('items_ok');
+          const { items } = await api('/api/items');
           itemCount = items.filter((i) => i.site_id === siteId).length;
         } catch {}
         // Build a richer confirmation that offers retag + add-site options
@@ -2046,9 +2042,7 @@ const FINISH_OPTS = ['#optEmail', '#optPrint', '#optSave', '#optSigned', '#optFa
 
 async function refreshFinishScreen() {
   try {
-    _step('fetch_items');
-  const { items } = await api('/api/items');
-  _step('items_ok');
+    const { items } = await api('/api/items');
     const n = items.length;
     $('#finishCount').textContent = n
       ? `You have recorded ${n} item${n === 1 ? '' : 's'}. Choose as many as you like — you can come back and do the others later.`
@@ -2058,7 +2052,7 @@ async function refreshFinishScreen() {
 }
 
 function updateFinishButton() {
-  const chosen = FINISH_OPTS.filter((id) => $(id).checked);
+  const chosen = FINISH_OPTS.filter((id) => $(id)?.checked);
   const btn = $('#finishGo');
   btn.disabled = chosen.length === 0;
   btn.textContent = chosen.length === 0
@@ -2067,7 +2061,7 @@ function updateFinishButton() {
   $('#emailFields').hidden = !$('#optEmail').checked;
 }
 
-FINISH_OPTS.forEach((id) => { $(id).onchange = updateFinishButton; });
+FINISH_OPTS.forEach((id) => { const el = $(id); if (el) el.onchange = updateFinishButton; });
 
 $('#finishGo').onclick = async () => {
   const wantEmail = $('#optEmail').checked;
@@ -2189,7 +2183,7 @@ This package was prepared on ${new Date().toLocaleDateString('en-US', { dateStyl
     done.length ? `<b>Done:</b><ul>${done.map((d) => `<li>${d}</li>`).join('')}</ul>` : '',
     failed.length ? `<b>Not done:</b><ul>${failed.map((d) => `<li>${d}</li>`).join('')}</ul>` : '',
   ].join('');
-  FINISH_OPTS.forEach((id) => { $(id).checked = false; });
+  FINISH_OPTS.forEach((id) => { const el = $(id); if (el) el.checked = false; });
   updateFinishButton();
 
   // Show the data access code + safe keeping instructions after actions complete
@@ -2501,9 +2495,7 @@ function renderPeopleList() {
       try {
         await api(`/api/people/${b.dataset.remove}`, { method: 'DELETE' });
         toast('Taken off the list. Your items are unchanged.');
-        _step('loadPeople');
-  await loadPeople();
-  _step('people_ok');
+        await loadPeople();
       } catch (e) { toast(e.message, true); }
     };
   });
@@ -2529,9 +2521,7 @@ function renderUnlisted(unlisted) {
         body: JSON.stringify({ people: unlisted.map((u) => ({ name: u.name, relationship: u.relationship, source: 'from_item' })) }),
       });
       toast(`Added ${res.added.length} ${res.added.length === 1 ? 'person' : 'people'}.`);
-      _step('loadPeople');
-  await loadPeople();
-  _step('people_ok');
+      await loadPeople();
     } catch (e) { toast(e.message, true); }
   };
 }
@@ -2544,9 +2534,7 @@ async function addPerson(name, relationship, source = 'typed') {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ name: clean, relationship: (relationship ?? '').trim(), source }),
     });
-    _step('loadPeople');
-  await loadPeople();
-  _step('people_ok');
+    await loadPeople();
     return person;
   } catch (e) { toast(e.message, true); return null; }
 }
@@ -2630,9 +2618,7 @@ function checkNewPerson() {
 }
 
 async function refreshCount() {
-  _step('fetch_items');
   const { items } = await api('/api/items');
-  _step('items_ok');
   $('#countPill').textContent = `${items.length} item${items.length === 1 ? '' : 's'}`;
 }
 
@@ -2827,9 +2813,7 @@ async function updateHomeTile() {
   const tile = $('#homeQuickStart');
   if (!tile) return;
   try {
-    _step('fetch_items');
-  const { items } = await api('/api/items');
-  _step('items_ok');
+    const { items } = await api('/api/items');
     if (items.length > 0) {
       const lbl = tile.querySelector('.lbl');
       const hint = tile.querySelector('.hint');
@@ -2966,8 +2950,7 @@ async function addOfferedCategory(name) {
     registry.categories.push(cat);
     registry.more_categories = (registry.more_categories ?? [])
       .filter((n) => n.toLowerCase() !== cat.name.toLowerCase());
-    _step('renderCatChips');
-  renderCatChips();
+    renderCatChips();
     const made = $$('#catChips .chip').find((c) => c.dataset.cat === cat.name);
     if (made) made.setAttribute('aria-pressed', 'true');
     cap.category = cat.name;
@@ -3150,9 +3133,7 @@ async function loadAdminLicenses() {
   // Determine role from session
   let role = '';
   try {
-    _step('fetch_household');
-  const hl = await api('/api/household-link');
-  _step('household_ok');
+    const hl = await api('/api/household-link');
     const me = (hl?.participants || []).find((p) => p.is_me);
     if (me) role = me.role;
   } catch {}
@@ -3166,9 +3147,7 @@ async function loadAdminLicenses() {
 async function showAdminTile() {
   let role = '';
   try {
-    _step('fetch_household');
-  const hl = await api('/api/household-link');
-  _step('household_ok');
+    const hl = await api('/api/household-link');
     const me = (hl?.participants || []).find((p) => p.is_me);
     if (me) role = me.role;
   } catch {}
@@ -3304,20 +3283,10 @@ $('#adminBackBtn')?.addEventListener('click', () => go('home'));
 
 // ------------------------------------------------------------------- boot
 (async function boot() {
-  var _diag = document.getElementById('diagOutput');
-  function _step(label) {
-    if (_diag) _diag.textContent += ' >> ' + label;
-    console.log('BOOT STEP: ' + label);
-  }
   try {
-  _step('start');
   registry = await api('/api/registry');
-  _step('registry_ok');
-  _step('resetCapture');
   resetCapture();
-  _step('renderRoomChips');
   renderRoomChips();
-  _step('renderCatChips');
   renderCatChips();
   $('#filterRoom').innerHTML = '<option value="">All rooms</option>' +
     registry.rooms.map((r) => `<option value="${r.room_id}">${escapeHtml(r.name)}</option>`).join('');
@@ -3328,9 +3297,7 @@ $('#adminBackBtn')?.addEventListener('click', () => go('home'));
 
   mountPeopleScreen();
   $('#capRecipient').addEventListener('input', checkNewPerson);
-  _step('loadPeople');
   await loadPeople();
-  _step('people_ok');
 
   /*
    * Where to land.
@@ -3346,9 +3313,7 @@ $('#adminBackBtn')?.addEventListener('click', () => go('home'));
    * browser storage, so it survives a new phone, a cleared browser, or the
    * app being opened by a helping relative on their own device.
    */
-  _step('fetch_items');
   const { items } = await api('/api/items');
-  _step('items_ok');
   $('#countPill').textContent = `${items.length} item${items.length === 1 ? '' : 's'}`;
 
   // Determine the user's role so we can land them on the right page.
@@ -3356,9 +3321,7 @@ $('#adminBackBtn')?.addEventListener('click', () => go('home'));
   // Helpers (assistants) get a simpler landing page without owner options.
   myRole = 'owner';  // set global from boot
   try {
-    _step('fetch_household');
-  const hl = await api('/api/household-link');
-  _step('household_ok');
+    const hl = await api('/api/household-link');
     const me = (hl?.participants || []).find((p) => p.is_me);
     if (me) myRole = me.role;
   } catch {}
@@ -3372,13 +3335,11 @@ $('#adminBackBtn')?.addEventListener('click', () => go('home'));
     // Owners and co-owners get the full welcome flow.
     landing = items.length === 0 ? 'welcome' : 'home';
   }
-  _step('go_' + landing);
   go(landing);
   } catch (e) {
     console.error('Boot failed:', e);
     document.body.insertAdjacentHTML('afterbegin',
       '<div style="position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;padding:16px;font-family:monospace;z-index:99999;white-space:pre-wrap">Boot error: ' + (e.stack || e.message || String(e)) + '</div>');
-  _step('CATCH_BLOCK');
     go('welcome');
   }
 })();
