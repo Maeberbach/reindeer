@@ -159,6 +159,7 @@ async function shareWithEmailApp({ to, subject, body, fileBlob, fileName, downlo
 const money = (c) => (c == null ? '' : `$${(c / 100).toLocaleString('en-US')}`);
 
 let registry = { rooms: [], categories: [] };
+let myRole = 'owner';  // global: tracks current user role (owner/partner/assistant)
 let history = [];
 
 // ------------------------------------------------------- duplicates (offered)
@@ -3319,7 +3320,7 @@ $('#adminBackBtn').onclick = () => go('home');
   // Determine the user's role so we can land them on the right page.
   // Owners and co-owners (partners) see the full welcome + onboarding flow.
   // Helpers (assistants) get a simpler landing page without owner options.
-  let myRole = 'owner';
+  myRole = 'owner';  // set global from boot
   try {
     const hl = await api('/api/household-link');
     const me = (hl?.participants || []).find((p) => p.is_me);
