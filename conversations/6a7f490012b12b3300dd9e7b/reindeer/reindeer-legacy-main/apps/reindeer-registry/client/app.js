@@ -27,6 +27,7 @@ const money = (c) => (c == null ? '' : `$${(c / 100).toLocaleString('en-US')}`);
 
 let registry = { rooms: [], categories: [] };
 let history = [];
+let myRole = 'owner';  // global: tracks current user role (owner/partner/assistant)
 
 // ------------------------------------------------------- duplicates (offered)
 /**
@@ -601,7 +602,7 @@ async function saveItem() {
       body: JSON.stringify({
         title: effectiveTitle(), story: cap.story,
         room_name: cap.room || null, category_name: cap.category || null,
-        review_state: 'kept',
+        review_state: (myRole === 'assistant' && cap.important) ? 'draft' : 'kept',
         // The value on an estate record is the OWNER'S, never the camera's.
         // This app previously saved the vision model's guess as though the
         // owner had stated it — a fabricated brand and dollar figure stamped
@@ -612,8 +613,13 @@ async function saveItem() {
         // Owner-set Important mark. The API validates the reason enum and
         // coerces it back to '' if the box was left off, so a stale form
         // cannot attach a reason to an unflagged item.
-        owner_high_value: cap.important === true,
-        owner_high_value_reason: reasonFromCap(cap),
+        // Helpers (assistants) cannot set a permanent Important flag —
+        // their flag is tentative and queued for owner review.
+        owner_high_value: myRole === 'assistant' ? false : (cap.important === true),
+        owner_high_value_reason: myRole === 'assistant' ? '' : reasonFromCap(cap),
+        tentative_high_value: myRole === 'assistant' && cap.important === true,
+        tentative_high_value_source: myRole === 'assistant' ? 'helper' : '',
+        tentative_high_value_reason: myRole === 'assistant' ? reasonFromCap(cap) : '',
         ai_confidence: cap.ai?.confidence ?? null,
         identifiers: buildIdentifiers(),
         recipient_hint: cap.recipient
@@ -983,6 +989,7 @@ const cardHtml = (i) => `
       ${i.review_state === 'draft' ? '<span class="badge draft">needs review</span>' : '<span class="badge kept">confirmed</span>'}
       ${i.recipient_hint?.recipient_name ? `<span class="badge who">for ${escapeHtml(i.recipient_hint.recipient_name)}</span>` : ''}
       ${i.owner_high_value ? '<span class="badge important">Important</span>' : ''}
+      ${i.tentative_high_value ? '<span class="badge tentative">flagged for review</span>' : ''}
     </div>
   </button>`;
 
@@ -2268,6 +2275,7 @@ async function rememberTypedRoom(name) {
   try {
     const summary = await api('/api/scope-summary');
     const role = summary?.participant?.role;
+    if (role) myRole = role;
     if (role && role !== 'owner' && role !== 'bootstrap-owner' && items.length === 0) {
       landing = 'recipientwelcome';
     }

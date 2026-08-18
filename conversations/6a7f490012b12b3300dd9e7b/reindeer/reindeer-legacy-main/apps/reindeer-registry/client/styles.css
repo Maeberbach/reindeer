@@ -135,6 +135,7 @@ button{font:inherit}
  * when the checkbox is ticked.
  */
 .badge.important{background:#f4f1e8; color:#55504a; font-style:italic; letter-spacing:.01em; font-weight:600}
+.badge.tentative{background:#fef3e2; color:#9a6716; font-style:italic; letter-spacing:.01em; font-weight:600}
 .important-block{margin-top:18px; padding:14px; background:#faf7ee; border:1px solid #ece4c8; border-radius:10px}
 .important-check{display:flex; align-items:center; gap:12px; font-size:20px; font-weight:600; cursor:pointer; padding:6px 0}
 .important-check input[type="checkbox"]{width:26px; height:26px; margin:0; accent-color:var(--accent)}

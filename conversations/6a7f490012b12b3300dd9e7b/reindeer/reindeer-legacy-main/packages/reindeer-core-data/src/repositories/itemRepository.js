@@ -245,6 +245,7 @@ export class SqliteItemRepository extends ItemRepository {
     // Owner's own mark — kept as a separate filter so a FairPlay caller
     // asking for "high_value_only" never picks up an owner‑flagged item that
     // FairPlay's own estimator did not agree with, and vice versa.
+    if (query.tentative_high_value_only) where.push("i.tentative_high_value = 1");
     if (query.owner_high_value_only) where.push('i.owner_high_value = 1');
     if (query.recipient_name) {
       where.push('EXISTS (SELECT 1 FROM recipient_hints h WHERE h.item_id = i.item_id AND h.recipient_name = @recipient_name)');

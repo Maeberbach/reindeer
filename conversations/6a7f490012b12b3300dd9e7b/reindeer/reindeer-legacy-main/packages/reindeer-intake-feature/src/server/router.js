@@ -80,6 +80,7 @@ export function createIntakeRouter(deps) {
       // computed high-value set should never inadvertently pick up items the
       // owner flagged but FairPlay's estimator did not agree with.
       owner_high_value_only: req.query.owner_high_value_only === 'true',
+      tentative_high_value_only: req.query.tentative_high_value_only === 'true',
       has_recipient: req.query.has_recipient === undefined ? undefined : req.query.has_recipient === 'true',
       recipient_name: req.query.recipient_name,
     };
@@ -328,6 +329,34 @@ export function createIntakeRouter(deps) {
   r.post('/items/:id/reject', wrap(async (req, res) => {
     const ctx = ctxOf(req);
     res.json(await itemRepo.update(req.params.id, { review_state: REVIEW_STATE.REJECTED }, ctx));
+  }));
+
+  // ---- tentative high-value: owner review endpoints -----------------------
+  // Confirm: promote a tentative flag to a permanent owner_high_value.
+  // The helper's tentative reason becomes the owner_high_value_reason.
+  r.post('/items/:id/confirm-important', wrap(async (req, res) => {
+    const ctx = ctxOf(req);
+    const item = await itemRepo.get(req.params.id, ctx);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+    const reason = item.tentative_high_value_reason || '';
+    res.json(await itemRepo.update(req.params.id, {
+      owner_high_value: true,
+      owner_high_value_reason: reason,
+      tentative_high_value: false,
+      tentative_high_value_source: '',
+      tentative_high_value_reason: '',
+      review_state: REVIEW_STATE.KEPT,
+    }, ctx));
+  }));
+
+  // Dismiss: remove the tentative flag without promoting.
+  r.post('/items/:id/dismiss-important', wrap(async (req, res) => {
+    const ctx = ctxOf(req);
+    res.json(await itemRepo.update(req.params.id, {
+      tentative_high_value: false,
+      tentative_high_value_source: '',
+      tentative_high_value_reason: '',
+    }, ctx));
   }));
 
   r.get('/duplicates/scan', wrap(async (req, res) => {
