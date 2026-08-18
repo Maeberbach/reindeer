@@ -2,8 +2,8 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
-import { openDb, defaultDataDir, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry } from '@reindeer/core-data';
-import { SCOPE_TYPE } from '@reindeer/core-api';
+import { openDb, defaultDataDir, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry } from '@reindeer-legacy/core-data';
+import { SCOPE_TYPE } from '@reindeer-legacy/core-api';
 import { FEATURE_FLAGS, isSubscriptionGateEnabled, isHeirVisibilityEnabled, isMultiEstateEnabled } from './featureFlags.js';
 import { adminBackdoor, backdoorEnabled } from './adminBackdoor.js';
 
@@ -701,24 +701,24 @@ app.listen(PORT, () => console.log(`Reindeer: Discovery listening on :${PORT}`))
 // ─── Owner: import .reindeer bundle ───────────────────────────
 //
 // Accepts a .reindeer bundle (zip) from Registry or any compatible source.
-// Parses it with @reindeer/exchange, loads items/rooms/categories/photos
+// Parses it with @reindeer-legacy/exchange, loads items/rooms/categories/photos
 // into Discovery's database. Re-importing the same item_id updates in place.
 app.post('/api/owner/import', ownerAuth, express.raw({ type: 'application/octet-stream', limit: '800mb' }), async (req, res) => {
   try {
     if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
       return res.status(400).json({ message: 'No bundle bytes received.' });
     }
-    // Try to use @reindeer/exchange if available, otherwise manual parse
+    // Try to use @reindeer-legacy/exchange if available, otherwise manual parse
     let envelope, files, problems;
     try {
-      const exchange = await import('@reindeer/exchange');
+      const exchange = await import('@reindeer-legacy/exchange');
       const result = exchange.readBundle(req.body);
       envelope = result.envelope;
       files = result.files;
       problems = result.problems;
     } catch (importErr) {
       return res.status(501).json({ 
-        message: 'Bundle import requires @reindeer/exchange package. Use "Load Sample Data" instead, or install the exchange package.' 
+        message: 'Bundle import requires @reindeer-legacy/exchange package. Use "Load Sample Data" instead, or install the exchange package.' 
       });
     }
 
