@@ -3829,7 +3829,12 @@ function showRoomNextAsk() {
   };
 }
 
-/** The one question. Asked about the room, once, and never repeated. */
+/** The one question. Asked about the room, once, and never repeated.
+ *  Not about gift assignment — that is a separate flow. This is about the
+ *  owner's eye: did anything in this room catch their attention as important?
+ *  If yes, they take a close-up. The close-up makes it important by default,
+ *  asks for details, and AI identifies the item from the close-up photo.
+ */
 function renderRoomGiftAsk(added, again = false) {
   const n = added.length;
   $('#batchResults').innerHTML = `
@@ -3838,111 +3843,28 @@ function renderRoomGiftAsk(added, again = false) {
     <p class="reassure">That part is done. They are written down and they will print.</p>`}
     <div class="ask">
       <p class="askq">${again
-        ? 'Anything else in here that stands out — to assign to someone, or flag as important?'
-        : 'Is there anything in here that stands out — something to assign to someone, or flag as important?'}</p>
-      <button class="primary wide" id="giftYes">Yes — let me point ${again ? 'more' : 'them'} out</button>
+        ? 'Did anything else catch your eye as important in this room?'
+        : 'Did anything catch your eye as important in this room?'}</p>
+      <p class="reassure" style="font-size:0.85rem;margin-top:4px">Take a close-up photo of it. That marks it as important, asks for details, and AI will help identify what it is.</p>
+      <button class="primary wide" id="giftYes">Yes — something caught my eye</button>
       <button class="ghost wide" id="giftNo">${again ? 'No — that is everything' : 'No — on to the next room'}</button>
     </div>`;
   $('#giftNo').onclick = async () => { await leaveNaming(); setRoomFinished('done'); };
-  $('#giftYes').onclick = () => renderGiftPicker(added);
-}
-
-/**
- * Point at several things, then say one name.
- *
- * More than one item at a time on purpose: a set of dining chairs, a pair of
- * lamps, or three pieces of one grandmother's china are one decision to the
- * owner and should not cost three passes through a form.
- */
-function renderGiftPicker(added) {
-  const picked = new Set();
-  $('#batchResults').innerHTML = `
-    <h2>Which ones?</h2>
-    <p class="reassure">Tap the ones that stand out. Assign them to someone, or just flag them as important.</p>
-    <div class="picks">
-      ${added.map((a) => `
-        <button class="pick" data-pick-id="${a.item_id}" aria-pressed="false">
-          ${a.thumb ? `<img src="${a.thumb}" alt="">` : '<span class="noimg">no picture</span>'}
-          <span class="picklbl">${escapeHtml(a.label)}</span>
-        </button>`).join('')}
-    </div>
-    <div id="giftWhoBox" hidden>
-      <h3>Who are they for?</h3>
-      <div class="chips" id="giftChips"></div>
-      <input type="text" id="giftName" class="bigin" placeholder="A name">
-      <input type="text" id="giftRel" class="bigin" placeholder="Relationship, for example: daughter">
-      <button class="primary wide" id="giftSave">Save this</button>
-      <p class="reassure">This is a wish, not a legal instruction. You can change it any time.</p>
-    </div>
-    <button class="ghost wide" id="giftFlagImportant">Flag as important instead</button>
-    <button class="ghost wide" id="giftCancel">Never mind</button>`;
-
-  const box = $('#giftWhoBox');
-  $$('.picks .pick').forEach((b) => {
-    b.onclick = () => {
-      const id = b.dataset.pickId;
-      const on = b.getAttribute('aria-pressed') === 'true';
-      b.setAttribute('aria-pressed', on ? 'false' : 'true');
-      if (on) picked.delete(id); else picked.add(id);
-      box.hidden = picked.size === 0;
-      $('#giftSave').textContent = picked.size > 1 ? `Save these ${picked.size}` : 'Save this';
-    };
-  });
-
-  // The roster, so the second and third gift are one tap each.
-  const chips = $('#giftChips');
-  chips.innerHTML = people.filter((p) => !p.archived).map((p) =>
-    `<button class="chip" data-gift-pick="${escapeHtml(p.name)}" data-rel="${escapeHtml(p.relationship ?? '')}" aria-pressed="false">${escapeHtml(p.name)}${p.relationship ? ` <span class="chiprel">${escapeHtml(p.relationship)}</span>` : ''}</button>`).join('');
-  $$('#giftChips .chip').forEach((c) => {
-    c.onclick = () => {
-      $$('#giftChips .chip').forEach((o) => o.setAttribute('aria-pressed', 'false'));
-      c.setAttribute('aria-pressed', 'true');
-      $('#giftName').value = c.dataset.giftPick;
-      $('#giftRel').value = c.dataset.rel || '';
-    };
-  });
-
-  $('#giftFlagImportant').onclick = async () => {
-    if (picked.size === 0) return toast('Tap the ones to flag first.', true);
-    const ids = [...picked];
-    try {
-      for (const id of ids) {
-        await api(`/api/items/${id}`, {
-          method: 'PATCH', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ owner_high_value: true }),
-        });
-      }
-      toast(`${ids.length === 1 ? 'That one is' : `Those ${ids.length} are`} flagged as important.`);
-      const left = added.filter((a) => !picked.has(a.item_id));
-      if (!left.length) return leaveNaming();
-      renderRoomGiftAsk(left, true);
-    } catch (e) { toast(e.message, true); }
-  };
-  $('#giftCancel').onclick = () => renderRoomGiftAsk(added, true);
-  $('#giftSave').onclick = async () => {
-    const name = $('#giftName').value.trim();
-    if (!name) return toast('Please put in a name, or press Never mind.', true);
-    const rel = $('#giftRel').value.trim();
-    $('#giftSave').disabled = true;
-    const ids = [...picked];
-    try {
-      for (const id of ids) {
-        await api(`/api/items/${id}`, {
-          method: 'PATCH', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ recipient_hint: { recipient_name: name, relationship: rel, owner_note: '' } }),
-        });
-      }
-      try { await addPerson(name, rel, 'from_item'); } catch { /* not worth stopping for */ }
-      toast(`${ids.length === 1 ? 'That one is' : `Those ${ids.length} are`} for ${name}.`);
-      const left = added.filter((a) => !picked.has(a.item_id));
-      if (!left.length) return leaveNaming();
-      renderRoomGiftAsk(left, true);
-    } catch (e) {
-      $('#giftSave').disabled = false;
-      toast(e.message, true);
-    }
+  $('#giftYes').onclick = () => {
+    // Go to the capture screen with this room pre-filled and important pre-set.
+    // The owner takes a close-up photo of the item that caught their eye.
+    // That photo triggers AI identification, and the important block (reason
+    // chips, additional close-up, voice memo) is already open.
+    leaveNaming();
+    resetCapture();
+    if (room?.name) cap.room = room.name;
+    cap.preSetImportant = true;
+    go('capture');
+    // Show a toast guiding the owner to take the close-up
+    toast('Take a close-up of the item that caught your eye. AI will help identify it.');
   };
 }
+
 
 /**
  * Coming back out of the naming pass. This is where the duplicate tally is
