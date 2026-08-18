@@ -1411,23 +1411,24 @@ if ('serviceWorker' in navigator) {
 </button>
 
 <script>
-(function() {
+function checkState(label) {
   var ws = document.querySelector('[data-screen="welcome"]');
   var all = document.querySelectorAll('.screen');
   var visible = [];
   all.forEach(function(s) { if (!s.hasAttribute('hidden')) visible.push(s.dataset.screen); });
   var banner = document.querySelector('div[style*="background:#c00"]');
-  var info = 'DIAG|welcome_hidden=' + (ws ? ws.hasAttribute('hidden') : 'NO_EL') + 
+  var info = label + '|welcome_hidden=' + (ws ? ws.hasAttribute('hidden') : 'NO_EL') + 
     '|visible=' + visible.join(',') +
-    '|banner=' + (banner ? banner.textContent.substring(0, 100) : 'NO') +
+    '|banner=' + (banner ? 'YES' : 'NO') +
     '|screens=' + all.length;
-  console.log(info);
-  var d = document.createElement('div');
-  d.id = 'diagOutput';
-  d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#00c;color:#fff;padding:10px;font-family:monospace;font-size:12px;z-index:99999;white-space:pre-wrap';
+  var d = document.getElementById('diagOutput');
+  if (!d) { d = document.createElement('div'); d.id = 'diagOutput'; d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#00c;color:#fff;padding:10px;font-family:monospace;font-size:12px;z-index:99999;white-space:pre-wrap'; document.body.appendChild(d); }
   d.textContent = info;
-  document.body.appendChild(d);
-})();
+  console.log(info);
+}
+checkState('IMMEDIATE');
+setTimeout(function() { checkState('AFTER_5S'); }, 5000);
+setTimeout(function() { checkState('AFTER_10S'); }, 10000);
 </script>
 </body>
 </html>
