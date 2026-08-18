@@ -628,7 +628,7 @@ app.get('/api/admin/status', (req, res) => {
   if (!req.isAdminBackdoor) return res.status(403).json({ message: 'Backdoor admin only.' });
   const items = itemRepo.list();
   const heirs = db.prepare('SELECT COUNT(*) as c FROM discovery_heirs').get();
-  const reactions = db.prepare('SELECT COUNT(*) as c FROM discovery_reactions').get();
+  const reactions = db.prepare('SELECT COUNT(*) as c FROM discovery_interests').get();
   res.json({
     estate: { backdoor_enabled: backdoorEnabled, support_enabled: supportEnabled, scope_id: SCOPE_ID },
     counts: { items: items.length, heirs: heirs.c, reactions: reactions.c },
