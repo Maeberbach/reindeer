@@ -626,7 +626,7 @@ app.get('/api/subscription/status', (req, res) => {
 // ─── Admin backdoor status (REINDEER_ADMIN_KEY) ──────────────────
 app.get('/api/admin/status', (req, res) => {
   if (!req.isAdminBackdoor) return res.status(403).json({ message: 'Backdoor admin only.' });
-  const items = repo.list();
+  const items = itemRepo.list();
   const heirs = db.prepare('SELECT COUNT(*) as c FROM discovery_heirs').get();
   const reactions = db.prepare('SELECT COUNT(*) as c FROM discovery_reactions').get();
   res.json({
