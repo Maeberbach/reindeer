@@ -581,6 +581,11 @@
   <!-- GUIDED CAPTURE -->
   <section class="screen" data-screen="capture" hidden>
     <div class="steps" id="stepDots"></div>
+    <!-- Helper banner: shown only when myRole === 'assistant'. Explains
+         that they can capture and flag for review, but cannot assign items. -->
+    <p class="reassure" id="helperBanner" hidden style="background:#f5f0e8;padding:10px 14px;border-radius:8px;margin:8px 0;font-size:14px">
+      You're helping by capturing items. Flag anything important and the owner will review it. You can't designate items to specific people — that's for the owner.
+    </p>
 
     <div class="step" data-stepname="Photo" data-step="0">
       <h2>Take a photo of the item</h2>
