@@ -16,6 +16,9 @@ const toRow = (i) => ({
   // validator has already trimmed and length-checked it before we get here.
   owner_important_comment: i.owner_important_comment ?? '',
   ownership_tag: i.ownership_tag ?? 'mine',
+  tentative_high_value: i.tentative_high_value ? 1 : 0,
+  tentative_high_value_source: i.tentative_high_value_source ?? '',
+  tentative_high_value_reason: i.tentative_high_value_reason ?? '',
 });
 
 const fromRow = (r) => r && ({
@@ -26,6 +29,9 @@ const fromRow = (r) => r && ({
   owner_high_value: !!r.owner_high_value,
   owner_high_value_reason: r.owner_high_value_reason ?? '',
   owner_important_comment: r.owner_important_comment ?? '',
+  tentative_high_value: !!r.tentative_high_value,
+  tentative_high_value_source: r.tentative_high_value_source ?? '',
+  tentative_high_value_reason: r.tentative_high_value_reason ?? '',
 });
 
 export class SqliteItemRepository extends ItemRepository {
@@ -46,11 +52,13 @@ export class SqliteItemRepository extends ItemRepository {
         description, story, quantity, condition, identifiers, value_estimate_cents, value_basis,
         high_value_flag, owner_high_value, owner_high_value_reason, owner_important_comment,
         ownership_tag,
+        tentative_high_value, tentative_high_value_source, tentative_high_value_reason,
         ai_confidence, review_state, print_state, export_state, created_at, updated_at)
       VALUES (@item_id, @scope_id, @origin_app, @origin_item_id, @title, @category_id, @room_id,
         @description, @story, @quantity, @condition, @identifiers, @value_estimate_cents, @value_basis,
         @high_value_flag, @owner_high_value, @owner_high_value_reason, @owner_important_comment,
         @ownership_tag,
+        @tentative_high_value, @tentative_high_value_source, @tentative_high_value_reason,
         @ai_confidence, @review_state, @print_state, @export_state, @created_at, @updated_at)
     `).run({ ...row, scope_id: ctx.scopeId });
 
@@ -122,6 +130,9 @@ export class SqliteItemRepository extends ItemRepository {
         ownership_tag=@ownership_tag,
         owner_high_value=@owner_high_value, owner_high_value_reason=@owner_high_value_reason,
         owner_important_comment=@owner_important_comment,
+        tentative_high_value=@tentative_high_value,
+        tentative_high_value_source=@tentative_high_value_source,
+        tentative_high_value_reason=@tentative_high_value_reason,
         ai_confidence=@ai_confidence, review_state=@review_state,
         print_state=@print_state, export_state=@export_state, updated_at=@updated_at
       WHERE item_id=@item_id AND scope_id=@scope_id

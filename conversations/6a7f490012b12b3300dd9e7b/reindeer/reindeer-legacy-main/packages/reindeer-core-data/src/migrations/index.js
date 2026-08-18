@@ -952,3 +952,15 @@ export const MIGRATIONS = [
     `,
   },
 ];
+
+  {
+    id: 24,
+    name: 'tentative_high_value',
+    sql: `
+      ALTER TABLE items ADD COLUMN tentative_high_value INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE items ADD COLUMN tentative_high_value_source TEXT NOT NULL DEFAULT '';
+      ALTER TABLE items ADD COLUMN tentative_high_value_reason TEXT NOT NULL DEFAULT '';
+      CREATE INDEX IF NOT EXISTS idx_items_tentative_high_value ON items(scope_id, tentative_high_value);
+    `,
+  },
+];
