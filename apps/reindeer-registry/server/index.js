@@ -5,7 +5,7 @@ import { SCOPE_TYPE } from '@reindeer-legacy/core-api';
 import { openDb, defaultDataDir, ulid, SqliteAuditLog, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry, PeopleRepo, HeirsRepo, WillsCaretakersRepo, AddendumVersionsRepo, ParticipantsRepo, MagicLinksRepo, SessionsRepo, MemorandumRepo, ReminderPrefsRepo } from '@reindeer-legacy/core-data';
 import { AuthService } from './auth/service.js';
 import { attachSession, authRequired } from './auth/middleware.js';
-import { adminBackdoor, backdoorEnabled, isBackdoorAdmin } from './adminBackdoor.js';
+import { adminBackdoor, backdoorEnabled, isBackdoorAdmin, isBackdoorSupport, supportEnabled } from './adminBackdoor.js';
 import { createAuthRouter } from './auth/router.js';
 import { createScopeSummaryRouter } from './routes/scopeSummary.js';
 import { createHouseholdLinkRouter } from './routes/householdLink.js';
@@ -338,9 +338,9 @@ app.post('/api/admin/max-frames', (req, res, next) => {
 // GET /api/admin/status — estate overview for the admin panel.
 app.get('/api/admin/status', async (req, res, next) => {
   try {
+    if (!isBackdoorAdmin(req)) return res.status(403).json({ error: 'Backdoor admin only.' });
     const allItems = await itemRepo.list({}, { participant_id: 'backdoor-admin' });
     const allParticipants = participants.list();
-    const auditEntries = await audit.list({ limit: 50 }, { participant_id: 'backdoor-admin' });
     const sub = getEstateSubscriptionStatus(db, SCOPE_ID);
     const flags = {
       passwordLogin: REGISTRY_FLAGS.passwordLogin,
@@ -356,28 +356,13 @@ app.get('/api/admin/status', async (req, res, next) => {
       estate: {
         scope_id: SCOPE_ID,
         owner_name: OWNER_NAME,
-        data_dir: DATA_DIR,
         backdoor_enabled: backdoorEnabled,
+        support_enabled: supportEnabled,
       },
       counts: {
         items: allItems.length,
         participants: allParticipants.length,
-        audit_entries: auditEntries.length,
       },
-      participants: allParticipants.map(p => ({
-        participant_id: p.participant_id,
-        email: p.email,
-        display_name: p.display_name,
-        role: p.role,
-        status: p.status,
-      })),
-      audit: auditEntries.slice(0, 20).map(a => ({
-        timestamp: a.timestamp || a.created_at,
-        action: a.action,
-        entity: a.entity,
-        entity_id: a.entity_id,
-        actor: a.actor_id || a.participant_id,
-      })),
       subscription: { status: sub, gate_enabled: isSubscriptionGateEnabled() },
       feature_flags: flags,
       vision: visionStatus,
@@ -389,6 +374,7 @@ app.get('/api/admin/status', async (req, res, next) => {
 // GET /api/admin/items — all items, no RLS filtering.
 app.get('/api/admin/items', async (req, res, next) => {
   try {
+    if (!isBackdoorSupport(req)) return res.status(403).json({ error: 'Support key required for data access.' });
     const items = await itemRepo.list({}, { participant_id: 'backdoor-admin' });
     res.json({ items: items.map(i => ({
       id: i.id,
@@ -408,6 +394,7 @@ app.get('/api/admin/items', async (req, res, next) => {
 // DELETE /api/admin/items/:id — force-delete any item.
 app.delete('/api/admin/items/:id', async (req, res, next) => {
   try {
+    if (!isBackdoorSupport(req)) return res.status(403).json({ error: 'Support key required for data access.' });
     await itemRepo.remove(req.params.id, 'backdoor-admin', { participant_id: 'backdoor-admin' });
     res.json({ ok: true });
   } catch (e) { next(e); }
@@ -416,9 +403,24 @@ app.delete('/api/admin/items/:id', async (req, res, next) => {
 // GET /api/admin/audit — full audit log.
 app.get('/api/admin/audit', async (req, res, next) => {
   try {
+    if (!isBackdoorSupport(req)) return res.status(403).json({ error: 'Support key required for data access.' });
     const limit = Math.min(Number(req.query.limit) || 200, 1000);
     const entries = await audit.list({ limit }, { participant_id: 'backdoor-admin' });
     res.json({ entries });
+  } catch (e) { next(e); }
+});
+
+app.get('/api/admin/feature-flags', (req, res, next) => {
+  try {
+    if (!isBackdoorAdmin(req)) return res.status(403).json({ error: 'Backdoor admin only.' });
+    res.json({ feature_flags: { ...REGISTRY_FLAGS } });
+  } catch (e) { next(e); }
+});
+
+app.get('/api/admin/feature-flags', (req, res, next) => {
+  try {
+    if (!isBackdoorAdmin(req)) return res.status(403).json({ error: 'Backdoor admin only.' });
+    res.json({ feature_flags: { ...REGISTRY_FLAGS } });
   } catch (e) { next(e); }
 });
 
@@ -437,9 +439,34 @@ app.post('/api/admin/feature-flags', (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// POST /api/admin/reset — corporate admin only. Wipes all estate data.
+// Returns only success/failure — never returns estate content.
+app.post('/api/admin/reset', (req, res, next) => {
+  try {
+    if (!isBackdoorAdmin(req)) return res.status(403).json({ error: 'Backdoor admin only.' });
+    const tables = ['items', 'item_photos', 'item_closeups', 'item_tags', 'audit_log'];
+    for (const table of tables) {
+      try { db.prepare(`DELETE FROM ${table}`).run(); } catch {}
+    }
+    res.json({ ok: true, message: 'Estate reset to fresh state.' });
+  } catch (e) { next(e); }
+});
+
+app.post('/api/admin/reset', (req, res, next) => {
+  try {
+    if (!isBackdoorAdmin(req)) return res.status(403).json({ error: 'Backdoor admin only.' });
+    const tables = ['items', 'item_photos', 'item_closeups', 'item_tags', 'audit_log'];
+    for (const table of tables) {
+      try { db.prepare(`DELETE FROM ${table}`).run(); } catch {}
+    }
+    res.json({ ok: true, message: 'Estate reset to fresh state.' });
+  } catch (e) { next(e); }
+});
+
 // GET /api/admin/db-stats — raw database stats.
 app.get('/api/admin/db-stats', async (req, res, next) => {
   try {
+    if (!isBackdoorSupport(req)) return res.status(403).json({ error: 'Support key required for data access.' });
     const tables = db.prepare(
       "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
     ).all();
