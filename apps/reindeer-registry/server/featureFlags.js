@@ -41,6 +41,14 @@ export const FEATURE_FLAGS = {
   // When OFF (testing mode): heirs see everything (useful for QA/demo).
   // Toggled by Reindeer Corp admin before client distribution.
   heirVisibility: true,
+
+  // Video capture — lets owners record a video walkthrough of a room
+  // instead of (or alongside) photos. AI analyzes frames extracted from
+  // the video to identify items. OFF by default; turned on by Reindeer
+  // Corp admin when ready. When ON: the "Record a video" tile appears
+  // on the room screen and the video lane appears on the batch screen.
+  // Can also be overridden via env: REINDEER_FEATURE_VIDEO_CAPTURE=true
+  videoCapture: false,
 };
 
 /**
@@ -96,4 +104,15 @@ export function isSubscriptionGateEnabled() {
 export function isHeirVisibilityEnabled() {
   if (process.env.REINDEER_FEATURE_HEIR_VISIBILITY === 'false') return false;
   return FEATURE_FLAGS.heirVisibility === true;
+}
+
+/**
+ * Returns true when video capture is enabled.
+ * When false, video tiles/lanes are hidden and only photo capture works.
+ * When true, owners can record room walkthroughs and AI analyzes frames.
+ * Can be overridden via env: REINDEER_FEATURE_VIDEO_CAPTURE=true
+ */
+export function isVideoCaptureEnabled() {
+  if (process.env.REINDEER_FEATURE_VIDEO_CAPTURE === 'true') return true;
+  return FEATURE_FLAGS.videoCapture === true;
 }

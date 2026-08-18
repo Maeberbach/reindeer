@@ -453,6 +453,8 @@ function resetCapture() {
   $('#capDetails').hidden = true;
   $('#capNav').hidden = true;
   $('#capPhoto').value = '';
+  $('#capAnother').hidden = true;
+  $('#capNav').hidden = false;
   $$('#roomChips .chip, #catChips .chip').forEach((c) => c.setAttribute('aria-pressed', 'false'));
   $('#capImportant').checked = false;
   $('#capImportantChips').hidden = true;
@@ -890,6 +892,16 @@ $('#capRetake').onclick = () => {
   resetCapture();
 };
 
+// "Take another photo" — reset and stay on capture screen for the next item
+$('#capAnotherTake').onclick = () => {
+  resetCapture();
+};
+
+// "All done" — go back to where we came from
+$('#capAnotherDone').onclick = () => {
+  go('home');
+};
+
 // Cancel button
 $('#stepBack').onclick = () => go(promiseMode ? 'memo' : 'home');
 
@@ -1249,7 +1261,9 @@ async function saveItem() {
     if (quickTestMode) { quickTestMode = false; return go('whosdoing'); }
     if (recipientPracticeMode) { recipientPracticeMode = false; return go('walk'); }
     if (guidedIntroMode) { guidedIntroMode = false; updateHomeTileAfterFirstItem(); return go('home'); }
-    go('home');
+    // Normal mode: offer to take another photo instead of going home
+    $('#capNav').hidden = true;
+    $('#capAnother').hidden = false;
   } catch (e) { toast(e.message, true); }
 }
 

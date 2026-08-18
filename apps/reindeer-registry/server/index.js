@@ -17,7 +17,7 @@ import { createPrintRouter } from '@reindeer/print-feature';
 import { writeBundle } from '@reindeer/exchange';
 import { TrusteeRepository, DeliveryService, createDeliveryRouter, createLinkRouter, mailerFromEnv, createMailerFromConfig, getSmtpSettingsFromDb, saveSmtpSettingsToDb, TwoOutputsService, createTwoOutputsRouter } from '@reindeer/delivery';
 import { requireLicenseForWrite, requireSubscriptionForWrite } from './licenseMiddleware.js';
-import { FEATURE_FLAGS as REGISTRY_FLAGS, isHeirVisibilityEnabled, isSubscriptionGateEnabled } from './featureFlags.js';
+import { FEATURE_FLAGS as REGISTRY_FLAGS, isHeirVisibilityEnabled, isSubscriptionGateEnabled, isVideoCaptureEnabled } from './featureFlags.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -231,6 +231,7 @@ app.get('/api/health', (req, res) => res.json({
   ok: true, app: 'reindeer-registry', scope: SCOPE_ID, data_dir: DATA_DIR,
   mailer: mailer.describe, base_url: BASE_URL,
   vision: vision.constructor.name === 'MockVisionProvider' ? 'mock (no API key set)' : `live — ${vision.constructor.name}`,
+  videoCapture: isVideoCaptureEnabled(),
   media: mediaStore.tally(resolveScope(req) || { scopeType: SCOPE_TYPE.INVENTORY, scopeId: SCOPE_ID, actorId: 'health' }),
 }));
 
@@ -547,10 +548,14 @@ app.get('/api/admin/feature-flags', (req, res) => {
       encryption: overrideMap.encryption !== undefined
         ? overrideMap.encryption === 'true'
         : REGISTRY_FLAGS.encryption,
+      videoCapture: overrideMap.videoCapture !== undefined
+        ? overrideMap.videoCapture === 'true'
+        : REGISTRY_FLAGS.videoCapture,
     },
     effective: {
       heirVisibility: isHeirVisibilityEnabled(),
       subscriptionGate: isSubscriptionGateEnabled(),
+      videoCapture: isVideoCaptureEnabled(),
     },
   });
 });
@@ -563,7 +568,7 @@ app.post('/api/admin/feature-flags', (req, res) => {
   const scopeId = req.session?.scopeId || process.env.REINDEER_SCOPE_ID || "inventory-default";
   const { flag, value } = req.body || {};
 
-  const allowedFlags = ['heirVisibility', 'subscriptionGate', 'multiEstate', 'passwordLogin', 'licenseKeys', 'encryption'];
+  const allowedFlags = ['heirVisibility', 'subscriptionGate', 'multiEstate', 'passwordLogin', 'licenseKeys', 'encryption', 'videoCapture'];
   if (!allowedFlags.includes(flag)) {
     return res.status(400).json({ error: `Unknown flag: ${flag}. Allowed: ${allowedFlags.join(', ')}` });
   }
