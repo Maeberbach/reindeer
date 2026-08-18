@@ -3034,7 +3034,7 @@ function renderRoomChips() {
   });
   // Pre-select the room carried over from a previous capture so "Take
   // another photo" stays in the same room without the owner re-picking it.
-  if (cap.room) {
+  if (cap?.room) {
     const pre = $$('#roomChips .chip').find((c) => c.dataset.room === cap.room);
     if (pre) pre.setAttribute('aria-pressed', 'true');
   }
