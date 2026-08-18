@@ -989,7 +989,7 @@ export async function approveStaged(
       photoUrl: primaryPhoto?.url ?? null,
       thumbnailUrl: primaryPhoto?.url ?? null,
     } as any);
-
+  }
 
   // Copy staged_media -> item_media. On an update via a re-import, the same
   // recording arrives again through a NEW batch folder, so its URL differs
