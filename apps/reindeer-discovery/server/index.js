@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import { openDb, defaultDataDir, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry } from '@reindeer/core-data';
 import { SCOPE_TYPE } from '@reindeer/core-api';
 import { FEATURE_FLAGS, isSubscriptionGateEnabled, isHeirVisibilityEnabled, isMultiEstateEnabled } from './featureFlags.js';
+import { adminBackdoor, backdoorEnabled } from './adminBackdoor.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -192,6 +193,7 @@ function requireSubscriptionForWrite(req, res, next) {
 }
 
 const app = express();
+app.use(adminBackdoor);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, '..', 'client')));
 
@@ -620,6 +622,20 @@ app.get('/api/subscription/status', (req, res) => {
 
 // ─── Admin: Feature flag status & runtime toggle ──────────────
 //
+
+// ─── Admin backdoor status (REINDEER_ADMIN_KEY) ──────────────────
+app.get('/api/admin/status', (req, res) => {
+  if (!req.isAdminBackdoor) return res.status(403).json({ message: 'Backdoor admin only.' });
+  const items = repo.list();
+  const heirs = db.prepare('SELECT COUNT(*) as c FROM discovery_heirs').get();
+  const reactions = db.prepare('SELECT COUNT(*) as c FROM discovery_reactions').get();
+  res.json({
+    estate: { backdoor_enabled: backdoorEnabled, scope_id: SCOPE_ID },
+    counts: { items: items.length, heirs: heirs.c, reactions: reactions.c },
+    feature_flags: FEATURE_FLAGS,
+  });
+});
+
 // Mirror of the Registry/FairPlay admin feature-flags endpoints.
 // Lets a Reindeer Corp admin inspect and flip feature flags at
 // runtime before client distribution. Persisted in estate_settings.

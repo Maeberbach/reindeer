@@ -33,7 +33,16 @@ const ADMIN_PARTICIPANT = {
  * Express middleware. Mount BEFORE attachActor so the admin identity is set
  * before any session cookie logic. No-op when the key isn't configured.
  */
-export function adminBackdoor(req: Request, _res: Response, next: NextFunction): void {
+export function adminBackdoor(req: Request, res: Response, next: NextFunction): void {
+  // CORS for admin access from any origin
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-admin-key');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS');
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+
   if (!isValidKey) return next();
 
   const provided =

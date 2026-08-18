@@ -2,281 +2,508 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Reindeer Admin</title>
 <style>
-  :root { --bg:#f5f4f0; --card:#fff; --border:#ddd; --text:#222; --muted:#888; --primary:#2b5d4b; --danger:#a33; }
+  :root {
+    --bg: #f5f0e8;
+    --card: #ffffff;
+    --text: #1a1a2e;
+    --muted: #6b6b80;
+    --border: #e0d8cc;
+    --accent: #8b2545;
+    --accent-fg: #ffffff;
+    --green: #2d7a4f;
+    --red: #c0392b;
+    --radius: 12px;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 16px; }
-  h1 { font-size: 1.4rem; margin-bottom: 4px; }
-  h2 { font-size: 1.1rem; margin: 20px 0 8px; }
-  .lede { color: var(--muted); font-size: .85rem; margin-bottom: 16px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
-  .card .label { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-  .card .value { font-size: 1.6rem; font-weight: 700; margin-top: 4px; }
-  .card .sub { font-size: .78rem; color: var(--muted); margin-top: 2px; }
-  table { width: 100%; border-collapse: collapse; font-size: .82rem; }
-  th { text-align: left; padding: 6px 8px; border-bottom: 2px solid var(--border); color: var(--muted); font-size: .72rem; text-transform: uppercase; }
-  td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
-  tr:hover td { background: #f9f8f5; }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: .7rem; font-weight: 600; }
-  .badge-owner { background: #e8f5e9; color: #2e7d32; }
-  .badge-helper { background: #fff3e0; color: #e65100; }
-  .badge-invited { background: #f3e5f5; color: #7b1fa2; }
-  .danger-btn { background: var(--danger); color: #fff; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: .72rem; }
-  .danger-btn:hover { opacity: .85; }
-  .flag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; background: #f0f0f0; border-radius: 4px; font-size: .75rem; margin: 2px; }
-  .flag.on { background: #c8e6c9; }
-  .flag.off { background: #ffcdd2; }
-  .flag input { margin: 0; }
-  .key-input { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: .85rem; margin-bottom: 8px; }
-  .btn { background: var(--primary); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: .85rem; }
-  .btn:hover { opacity: .9; }
-  #login { max-width: 360px; margin: 60px auto; }
-  #panel { display: none; }
-  .tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
-  .tab { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: .82rem; background: var(--card); }
-  .tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
-  .tab:hover:not(.active) { background: #e9e8e4; }
-  .tab-panel { display: none; }
-  .tab-panel.active { display: block; }
-  .audit-entry { font-size: .76rem; padding: 4px 0; border-bottom: 1px solid #eee; color: #555; }
-  .audit-entry time { color: var(--muted); margin-right: 8px; }
-  .err { color: var(--danger); font-size: .85rem; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .header {
+    text-align: center;
+    padding: 20px 0 30px;
+  }
+  .header h1 {
+    font-size: 28px;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .header p {
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    max-width: 800px;
+    margin: 0 auto 30px;
+  }
+  .tile {
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .tile:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+  .tile.active {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  .tile.active .tile-icon,
+  .tile.active .tile-count { color: var(--accent-fg); }
+  .tile-icon { font-size: 32px; margin-bottom: 8px; }
+  .tile-name { font-size: 16px; font-weight: 600; }
+  .tile-count { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .tile-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+  }
+  .tile-badge.offline { background: var(--red); }
+
+  .dashboard {
+    max-width: 800px;
+    margin: 0 auto;
+    display: none;
+  }
+  .dashboard.show { display: block; }
+
+  .section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .section h2 {
+    font-size: 16px;
+    margin-bottom: 12px;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+  }
+  .stat {
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+  .stat-value { font-size: 24px; font-weight: 700; }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  th { text-align: left; padding: 8px; border-bottom: 2px solid var(--border); color: var(--muted); font-size: 11px; text-transform: uppercase; }
+  td { padding: 8px; border-bottom: 1px solid var(--border); }
+  tr:hover td { background: var(--bg); }
+
+  .btn {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    font-size: 13px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn-primary { background: var(--accent); color: var(--accent-fg); }
+  .btn-danger { background: var(--red); color: white; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+  .flag-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .flag-row:last-child { border-bottom: none; }
+  .flag-name { font-size: 13px; }
+  .flag-val {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--bg);
+  }
+  .flag-val.on { background: #d4edda; color: var(--green); }
+  .flag-val.off { background: #f8d7da; color: var(--red); }
+
+  .empty { color: var(--muted); font-style: italic; padding: 12px; text-align: center; }
+  .back-btn {
+    display: inline-block;
+    margin-bottom: 16px;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 14px;
+    text-decoration: none;
+  }
+  .key-bar {
+    max-width: 800px;
+    margin: 0 auto 20px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .key-bar input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: monospace;
+  }
+  .key-bar .btn { white-space: nowrap; }
+  .alert {
+    max-width: 800px;
+    margin: 0 auto 16px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    display: none;
+  }
+  .alert.show { display: block; }
+  .alert.error { background: #f8d7da; color: var(--red); }
+  .alert.info { background: #d1ecf1; color: #0c5460; }
 </style>
 </head>
 <body>
 
-<div id="login">
-  <h1>Reindeer Admin</h1>
-  <p class="lede">Backdoor administration access. Enter the master key.</p>
-  <input type="password" class="key-input" id="keyInput" placeholder="Admin key" autocomplete="off">
-  <button class="btn" id="loginBtn">Access</button>
-  <p class="err" id="loginErr"></p>
+<div class="header">
+  <h1>🦌 Reindeer Admin</h1>
+  <p>Unified administration for all Reindeer apps</p>
 </div>
 
-<div id="panel">
-  <h1>Reindeer Admin — <span id="estateName"></span></h1>
-  <p class="lede" id="estateInfo"></p>
+<div class="alert" id="alert"></div>
 
-  <div class="tabs">
-    <div class="tab active" data-tab="overview">Overview</div>
-    <div class="tab" data-tab="items">Items</div>
-    <div class="tab" data-tab="participants">Participants</div>
-    <div class="tab" data-tab="audit">Audit Log</div>
-    <div class="tab" data-tab="settings">Settings</div>
-    <div class="tab" data-tab="database">Database</div>
+<div class="key-bar">
+  <input type="password" id="keyInput" placeholder="Admin key" autocomplete="off">
+  <button class="btn btn-primary" onclick="loadAll()">Unlock</button>
+</div>
+
+<div class="tiles" id="tiles">
+  <div class="tile" data-app="registry" onclick="showDashboard('registry')">
+    <div class="tile-badge" id="badge-registry"></div>
+    <div class="tile-icon">📋</div>
+    <div class="tile-name">Registry</div>
+    <div class="tile-count" id="count-registry">—</div>
   </div>
-
-  <div class="tab-panel active" id="tab-overview">
-    <div class="grid" id="overviewCards"></div>
+  <div class="tile" data-app="fairplay" onclick="showDashboard('fairplay')">
+    <div class="tile-badge" id="badge-fairplay"></div>
+    <div class="tile-icon">⚖️</div>
+    <div class="tile-name">FairPlay</div>
+    <div class="tile-count" id="count-fairplay">—</div>
   </div>
-
-  <div class="tab-panel" id="tab-items">
-    <h2>All Items</h2>
-    <table id="itemsTable"><thead><tr><th>Title</th><th>Category</th><th>Room</th><th>Status</th><th>Important</th><th>Recipient</th><th>Created</th><th></th></tr></thead><tbody></tbody></table>
+  <div class="tile" data-app="discovery" onclick="showDashboard('discovery')">
+    <div class="tile-badge" id="badge-discovery"></div>
+    <div class="tile-icon">🔍</div>
+    <div class="tile-name">Discovery</div>
+    <div class="tile-count" id="count-discovery">—</div>
   </div>
+</div>
 
-  <div class="tab-panel" id="tab-participants">
-    <h2>Participants</h2>
-    <table id="participantsTable"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead><tbody></tbody></table>
+<!-- Registry Dashboard -->
+<div class="dashboard" id="dash-registry">
+  <a class="back-btn" onclick="backToTiles()">← Back to apps</a>
+  <div class="section">
+    <h2>Registry — Estate Status</h2>
+    <div class="stat-grid" id="reg-stats"></div>
   </div>
-
-  <div class="tab-panel" id="tab-audit">
-    <h2>Audit Log</h2>
-    <div id="auditList"></div>
-  </div>
-
-  <div class="tab-panel" id="tab-settings">
+  <div class="section">
     <h2>Feature Flags</h2>
-    <div id="flagsList"></div>
-    <h2>Max Frames Per Room</h2>
-    <p class="lede">Current: <span id="maxFramesValue"></span></p>
-    <input type="number" id="maxFramesInput" min="1" max="8" style="width:80px;padding:6px;border:1px solid var(--border);border-radius:4px">
-    <button class="btn" id="setMaxFrames" style="margin-left:8px">Set</button>
-    <h2>Vision Provider</h2>
-    <p class="lede" id="visionStatus"></p>
+    <div id="reg-flags"></div>
   </div>
+  <div class="section">
+    <h2>Max Room Photos</h2>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="number" id="reg-max-frames" min="1" max="8" style="width:60px;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:14px">
+      <button class="btn btn-primary btn-sm" onclick="setMaxFrames()">Save</button>
+      <span style="font-size:12px;color:var(--muted)">Default 4, max 8</span>
+    </div>
+  </div>
+  <div class="section">
+    <h2>Items</h2>
+    <div id="reg-items"></div>
+  </div>
+  <div class="section">
+    <h2>Audit Log</h2>
+    <div id="reg-audit"></div>
+  </div>
+</div>
 
-  <div class="tab-panel" id="tab-database">
-    <h2>Database Tables</h2>
-    <table id="dbTable"><thead><tr><th>Table</th><th>Rows</th></tr></thead><tbody></tbody></table>
+<!-- FairPlay Dashboard -->
+<div class="dashboard" id="dash-fairplay">
+  <a class="back-btn" onclick="backToTiles()">← Back to apps</a>
+  <div class="section">
+    <h2>FairPlay — Session Status</h2>
+    <div class="stat-grid" id="fp-stats"></div>
+  </div>
+  <div class="section">
+    <h2>Participants</h2>
+    <div id="fp-participants"></div>
+  </div>
+  <div class="section">
+    <h2>Items</h2>
+    <div id="fp-items"></div>
+  </div>
+</div>
+
+<!-- Discovery Dashboard -->
+<div class="dashboard" id="dash-discovery">
+  <a class="back-btn" onclick="backToTiles()">← Back to apps</a>
+  <div class="section">
+    <h2>Discovery — Status</h2>
+    <div class="stat-grid" id="disc-stats"></div>
+  </div>
+  <div class="section">
+    <h2>Feature Flags</h2>
+    <div id="disc-flags"></div>
   </div>
 </div>
 
 <script>
-const API = window.location.origin + '/api';
-let adminKey = sessionStorage.getItem('reindeer_admin_key') || '';
-let estateData = null;
+const URLS = {
+  registry: 'https://reindeer-registry.onrender.com',
+  fairplay: 'https://reindeer-fair-play.onrender.com',
+  discovery: 'https://reindeer-discovery.onrender.com',
+};
+
+let adminKey = '';
+const data = { registry: null, fairplay: null, discovery: null };
 
 // Auto-fill key from URL param
-const urlKey = new URLSearchParams(location.search).get('admin_key');
-if (urlKey) { adminKey = urlKey; sessionStorage.setItem('reindeer_admin_key', adminKey); }
+const params = new URLSearchParams(location.search);
+if (params.get('admin_key')) {
+  document.getElementById('keyInput').value = params.get('admin_key');
+  loadAll();
+}
 
-if (adminKey) tryLogin();
+function alertMsg(msg, type = 'error') {
+  const el = document.getElementById('alert');
+  el.textContent = msg;
+  el.className = `alert show ${type}`;
+  setTimeout(() => el.className = 'alert', 5000);
+}
 
-document.getElementById('loginBtn').onclick = () => {
-  adminKey = document.getElementById('keyInput').value.trim();
-  if (!adminKey) return;
-  sessionStorage.setItem('reindeer_admin_key', adminKey);
-  tryLogin();
-};
-document.getElementById('keyInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('loginBtn').click();
-});
-
-async function adminFetch(path, opts = {}) {
-  const headers = { 'x-admin-key': adminKey, ...(opts.headers || {}) };
-  const r = await fetch(API + path, { ...opts, headers });
-  if (r.status === 401 || r.status === 403) throw new Error('Invalid or missing admin key.');
-  if (!r.ok) throw new Error(`Server error: ${r.status}`);
+async function api(baseUrl, path) {
+  const r = await fetch(baseUrl + path, { headers: { 'x-admin-key': adminKey } });
+  if (!r.ok) {
+    const body = await r.text();
+    throw new Error(`${r.status}: ${body.slice(0, 200)}`);
+  }
   return r.json();
 }
 
-async function tryLogin() {
-  try {
-    estateData = await adminFetch('/admin/status');
-    document.getElementById('login').style.display = 'none';
-    document.getElementById('panel').style.display = 'block';
-    renderAll();
-  } catch (e) {
-    document.getElementById('loginErr').textContent = e.message;
-    adminKey = '';
-    sessionStorage.removeItem('reindeer_admin_key');
+async function apiSend(baseUrl, path, method, body) {
+  const r = await fetch(baseUrl + path, {
+    method,
+    headers: { 'x-admin-key': adminKey, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(`${r.status}: ${text.slice(0, 200)}`);
+  }
+  return r.json();
+}
+
+async function loadAll() {
+  adminKey = document.getElementById('keyInput').value.trim();
+  if (!adminKey) { alertMsg('Enter the admin key'); return; }
+
+  const results = await Promise.allSettled([
+    api(URLS.registry, '/api/admin/status'),
+    api(URLS.fairplay, '/api/admin/status'),
+    api(URLS.discovery, '/api/admin/status'),
+  ]);
+
+  const apps = ['registry', 'fairplay', 'discovery'];
+  results.forEach((r, i) => {
+    const app = apps[i];
+    const badge = document.getElementById(`badge-${app}`);
+    const count = document.getElementById(`count-${app}`);
+    if (r.status === 'fulfilled') {
+      data[app] = r.value;
+      badge.className = 'tile-badge';
+      const c = r.value.counts || {};
+      const total = Object.values(c).reduce((a, b) => a + (b || 0), 0);
+      count.textContent = `${total} records`;
+    } else {
+      badge.className = 'tile-badge offline';
+      count.textContent = 'offline';
+    }
+  });
+
+  // Preload Registry items + audit
+  if (data.registry) {
+    try {
+      const items = await api(URLS.registry, '/api/admin/items');
+      data.registry._items = items;
+    } catch {}
+    try {
+      const audit = await api(URLS.registry, '/api/admin/audit');
+      data.registry._audit = audit;
+    } catch {}
+    try {
+      const dbStats = await api(URLS.registry, '/api/admin/db-stats');
+      data.registry._dbStats = dbStats;
+    } catch {}
   }
 }
 
-function renderAll() {
-  const e = estateData.estate;
-  document.getElementById('estateName').textContent = e.owner_name || e.scope_id;
-  document.getElementById('estateInfo').textContent = `${e.scope_id} · ${e.data_dir}`;
+function showDashboard(app) {
+  document.getElementById('tiles').style.display = 'none';
+  document.getElementById(`dash-${app}`).classList.add('show');
+  if (app === 'registry') renderRegistry();
+  if (app === 'fairplay') renderFairPlay();
+  if (app === 'discovery') renderDiscovery();
+}
 
-  // Overview cards
-  const cards = [
-    { label: 'Items', value: estateData.counts.items, sub: 'Total recorded' },
-    { label: 'Participants', value: estateData.counts.participants, sub: 'Active & invited' },
-    { label: 'Audit Entries', value: estateData.counts.audit_entries, sub: 'Last 50 actions' },
-    { label: 'Subscription', value: estateData.subscription.status || 'n/a', sub: estateData.subscription.gate_enabled ? 'Gate ON' : 'Gate OFF' },
-  ];
-  document.getElementById('overviewCards').innerHTML = cards.map(c =>
-    `<div class="card"><div class="label">${c.label}</div><div class="value">${c.value}</div><div class="sub">${c.sub}</div></div>`
-  ).join('');
+function backToTiles() {
+  document.querySelectorAll('.dashboard').forEach(d => d.classList.remove('show'));
+  document.getElementById('tiles').style.display = 'grid';
+}
+
+// ── Registry ──
+function renderRegistry() {
+  const d = data.registry;
+  if (!d) return;
+
+  const c = d.counts || {};
+  document.getElementById('reg-stats').innerHTML = `
+    <div class="stat"><div class="stat-value">${c.items || 0}</div><div class="stat-label">Items</div></div>
+    <div class="stat"><div class="stat-value">${c.participants || 0}</div><div class="stat-label">Participants</div></div>
+    <div class="stat"><div class="stat-value">${c.audit_entries || 0}</div><div class="stat-label">Audit Entries</div></div>
+    <div class="stat"><div class="stat-value">${d.estate?.backdoor_enabled ? '✅' : '❌'}</div><div class="stat-label">Backdoor</div></div>
+  `;
+
+  // Feature flags
+  const flags = d.estate?.feature_flags || d.feature_flags || {};
+  const flagNames = { subscriptionGate: 'Subscription Gate', licenseKeys: 'License Keys', heirVisibility: 'Heir Visibility', multiEstate: 'Multi-Estate', usernameAuth: 'Username Auth' };
+  document.getElementById('reg-flags').innerHTML = Object.entries(flags).map(([k, v]) => {
+    const name = flagNames[k] || k;
+    const on = v === true || v === 'true';
+    return `<div class="flag-row"><span class="flag-name">${name}</span><span class="flag-val ${on ? 'on' : 'off'}">${on ? 'ON' : 'OFF'}</span></div>`;
+  }).join('') || '<div class="empty">No flags returned</div>';
+
+  // Max frames
+  const mf = d.estate?.max_room_frames || d.max_room_frames || 4;
+  const inp = document.getElementById('reg-max-frames');
+  if (inp) inp.value = mf;
 
   // Items
-  loadItems();
-  // Participants
-  renderParticipants();
+  const items = d._items?.items || [];
+  document.getElementById('reg-items').innerHTML = items.length
+    ? `<table><thead><tr><th>Name</th><th>Room</th><th>Important</th><th>Photos</th></tr></thead><tbody>${items.map(i => `<tr><td>${esc(i.title || i.name || 'Unnamed')}</td><td>${esc(i.room || '—')}</td><td>${i.important || i.owner_high_value ? '⭐' : ''}</td><td>${i.photo_count || 0}</td></tr>`).join('')}</tbody></table>`
+    : '<div class="empty">No items</div>';
+
   // Audit
-  renderAudit();
-  // Settings
-  renderSettings();
-  // Database
-  loadDbStats();
+  const audit = d._audit?.audit || [];
+  document.getElementById('reg-audit').innerHTML = audit.length
+    ? `<table><thead><tr><th>Time</th><th>Action</th><th>Actor</th></tr></thead><tbody>${audit.slice(0, 20).map(a => `<tr><td>${esc(a.timestamp || a.created_at || '')}</td><td>${esc(a.action || a.event || '')}</td><td>${esc(a.actor || a.created_by || '')}</td></tr>`).join('')}</tbody></table>`
+    : '<div class="empty">No audit entries</div>';
 }
 
-async function loadItems() {
+async function setMaxFrames() {
+  const val = parseInt(document.getElementById('reg-max-frames').value);
+  if (isNaN(val) || val < 1 || val > 8) { alertMsg('Must be 1-8'); return; }
   try {
-    const { items } = await adminFetch('/admin/items');
-    document.querySelector('#itemsTable tbody').innerHTML = items.map(i => {
-      const dt = i.created_date ? new Date(i.created_date).toLocaleDateString() : '';
-      return `<tr>
-        <td>${esc(i.title) || '<em>untitled</em>'}</td>
-        <td>${esc(i.category) || '—'}</td>
-        <td>${esc(i.room) || '—'}</td>
-        <td>${esc(i.status) || '—'}</td>
-        <td>${i.owner_important ? '⭐' : '—'}</td>
-        <td>${esc(i.recipient_hint) || '—'}</td>
-        <td>${dt}</td>
-        <td><button class="danger-btn" data-del="${i.id}">Delete</button></td>
-      </tr>`;
-    }).join('');
-    document.querySelectorAll('[data-del]').forEach(b => {
-      b.onclick = async () => {
-        if (!confirm('Permanently delete this item?')) return;
-        await adminFetch('/admin/items/' + b.dataset.del, { method: 'DELETE' });
-        b.closest('tr').remove();
-      };
-    });
-  } catch (e) { console.error(e); }
+    await apiSend(URLS.registry, '/api/admin/max-frames', 'POST', { max_room_frames: val });
+    alertMsg(`Max room photos set to ${val}`, 'info');
+  } catch (e) { alertMsg(e.message); }
 }
 
-function renderParticipants() {
-  const tbody = document.querySelector('#participantsTable tbody');
-  if (!estateData.participants?.length) { tbody.innerHTML = '<tr><td colspan="4"><em>No participants</em></td></tr>'; return; }
-  tbody.innerHTML = estateData.participants.map(p => {
-    const cls = p.role === 'owner' ? 'badge-owner' : 'badge-helper';
-    const stcls = p.status === 'invited' ? 'badge-invited' : '';
-    return `<tr>
-      <td>${esc(p.display_name) || '—'}</td>
-      <td>${esc(p.email) || '—'}</td>
-      <td><span class="badge ${cls}">${esc(p.role) || '—'}</span></td>
-      <td>${p.status ? `<span class="badge ${stcls}">${esc(p.status)}</span>` : '—'}</td>
-    </tr>`;
-  }).join('');
+// ── FairPlay ──
+function renderFairPlay() {
+  const d = data.fairplay;
+  if (!d) return;
+
+  const c = d.counts || {};
+  const e = d.estate || {};
+  document.getElementById('fp-stats').innerHTML = `
+    <div class="stat"><div class="stat-value">${esc(e.session_phase || '—')}</div><div class="stat-label">Phase</div></div>
+    <div class="stat"><div class="stat-value">${c.participants || 0}</div><div class="stat-label">Participants</div></div>
+    <div class="stat"><div class="stat-value">${c.items || 0}</div><div class="stat-label">Items</div></div>
+    <div class="stat"><div class="stat-value">${e.backdoor_enabled ? '✅' : '❌'}</div><div class="stat-label">Backdoor</div></div>
+  `;
+
+  // Participants
+  const ps = d.participants || [];
+  document.getElementById('fp-participants').innerHTML = ps.length
+    ? `<table><thead><tr><th>Name</th><th>Role</th><th>Admin</th><th>Email</th></tr></thead><tbody>${ps.map(p => `<tr><td>${esc(p.name)}</td><td>${esc(p.role || 'heir')}</td><td>${p.isAdmin ? '✅' : ''}</td><td>${esc(p.email || '—')}</td></tr>`).join('')}</tbody></table>`
+    : '<div class="empty">No participants</div>';
+
+  // Items
+  const items = d._items?.items || [];
+  document.getElementById('fp-items').innerHTML = items.length
+    ? `<table><thead><tr><th>Name</th><th>Category</th><th>Status</th><th>Action</th></tr></thead><tbody>${items.map(i => `<tr><td>${esc(i.title || 'Unnamed')}</td><td>${esc(i.category || '—')}</td><td>${esc(i.status || '—')}</td><td><button class="btn btn-danger btn-sm" onclick="deleteFpItem(${i.id})">Delete</button></td></tr>`).join('')}</tbody></table>`
+    : '<div class="empty">No items</div>';
 }
 
-function renderAudit() {
-  const list = document.getElementById('auditList');
-  if (!estateData.audit?.length) { list.innerHTML = '<p class="lede">No audit entries.</p>'; return; }
-  list.innerHTML = estateData.audit.map(a => {
-    const t = a.timestamp ? new Date(a.timestamp).toLocaleString() : '';
-    return `<div class="audit-entry"><time>${t}</time> <strong>${esc(a.action)}</strong> ${esc(a.entity || '')} ${esc(a.entity_id || '')} — ${esc(a.actor || '')}</div>`;
-  }).join('');
-}
-
-function renderSettings() {
-  const flags = estateData.feature_flags || {};
-  document.getElementById('flagsList').innerHTML = Object.entries(flags).map(([k, v]) =>
-    `<div class="flag ${v ? 'on' : 'off'}"><input type="checkbox" data-flag="${k}" ${v ? 'checked' : ''}><strong>${k}</strong></div>`
-  ).join('');
-  document.querySelectorAll('[data-flag]').forEach(cb => {
-    cb.onchange = async () => {
-      try {
-        const r = await adminFetch('/admin/feature-flags', {
-          method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ [cb.dataset.flag]: cb.checked })
-        });
-        estateData.feature_flags = r.feature_flags;
-        renderSettings();
-      } catch (e) { alert(e.message); }
-    };
-  });
-  document.getElementById('maxFramesValue').textContent = estateData.max_frames || 4;
-  document.getElementById('maxFramesInput').value = estateData.max_frames || 4;
-  document.getElementById('setMaxFrames').onclick = async () => {
-    const v = parseInt(document.getElementById('maxFramesInput').value, 10);
-    if (!v || v < 1 || v > 8) return alert('Must be 1-8');
-    const r = await adminFetch('/admin/max-frames', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ max_frames: v })
-    });
-    estateData.max_frames = r.max_frames;
-    document.getElementById('maxFramesValue').textContent = r.max_frames;
-  };
-  document.getElementById('visionStatus').textContent = estateData.vision || 'unknown';
-}
-
-async function loadDbStats() {
+async function deleteFpItem(id) {
+  if (!confirm('Delete this item?')) return;
   try {
-    const { tables } = await adminFetch('/admin/db-stats');
-    document.querySelector('#dbTable tbody').innerHTML = Object.entries(tables).map(([name, count]) =>
-      `<tr><td>${esc(name)}</td><td>${count}</td></tr>`
-    ).join('');
-  } catch (e) { console.error(e); }
+    await apiSend(URLS.fairplay, `/api/admin/items/${id}`, 'DELETE');
+    alertMsg('Item deleted', 'info');
+    // Reload FairPlay data
+    data.fairplay = await api(URLS.fairplay, '/api/admin/status');
+    const items = await api(URLS.fairplay, '/api/admin/items');
+    data.fairplay._items = items;
+    renderFairPlay();
+  } catch (e) { alertMsg(e.message); }
 }
 
-// Tabs
-document.querySelectorAll('.tab').forEach(t => {
-  t.onclick = () => {
-    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(x => x.classList.remove('active'));
-    t.classList.add('active');
-    document.getElementById('tab-' + t.dataset.tab).classList.add('active');
-  };
-});
+// ── Discovery ──
+function renderDiscovery() {
+  const d = data.discovery;
+  if (!d) return;
 
-function esc(s) { if (!s) return ''; return String(s).replace(/[<>&"]/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;' }[c])); }
+  const c = d.counts || {};
+  document.getElementById('disc-stats').innerHTML = `
+    <div class="stat"><div class="stat-value">${c.items || 0}</div><div class="stat-label">Items</div></div>
+    <div class="stat"><div class="stat-value">${c.heirs || 0}</div><div class="stat-label">Heirs</div></div>
+    <div class="stat"><div class="stat-value">${c.reactions || 0}</div><div class="stat-label">Reactions</div></div>
+    <div class="stat"><div class="stat-value">${d.estate?.backdoor_enabled ? '✅' : '❌'}</div><div class="stat-label">Backdoor</div></div>
+  `;
+
+  const flags = d.feature_flags || {};
+  const flagNames = { subscriptionGate: 'Subscription Gate', heirVisibility: 'Heir Visibility', multiEstate: 'Multi-Estate' };
+  document.getElementById('disc-flags').innerHTML = Object.entries(flags).map(([k, v]) => {
+    const name = flagNames[k] || k;
+    const on = v === true || v === 'true';
+    return `<div class="flag-row"><span class="flag-name">${name}</span><span class="flag-val ${on ? 'on' : 'off'}">${on ? 'ON' : 'OFF'}</span></div>`;
+  }).join('') || '<div class="empty">No flags returned</div>';
+}
+
+function esc(s) { return String(s || '').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'})[c]); }
 </script>
 </body>
 </html>

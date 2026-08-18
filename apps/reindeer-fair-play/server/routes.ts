@@ -571,6 +571,31 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  app.delete("/api/admin/items/:id", async (req, res) => {
+    if (!isBackdoorAdmin(req)) return res.status(403).json({ message: "Backdoor admin only." });
+    try {
+      const id = Number(req.params.id);
+      await storage.deleteItem(id);
+      res.json({ ok: true, deleted: id });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/admin/participants", async (req, res) => {
+    if (!isBackdoorAdmin(req)) return res.status(403).json({ message: "Backdoor admin only." });
+    try {
+      const roster = await storage.listParticipants();
+      res.json({ participants: roster.map(p => ({
+        id: p.id, name: p.name, email: p.email, role: p.role,
+        isAdmin: p.isAdmin, administersOnly: p.administersOnly,
+        seatOrder: p.seatOrder, autoSubmit: p.autoSubmit,
+      }))});
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
     /* ---------- license enforcement (write gate) ---------- */
   // Mounted after attachActor + deny-by-default, so the actor is resolved
   // and authenticated before we check license status. Only blocks writes
