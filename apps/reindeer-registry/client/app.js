@@ -3404,7 +3404,8 @@ function renderRoomState() {
   $('#roomCaptured').innerHTML = roomPending.map((p) => `
     <div class="capt">
       <p class="capt-line">${p.saved ? '✓ Saved' : '⏳ Held on this device'} — ${escapeHtml(p.label)}</p>
-      ${p.frames?.length ? `<button class="ghost wide" data-name-these="${p.key}">Write down what is in it${p.frames.length ? ` (${p.frames.length} pictures)` : ''}</button>` : ''}
+      ${p.frames?.length && !p.named ? `<button class="ghost wide" data-name-these="${p.key}">Write down what is in it${p.frames.length ? ` (${p.frames.length} pictures)` : ''}</button>` : ''}
+      ${p.named ? '<p class="capt-note" style="margin:0">✓ AI has named the items in these photos.</p>' : ''}
       ${p.saved ? '' : '<p class="capt-note">It will be sent when you next have internet.</p>'}
     </div>`).join('');
   // When items are already named in this room, show a hint to take close-ups
@@ -3504,6 +3505,7 @@ async function offerNaming(key) {
       }),
     });
     batchFiles = entry.frames.map((dataUrl, i) => ({ _dataUrl: dataUrl, _frame: i }));
+    entry.named = true;
     showNamingResults(detections, vision_mode);
   } catch (e) {
     toast(e.message, true);
@@ -3525,6 +3527,7 @@ async function autoDetectRoomPhotos(key) {
   toast('Looking through your photos…');
   inRoomNaming = true;
   roomDupCount = 0;
+  roomSkippedDuplicates = null;
   try {
     const { detections, vision_mode } = await api('/api/intake/detect', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -3534,6 +3537,7 @@ async function autoDetectRoomPhotos(key) {
       }),
     });
     batchFiles = entry.frames.map((dataUrl, i) => ({ _dataUrl: dataUrl, _frame: i }));
+    entry.named = true;
     showNamingResults(detections, vision_mode);
   } catch (e) {
     toast('Photos are saved. AI naming did not work just now — try again later.', true);
@@ -3628,22 +3632,16 @@ async function commitEverything(detections) {
   if (possible_duplicates > 0) roomDupCount += possible_duplicates;
   // Track skipped duplicates for display in the results
   if (skipped_duplicates?.length) roomSkippedDuplicates = skipped_duplicates;
-  await Promise.all(created.map((id) => api(`/api/items/${id}/keep`, { method: 'POST' }).catch(() => {})));
+  // created is now [{item_id, detection_index}] — use the index to map back
+  const createdIds = created.map((c) => c.item_id);
+  await Promise.all(createdIds.map((id) => api(`/api/items/${id}/keep`, { method: 'POST' }).catch(() => {})));
   refreshCount();
-  // Map created items back to their detections, filtering out skipped ones
-  let createdIdx = 0;
-  return created.map((id) => {
-    // Find the next non-skipped detection
-    while (createdIdx < detections.length && skipped_duplicates?.some((s) => s.label === detections[createdIdx]?.label)) {
-      createdIdx++;
-    }
-    const d = detections[createdIdx] ?? {};
-    const i = createdIdx;
-    createdIdx++;
+  return created.map((c) => {
+    const d = detections[c.detection_index] ?? {};
     return {
-      item_id: id,
+      item_id: c.item_id,
       label: d.label ?? 'Item',
-      thumb: payload[i]?.crop_data_url || batchFiles[d.frame_index ?? 0]?._dataUrl || '',
+      thumb: payload[c.detection_index]?.crop_data_url || batchFiles[d.frame_index ?? 0]?._dataUrl || '',
     };
   });
 }
@@ -3757,6 +3755,7 @@ async function leaveNaming() {
   // rather than the count from before the naming pass.
   try { walk = await api('/api/walkthrough'); } catch { /* keep what we have */ }
   renderRoomState();
+  roomSkippedDuplicates = null;
   if (roomDupCount > 0) {
     const n = roomDupCount;
     roomDupCount = 0;

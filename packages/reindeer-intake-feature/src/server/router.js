@@ -6,6 +6,15 @@ import {
 import { screenHighValue } from '../vision/index.js';
 import { titleSimilarity } from '../duplicates.js';
 
+/** Extract serial number from identifiers JSON — mirrors SimpleDuplicateDetector.#serialMatch. */
+function serialMatch(identifiersA, identifiersB) {
+  try {
+    const a = typeof identifiersA === 'string' ? JSON.parse(identifiersA || '{}') : (identifiersA || {});
+    const b = typeof identifiersB === 'string' ? JSON.parse(identifiersB || '{}') : (identifiersB || {});
+    return Boolean(a.serial && b.serial && String(a.serial).trim() === String(b.serial).trim());
+  } catch { return false; }
+}
+
 /**
  * Mountable intake router. Both app shells mount this at /api — the only
  * difference is the scope they resolve and which permissions they grant.
@@ -300,10 +309,11 @@ export function createIntakeRouter(deps) {
     // the list — e.g. if the owner returns to a room for close-ups and the AI
     // re-identifies something already recorded from the wide shot.
     const existingItems = ctx.scopeId
-      ? itemRepo.list(ctx).map((it) => ({ item_id: it.item_id, title: it.title, room_id: it.room_id }))
+      ? itemRepo.list({}, ctx).map((it) => ({ item_id: it.item_id, title: it.title, room_id: it.room_id, identifiers: it.identifiers }))
       : [];
     const DUPLICATE_THRESHOLD = 0.72;
 
+    let detectionIdx = 0;
     for (const d of req.body.detections ?? []) {
       // Pre-commit duplicate check: compare AI label against existing items
       // in the same room (or same scope if no room). Skip if above threshold.
@@ -311,11 +321,13 @@ export function createIntakeRouter(deps) {
       const isDuplicate = existingItems.some((existing) => {
         // Only check items in the same room, or items with no room assigned
         if (roomId && existing.room_id && existing.room_id !== roomId) return false;
-        return titleSimilarity(d.label, existing.title) >= DUPLICATE_THRESHOLD;
+        return titleSimilarity(d.label, existing.title) >= DUPLICATE_THRESHOLD
+          || serialMatch(d.identifiers, existing.identifiers);
       });
 
       if (isDuplicate) {
-        skippedDuplicates.push({ label: d.label, reason: 'duplicate' });
+        skippedDuplicates.push({ label: d.label, detection_index: detectionIdx, reason: 'duplicate' });
+        detectionIdx++;
         continue;
       }
 
@@ -351,13 +363,15 @@ export function createIntakeRouter(deps) {
           source_frame_index: d.frame_index ?? null,
         }, ctx);
       }
-      created.push(item.item_id);
+      created.push({ item_id: item.item_id, detection_index: detectionIdx });
       // Add to existing list so subsequent detections in the same batch
       // don't create duplicates of each other.
-      existingItems.push({ item_id: item.item_id, title: d.label, room_id: roomId });
+      existingItems.push({ item_id: item.item_id, title: d.label, room_id: roomId, identifiers: d.identifiers ?? {} });
+      detectionIdx++;
     }
     // Count possible duplicates among what was actually committed.
-    const possibleDuplicates = created.length ? await duplicates.previewBatch(created, ctx) : 0;
+    const createdIds = created.map((c) => c.item_id);
+    const possibleDuplicates = createdIds.length ? await duplicates.previewBatch(createdIds, ctx) : 0;
     res.status(201).json({ created, possible_duplicates: possibleDuplicates, skipped_duplicates: skippedDuplicates });
   }));
 
