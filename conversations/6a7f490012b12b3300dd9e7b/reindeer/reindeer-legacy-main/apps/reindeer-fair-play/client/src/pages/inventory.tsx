@@ -1,4 +1,4 @@
-import { parseHeirPermissions, type HeirCapability } from "@shared/schema";
+import { parseHeirPermissions, isHelperParticipant, canHelperDo, type HeirCapability } from "@shared/schema";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
@@ -119,7 +119,9 @@ export default function InventoryPage() {
   const isCaptain = !!me?.id && me.id === data?.session?.captainParticipantId;
   // Every heir capability is its own toggle; the captain may always act.
   const perms = parseHeirPermissions(data?.session.heirPermissions);
-  const can = (c: HeirCapability) => isCaptain || !!perms[c];
+  const isHelper = isHelperParticipant(me);
+  const can = (c: HeirCapability) =>
+    isCaptain || (isHelper && canHelperDo(c)) || !!perms[c];
   const inPractice = (data?.session.practiceMode ?? "off") !== "off";
   const { data: taxonomy } = useTaxonomy();
   const enabledCategories = (taxonomy ?? [])

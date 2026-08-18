@@ -655,11 +655,17 @@ export function usePermissions() {
   const { userId } = useUser();
   const me = data?.participants.find((p) => p.id === userId) ?? null;
   const isCaptain = !!me?.isAdmin;
+  const isHelper = isHelperParticipant(me);
   const perms = parseHeirPermissions(data?.session.heirPermissions);
   return {
     isCaptain,
+    isHelper,
     me,
     perms,
-    can: (capability: HeirCapability) => isCaptain || !!perms[capability],
+    // Captain can always act. Helpers get their inherent capabilities
+    // (addItems, uploadPhotos, editItemNamesNotes, scanDuplicates) regardless
+    // of per-heir toggles. Heirs act only when the matching toggle is on.
+    can: (capability: HeirCapability) =>
+      isCaptain || (isHelper && canHelperDo(capability)) || !!perms[capability],
   };
 }
