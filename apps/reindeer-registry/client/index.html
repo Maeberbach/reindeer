@@ -1411,21 +1411,23 @@ if ('serviceWorker' in navigator) {
 </button>
 
 <script>
-window.addEventListener('load', () => {
-  setTimeout(() => {
-    var ws = document.querySelector('[data-screen="welcome"]');
-    var hs = document.querySelector('[data-screen="home"]');
-    var all = document.querySelectorAll('.screen');
-    var visible = [];
-    all.forEach(function(s) { if (!s.hasAttribute('hidden')) visible.push(s.dataset.screen); });
-    var banner = document.querySelector('div[style*="background:#c00"]');
-    document.title = 'DIAG|welcome_hidden=' + (ws ? ws.hasAttribute('hidden') : 'NO_EL') + 
-      '|home_hidden=' + (hs ? hs.hasAttribute('hidden') : 'NO_EL') + 
-      '|visible_screens=' + visible.join(',') +
-      '|error_banner=' + (banner ? 'YES' : 'NO') +
-      '|screen_count=' + all.length;
-  }, 3000);
-});
+(function() {
+  var ws = document.querySelector('[data-screen="welcome"]');
+  var all = document.querySelectorAll('.screen');
+  var visible = [];
+  all.forEach(function(s) { if (!s.hasAttribute('hidden')) visible.push(s.dataset.screen); });
+  var banner = document.querySelector('div[style*="background:#c00"]');
+  var info = 'DIAG|welcome_hidden=' + (ws ? ws.hasAttribute('hidden') : 'NO_EL') + 
+    '|visible=' + visible.join(',') +
+    '|banner=' + (banner ? banner.textContent.substring(0, 100) : 'NO') +
+    '|screens=' + all.length;
+  console.log(info);
+  var d = document.createElement('div');
+  d.id = 'diagOutput';
+  d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#00c;color:#fff;padding:10px;font-family:monospace;font-size:12px;z-index:99999;white-space:pre-wrap';
+  d.textContent = info;
+  document.body.appendChild(d);
+})();
 </script>
 </body>
 </html>
