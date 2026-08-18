@@ -1,0 +1,24 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Debug</title></head>
+<body>
+<div id="debug" style="font-family:monospace;font-size:14px;padding:20px;white-space:pre-wrap"></div>
+<div id="main"></div>
+<script>
+window.onerror = function(msg, url, line, col, err) {
+  document.getElementById('debug').innerHTML += 'ERROR: ' + msg + '\n  at ' + url + ':' + line + ':' + col + '\n  ' + (err && err.stack || '') + '\n';
+};
+window.addEventListener('unhandledrejection', function(e) {
+  document.getElementById('debug').innerHTML += 'REJECTION: ' + (e.reason && e.reason.stack || e.reason || e) + '\n';
+});
+document.getElementById('debug').innerHTML = 'Loading app.js...\n';
+</script>
+<script src="app.js"></script>
+<script>
+document.getElementById('debug').innerHTML += 'app.js loaded\n';
+document.getElementById('debug').innerHTML += 'typeof boot: ' + typeof boot + '\n';
+document.getElementById('debug').innerHTML += 'typeof cap: ' + (typeof cap !== 'undefined' ? typeof cap + ' = ' + JSON.stringify(cap) : 'undefined') + '\n';
+document.getElementById('debug').innerHTML += 'typeof registry: ' + (typeof registry !== 'undefined' ? typeof registry + ' = ' + JSON.stringify(registry).substring(0,200) : 'undefined') + '\n';
+document.getElementById('debug').innerHTML += 'screens: ' + document.querySelectorAll('.screen').length + '\n';
+document.getElementById('debug').innerHTML += 'visible screens: ' + document.querySelectorAll('.screen:not([hidden])').length + '\n';
+</script>
+</body></html>
