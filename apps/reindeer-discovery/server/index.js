@@ -701,7 +701,7 @@ app.post('/api/admin/feature-flags', (req, res) => {
 app.post('/api/admin/reset', (req, res) => {
   if (!req.isAdminBackdoor) return res.status(403).json({ message: 'Backdoor admin only.' });
   try {
-    const tables = ['discovery_heirs', 'discovery_reactions', 'discovery_sessions', 'estate_settings'];
+    const tables = ['discovery_heirs', 'discovery_interests', 'discovery_rankings', 'discovery_looking_for', 'estate_settings'];
     for (const table of tables) {
       try { db.prepare(`DELETE FROM ${table}`).run(); } catch {}
     }
