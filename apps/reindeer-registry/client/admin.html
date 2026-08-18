@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reindeer Admin</title>
+<style>
+  :root { --bg:#f5f4f0; --card:#fff; --border:#ddd; --text:#222; --muted:#888; --primary:#2b5d4b; --danger:#a33; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 16px; }
+  h1 { font-size: 1.4rem; margin-bottom: 4px; }
+  h2 { font-size: 1.1rem; margin: 20px 0 8px; }
+  .lede { color: var(--muted); font-size: .85rem; margin-bottom: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .card .label { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .card .value { font-size: 1.6rem; font-weight: 700; margin-top: 4px; }
+  .card .sub { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+  th { text-align: left; padding: 6px 8px; border-bottom: 2px solid var(--border); color: var(--muted); font-size: .72rem; text-transform: uppercase; }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  tr:hover td { background: #f9f8f5; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: .7rem; font-weight: 600; }
+  .badge-owner { background: #e8f5e9; color: #2e7d32; }
+  .badge-helper { background: #fff3e0; color: #e65100; }
+  .badge-invited { background: #f3e5f5; color: #7b1fa2; }
+  .danger-btn { background: var(--danger); color: #fff; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: .72rem; }
+  .danger-btn:hover { opacity: .85; }
+  .flag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; background: #f0f0f0; border-radius: 4px; font-size: .75rem; margin: 2px; }
+  .flag.on { background: #c8e6c9; }
+  .flag.off { background: #ffcdd2; }
+  .flag input { margin: 0; }
+  .key-input { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font-size: .85rem; margin-bottom: 8px; }
+  .btn { background: var(--primary); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: .85rem; }
+  .btn:hover { opacity: .9; }
+  #login { max-width: 360px; margin: 60px auto; }
+  #panel { display: none; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tab { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: .82rem; background: var(--card); }
+  .tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .tab:hover:not(.active) { background: #e9e8e4; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .audit-entry { font-size: .76rem; padding: 4px 0; border-bottom: 1px solid #eee; color: #555; }
+  .audit-entry time { color: var(--muted); margin-right: 8px; }
+  .err { color: var(--danger); font-size: .85rem; }
+</style>
+</head>
+<body>
+
+<div id="login">
+  <h1>Reindeer Admin</h1>
+  <p class="lede">Backdoor administration access. Enter the master key.</p>
+  <input type="password" class="key-input" id="keyInput" placeholder="Admin key" autocomplete="off">
+  <button class="btn" id="loginBtn">Access</button>
+  <p class="err" id="loginErr"></p>
+</div>
+
+<div id="panel">
+  <h1>Reindeer Admin — <span id="estateName"></span></h1>
+  <p class="lede" id="estateInfo"></p>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="overview">Overview</div>
+    <div class="tab" data-tab="items">Items</div>
+    <div class="tab" data-tab="participants">Participants</div>
+    <div class="tab" data-tab="audit">Audit Log</div>
+    <div class="tab" data-tab="settings">Settings</div>
+    <div class="tab" data-tab="database">Database</div>
+  </div>
+
+  <div class="tab-panel active" id="tab-overview">
+    <div class="grid" id="overviewCards"></div>
+  </div>
+
+  <div class="tab-panel" id="tab-items">
+    <h2>All Items</h2>
+    <table id="itemsTable"><thead><tr><th>Title</th><th>Category</th><th>Room</th><th>Status</th><th>Important</th><th>Recipient</th><th>Created</th><th></th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="tab-panel" id="tab-participants">
+    <h2>Participants</h2>
+    <table id="participantsTable"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="tab-panel" id="tab-audit">
+    <h2>Audit Log</h2>
+    <div id="auditList"></div>
+  </div>
+
+  <div class="tab-panel" id="tab-settings">
+    <h2>Feature Flags</h2>
+    <div id="flagsList"></div>
+    <h2>Max Frames Per Room</h2>
+    <p class="lede">Current: <span id="maxFramesValue"></span></p>
+    <input type="number" id="maxFramesInput" min="1" max="8" style="width:80px;padding:6px;border:1px solid var(--border);border-radius:4px">
+    <button class="btn" id="setMaxFrames" style="margin-left:8px">Set</button>
+    <h2>Vision Provider</h2>
+    <p class="lede" id="visionStatus"></p>
+  </div>
+
+  <div class="tab-panel" id="tab-database">
+    <h2>Database Tables</h2>
+    <table id="dbTable"><thead><tr><th>Table</th><th>Rows</th></tr></thead><tbody></tbody></table>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin + '/api';
+let adminKey = sessionStorage.getItem('reindeer_admin_key') || '';
+let estateData = null;
+
+// Auto-fill key from URL param
+const urlKey = new URLSearchParams(location.search).get('admin_key');
+if (urlKey) { adminKey = urlKey; sessionStorage.setItem('reindeer_admin_key', adminKey); }
+
+if (adminKey) tryLogin();
+
+document.getElementById('loginBtn').onclick = () => {
+  adminKey = document.getElementById('keyInput').value.trim();
+  if (!adminKey) return;
+  sessionStorage.setItem('reindeer_admin_key', adminKey);
+  tryLogin();
+};
+document.getElementById('keyInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('loginBtn').click();
+});
+
+async function adminFetch(path, opts = {}) {
+  const headers = { 'x-admin-key': adminKey, ...(opts.headers || {}) };
+  const r = await fetch(API + path, { ...opts, headers });
+  if (r.status === 401 || r.status === 403) throw new Error('Invalid or missing admin key.');
+  if (!r.ok) throw new Error(`Server error: ${r.status}`);
+  return r.json();
+}
+
+async function tryLogin() {
+  try {
+    estateData = await adminFetch('/admin/status');
+    document.getElementById('login').style.display = 'none';
+    document.getElementById('panel').style.display = 'block';
+    renderAll();
+  } catch (e) {
+    document.getElementById('loginErr').textContent = e.message;
+    adminKey = '';
+    sessionStorage.removeItem('reindeer_admin_key');
+  }
+}
+
+function renderAll() {
+  const e = estateData.estate;
+  document.getElementById('estateName').textContent = e.owner_name || e.scope_id;
+  document.getElementById('estateInfo').textContent = `${e.scope_id} · ${e.data_dir}`;
+
+  // Overview cards
+  const cards = [
+    { label: 'Items', value: estateData.counts.items, sub: 'Total recorded' },
+    { label: 'Participants', value: estateData.counts.participants, sub: 'Active & invited' },
+    { label: 'Audit Entries', value: estateData.counts.audit_entries, sub: 'Last 50 actions' },
+    { label: 'Subscription', value: estateData.subscription.status || 'n/a', sub: estateData.subscription.gate_enabled ? 'Gate ON' : 'Gate OFF' },
+  ];
+  document.getElementById('overviewCards').innerHTML = cards.map(c =>
+    `<div class="card"><div class="label">${c.label}</div><div class="value">${c.value}</div><div class="sub">${c.sub}</div></div>`
+  ).join('');
+
+  // Items
+  loadItems();
+  // Participants
+  renderParticipants();
+  // Audit
+  renderAudit();
+  // Settings
+  renderSettings();
+  // Database
+  loadDbStats();
+}
+
+async function loadItems() {
+  try {
+    const { items } = await adminFetch('/admin/items');
+    document.querySelector('#itemsTable tbody').innerHTML = items.map(i => {
+      const dt = i.created_date ? new Date(i.created_date).toLocaleDateString() : '';
+      return `<tr>
+        <td>${esc(i.title) || '<em>untitled</em>'}</td>
+        <td>${esc(i.category) || '—'}</td>
+        <td>${esc(i.room) || '—'}</td>
+        <td>${esc(i.status) || '—'}</td>
+        <td>${i.owner_important ? '⭐' : '—'}</td>
+        <td>${esc(i.recipient_hint) || '—'}</td>
+        <td>${dt}</td>
+        <td><button class="danger-btn" data-del="${i.id}">Delete</button></td>
+      </tr>`;
+    }).join('');
+    document.querySelectorAll('[data-del]').forEach(b => {
+      b.onclick = async () => {
+        if (!confirm('Permanently delete this item?')) return;
+        await adminFetch('/admin/items/' + b.dataset.del, { method: 'DELETE' });
+        b.closest('tr').remove();
+      };
+    });
+  } catch (e) { console.error(e); }
+}
+
+function renderParticipants() {
+  const tbody = document.querySelector('#participantsTable tbody');
+  if (!estateData.participants?.length) { tbody.innerHTML = '<tr><td colspan="4"><em>No participants</em></td></tr>'; return; }
+  tbody.innerHTML = estateData.participants.map(p => {
+    const cls = p.role === 'owner' ? 'badge-owner' : 'badge-helper';
+    const stcls = p.status === 'invited' ? 'badge-invited' : '';
+    return `<tr>
+      <td>${esc(p.display_name) || '—'}</td>
+      <td>${esc(p.email) || '—'}</td>
+      <td><span class="badge ${cls}">${esc(p.role) || '—'}</span></td>
+      <td>${p.status ? `<span class="badge ${stcls}">${esc(p.status)}</span>` : '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderAudit() {
+  const list = document.getElementById('auditList');
+  if (!estateData.audit?.length) { list.innerHTML = '<p class="lede">No audit entries.</p>'; return; }
+  list.innerHTML = estateData.audit.map(a => {
+    const t = a.timestamp ? new Date(a.timestamp).toLocaleString() : '';
+    return `<div class="audit-entry"><time>${t}</time> <strong>${esc(a.action)}</strong> ${esc(a.entity || '')} ${esc(a.entity_id || '')} — ${esc(a.actor || '')}</div>`;
+  }).join('');
+}
+
+function renderSettings() {
+  const flags = estateData.feature_flags || {};
+  document.getElementById('flagsList').innerHTML = Object.entries(flags).map(([k, v]) =>
+    `<div class="flag ${v ? 'on' : 'off'}"><input type="checkbox" data-flag="${k}" ${v ? 'checked' : ''}><strong>${k}</strong></div>`
+  ).join('');
+  document.querySelectorAll('[data-flag]').forEach(cb => {
+    cb.onchange = async () => {
+      try {
+        const r = await adminFetch('/admin/feature-flags', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ [cb.dataset.flag]: cb.checked })
+        });
+        estateData.feature_flags = r.feature_flags;
+        renderSettings();
+      } catch (e) { alert(e.message); }
+    };
+  });
+  document.getElementById('maxFramesValue').textContent = estateData.max_frames || 4;
+  document.getElementById('maxFramesInput').value = estateData.max_frames || 4;
+  document.getElementById('setMaxFrames').onclick = async () => {
+    const v = parseInt(document.getElementById('maxFramesInput').value, 10);
+    if (!v || v < 1 || v > 8) return alert('Must be 1-8');
+    const r = await adminFetch('/admin/max-frames', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ max_frames: v })
+    });
+    estateData.max_frames = r.max_frames;
+    document.getElementById('maxFramesValue').textContent = r.max_frames;
+  };
+  document.getElementById('visionStatus').textContent = estateData.vision || 'unknown';
+}
+
+async function loadDbStats() {
+  try {
+    const { tables } = await adminFetch('/admin/db-stats');
+    document.querySelector('#dbTable tbody').innerHTML = Object.entries(tables).map(([name, count]) =>
+      `<tr><td>${esc(name)}</td><td>${count}</td></tr>`
+    ).join('');
+  } catch (e) { console.error(e); }
+}
+
+// Tabs
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('tab-' + t.dataset.tab).classList.add('active');
+  };
+});
+
+function esc(s) { if (!s) return ''; return String(s).replace(/[<>&"]/g, c => ({ '<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;' }[c])); }
+</script>
+</body>
+</html>

