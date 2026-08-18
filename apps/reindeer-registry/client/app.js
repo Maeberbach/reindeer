@@ -5195,7 +5195,7 @@ async function removeMemoEntry() {
 /* ---------------------------- wiring ----------------------------- */
 
 $('#memoAddBtn').onclick = () => go('memoentry');
-$('#memoPhotoBtn')?.addEventListener('click', () => {
+$('#memoPhotoBtn')?.addEventListener('click', () => { promiseMode = true; promiseKept = 0; resetCapture(); go('capture'); });
 $('#signVersionsBtn')?.addEventListener('click', () => go('giftversions'));
 $('#memoEntrySave').onclick = saveMemoEntry;
 $('#memoEntryCancel').onclick = () => go('memo', { back: true });
