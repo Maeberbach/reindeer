@@ -249,9 +249,9 @@ async function main() {
     assert.ok(Number.isFinite(totals), `total was ${totals}`);
     assert.equal(totals, 0);
   });
-  await check("an unvalued high-value item is still marked high value for the PR", () => {
+  await check("an unvalued high-value item is NOT auto-flagged for appraisal (AI estimation decides)", () => {
     const b = live3.find((i) => /brooch/i.test(i.name))!;
-    assert.equal(!!(b as any).needsAppraisal, true);
+    assert.equal(!!(b as any).needsAppraisal, false, "import must not auto-trigger appraisal; only AI value estimation does");
   });
   await check("value source records that nobody has valued these yet", () => {
     const b = live3.find((i) => /brooch/i.test(i.name))!;

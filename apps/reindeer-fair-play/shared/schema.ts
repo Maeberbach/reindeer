@@ -397,6 +397,11 @@ export const items = sqliteTable("items", {
    */
   lockedByMemorandum: integer("locked_by_memorandum", { mode: "boolean" }).notNull().default(false),
   memorandumOwnerName: text("memorandum_owner_name").notNull().default(""),
+  /* Owner's Important flag from Registry \u2014 metadata only, does NOT
+     auto-trigger appraisal. Appraisal is decided by AI value estimation
+     (>= 85% of captain's threshold) or captain manual flag. */
+  ownerHighValue: integer("owner_high_value").notNull().default(0),
+  ownerHighValueReason: text("owner_high_value_reason").notNull().default(""),
 });
 
 /* ------------------------------------------------------------------ */
@@ -1704,6 +1709,8 @@ export const stagedItems = sqliteTable("staged_items", {
   createdAt: integer("created_at").notNull(),
   reviewedAt: integer("reviewed_at"),
   reviewedByParticipantId: integer("reviewed_by_participant_id"),
+  ownerHighValue: integer("owner_high_value").notNull().default(0),
+  ownerHighValueReason: text("owner_high_value_reason").notNull().default(""),
 });
 
 export const stagedMedia = sqliteTable("staged_media", {

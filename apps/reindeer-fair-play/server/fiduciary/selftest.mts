@@ -630,8 +630,8 @@ async function main() {
   /* ------------------------------------------------------------ */
   console.log("\n9. Auto-flag from AI analysis");
 
-  // Fix the threshold at $2,000 so soft-floor math is predictable
-  // (0.85 × 2000 = $1,700).
+  // Fix the threshold at $3,000 so soft-floor math is predictable
+  // (0.85 × 3000 = $2,550).
   await storage.updateSession({ appraisalThresholdUsd: 3000 } as any);
 
   // --- Rule A: AI estimate crosses the soft floor -----------------
@@ -645,7 +645,7 @@ async function main() {
     category: "Tools & Equipment", // not appraisalLikely
     confidence: 0.4,
     suggestions: [],
-    estimatedValueUsd: 1800, // ≥ 0.85 * 2000
+    estimatedValueUsd: 2800, // ≥ 0.85 * 3000 = $2,550
     highValue: false,
   } as any);
   const aiHighFlags = (await storage.listAppraisalFlags()).filter((n) => n.itemId === aiHighItem.id);
@@ -654,7 +654,7 @@ async function main() {
   check("AI-created flag has null participantId", aiHighFlags[0]?.flaggedByParticipantId == null);
   check(
     "AI-created reason includes the estimate",
-    !!aiHighFlags[0]?.reason?.includes("$1,800"),
+    !!aiHighFlags[0]?.reason?.includes("$2,800"),
   );
   check(
     "AI-created reason includes the 'not an official appraisal' caveat",
@@ -667,7 +667,7 @@ async function main() {
   );
   check(
     "AI estimate persisted onto items.aiEstimatedValue",
-    aiHighItemAfter?.aiEstimatedValue === 1800,
+    aiHighItemAfter?.aiEstimatedValue === 2800,
   );
 
   // Re-running the analyzer must NOT create a duplicate flag (idempotence).
@@ -675,7 +675,7 @@ async function main() {
     category: "Tools & Equipment",
     confidence: 0.4,
     suggestions: [],
-    estimatedValueUsd: 1900,
+    estimatedValueUsd: 2900,
     highValue: false,
   } as any);
   const aiHighFlagsAgain = (await storage.listAppraisalFlags()).filter((n) => n.itemId === aiHighItem.id);
@@ -692,7 +692,7 @@ async function main() {
     category: "Tools & Equipment", // not appraisalLikely
     confidence: 0.4,
     suggestions: [],
-    estimatedValueUsd: 500, // well below 1,700
+    estimatedValueUsd: 500, // well below 2,550
     highValue: false,
   } as any);
   const aiLowFlags = (await storage.listAppraisalFlags()).filter((n) => n.itemId === aiLowItem.id);
@@ -766,7 +766,7 @@ async function main() {
     category: "Tools & Equipment",
     confidence: 0.4,
     suggestions: [],
-    estimatedValueUsd: 1800,
+    estimatedValueUsd: 2800,
     highValue: false,
   } as any);
   const revertFlags1 = (await storage.listAppraisalFlags()).filter((n) => n.itemId === revertItem.id);
@@ -776,7 +776,7 @@ async function main() {
     category: "Tools & Equipment",
     confidence: 0.4,
     suggestions: [],
-    estimatedValueUsd: 1900,
+    estimatedValueUsd: 3200,
     highValue: false,
   } as any);
   const revertFlagsActive = (await storage.listAppraisalFlags())

@@ -41,7 +41,6 @@ import {
   stagedMedia,
   itemMedia,
   items,
-  classificationChanges,
   type ImportBatch,
   type StagedItem,
   type StagedMedia,
@@ -991,64 +990,6 @@ export async function approveStaged(
       thumbnailUrl: primaryPhoto?.url ?? null,
     } as any);
 
-    // When approving a NEW item that arrived flagged high-value (either the
-    // source app said so via high_value_flag, OR the owner marked it Important
-    // in Registry via owner_high_value), record the flip in the classification
-    // audit log the same way an heir's promotion would be recorded. Attribution
-    // is null-participant because the owner is not an FC participant; the
-    // reason column names the source in plain English. Heirs can flip and PR
-    // can revert this later exactly like any other classification change.
-    // See docs/decisions/2026-08-06-fc-honors-owner-important.md.
-    if (staged.needsAppraisal) {
-      const session = await storage.getSession();
-      db.insert(classificationChanges)
-        .values({
-          sessionId: session.id,
-          itemId: item.id,
-          flagName: "needsAppraisal",
-          oldValue: false,
-          newValue: true,
-          changedByParticipantId: null,
-          changedAt: reviewedAt,
-          reason: "Imported from Reindeer Registry — the owner marked this item Important.",
-          phase: session.phase,
-          isRevert: false,
-          removedRankings: "[]",
-        })
-        .run();
-    }
-  }
-
-  // Registry-owner Important → appraisal_flags row with source='owner'.
-  // Fires on BOTH branches (new item + update). Owner-source rows are
-  // permanent (unflagAppraisal returns undefined for them), so the storage
-  // layer's idempotence guard makes a re-import a no-op when an active
-  // owner-source row is already present. This is what makes the trustee's
-  // queue, the RoD escalation section, and the captain review screen see
-  // the owner's Important mark as a real flag — up to now items.needsAppraisal
-  // was flipped but no appraisal_flags row existed, so those surfaces
-  // could not attribute the flag to the owner.
-  // See docs/decisions/2026-08-06-fc-honors-owner-important.md.
-  if (staged.needsAppraisal) {
-    const trimmedComment = staged.ownerImportantComment.trim();
-    const prefix = "The owner marked this Important in Registry";
-    let reason: string;
-    if (trimmedComment === "") {
-      reason = `${prefix}.`;
-    } else {
-      // Cap the whole reason at 500 characters so trustee UI/exports
-      // stay predictable. The prefix + ' — "' + '"' overhead is 47
-      // chars, leaving ~453 for the verbatim quote before an ellipsis.
-      const withComment = `${prefix} — "${trimmedComment}"`;
-      reason = withComment.length <= 500 ? withComment : `${withComment.slice(0, 499)}…`;
-    }
-    await storage.flagForAppraisal({
-      itemId: item.id,
-      source: "owner",
-      participantId: null,
-      reason,
-    });
-  }
 
   // Copy staged_media -> item_media. On an update via a re-import, the same
   // recording arrives again through a NEW batch folder, so its URL differs
