@@ -278,6 +278,31 @@ export function createIntakeRouter(deps) {
     const ctx = ctxOf(req);
     const created = [];
     for (const d of req.body.detections ?? []) {
+      // AI tentative flag evaluation (server-side, for batch room intake):
+      // Registry doesn't value items, but the vision model can still flag
+      // based on rarity (appraisal_suggested), maker marks, category, or
+      // low confidence. These queue for owner review, same as helper flags.
+      let aiTentative = false;
+      let aiTentativeReason = '';
+      if (d.appraisal_suggested) {
+        aiTentative = true;
+        aiTentativeReason = 'AI flagged: may warrant professional appraisal';
+      } else if (d.maker_identified) {
+        aiTentative = true;
+        aiTentativeReason = 'AI flagged: brand or maker mark visible';
+      } else {
+        const cat = (d.category_hint || '').toLowerCase();
+        const flaggedCats = ['jewelry', 'jewellery', 'art', 'painting', 'sculpture',
+          'antique', 'collectible', 'firearm', 'firearms', 'gun', 'coins', 'coin',
+          'silver', 'gold', 'watch', 'watches', 'instrument', 'rug', 'tapestry'];
+        if (flaggedCats.some((c) => cat.includes(c))) {
+          aiTentative = true;
+          aiTentativeReason = 'AI flagged: ' + cat + ' \u2014 worth a closer look';
+        } else if (d.confidence != null && d.confidence < 0.45) {
+          aiTentative = true;
+          aiTentativeReason = 'AI flagged: low confidence identification';
+        }
+      }
       const item = await itemRepo.create({
         title: d.label,
         category_id: d.category_hint ? registry.resolveCategory(d.category_hint, ctx)?.category_id : null,
@@ -296,6 +321,11 @@ export function createIntakeRouter(deps) {
         // "not flagged, no reason" and the owner can flip the flag from there.
         owner_high_value: false,
         owner_high_value_reason: '',
+        // AI-sourced tentative flag: queued for owner review during room
+        // completion. Not a permanent mark — the owner confirms or dismisses.
+        tentative_high_value: aiTentative,
+        tentative_high_value_source: aiTentative ? 'ai' : '',
+        tentative_high_value_reason: aiTentativeReason,
         // Bulk intake also never writes the owner's comment. A comment is a
         // deliberate authorial act; a walkthrough detection is not. The
         // owner opens the item and writes anything they want to write.

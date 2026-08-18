@@ -951,8 +951,6 @@ export const MIGRATIONS = [
       CREATE INDEX idx_estate_access_log_scope ON estate_access_log(scope_id, created_at);
     `,
   },
-];
-
   {
     id: 24,
     name: 'tentative_high_value',

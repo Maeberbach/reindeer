@@ -597,12 +597,46 @@ function buildIdentifiers() {
 
 async function saveItem() {
   try {
+    // AI tentative flag evaluation: Registry doesn't value items, but the
+    // vision model can still flag things worth the owner's second look.
+    // Triggers: rarity (appraisal_suggested or maker identified),
+    //           category-based (jewelry, art, firearms, etc.),
+    //           low confidence (AI unsure what it's seeing).
+    let aiTentative = false;
+    let aiTentativeReason = '';
+    if (cap.ai && !cap.important) {
+      // Rarity: the vision model itself suggests this may be significant
+      if (cap.ai.appraisal_suggested) {
+        aiTentative = true;
+        aiTentativeReason = 'AI flagged: may warrant professional appraisal';
+      }
+      // Maker identified: a legible brand/signature/mark is visible
+      if (cap.ai.maker_identified && !aiTentative) {
+        aiTentative = true;
+        aiTentativeReason = 'AI flagged: brand or maker mark visible';
+      }
+      // Category-based: certain categories are worth a second look
+      const cat = (cap.ai.category_hint || cap.category || '').toLowerCase();
+      const flaggedCats = ['jewelry', 'jewellery', 'art', 'painting', 'sculpture',
+        'antique', 'collectible', 'firearm', 'firearms', 'gun', 'coins', 'coin',
+        'silver', 'gold', 'watch', 'watches', 'instrument', 'rug', 'tapestry'];
+      if (flaggedCats.some((c) => cat.includes(c)) && !aiTentative) {
+        aiTentative = true;
+        aiTentativeReason = 'AI flagged: ' + cat + ' — worth a closer look';
+      }
+      // Low confidence: AI is unsure what it's seeing
+      if (cap.ai.confidence != null && cap.ai.confidence < 0.45 && !aiTentative) {
+        aiTentative = true;
+        aiTentativeReason = 'AI flagged: low confidence identification';
+      }
+    }
+
     const item = await api('/api/items', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         title: effectiveTitle(), story: cap.story,
         room_name: cap.room || null, category_name: cap.category || null,
-        review_state: (myRole === 'assistant' && cap.important) ? 'draft' : 'kept',
+        review_state: ((myRole === 'assistant' && cap.important) || aiTentative) ? 'draft' : 'kept',
         // The value on an estate record is the OWNER'S, never the camera's.
         // This app previously saved the vision model's guess as though the
         // owner had stated it — a fabricated brand and dollar figure stamped
@@ -617,9 +651,9 @@ async function saveItem() {
         // their flag is tentative and queued for owner review.
         owner_high_value: myRole === 'assistant' ? false : (cap.important === true),
         owner_high_value_reason: myRole === 'assistant' ? '' : reasonFromCap(cap),
-        tentative_high_value: myRole === 'assistant' && cap.important === true,
-        tentative_high_value_source: myRole === 'assistant' ? 'helper' : '',
-        tentative_high_value_reason: myRole === 'assistant' ? reasonFromCap(cap) : '',
+        tentative_high_value: (myRole === 'assistant' && cap.important === true) || aiTentative,
+        tentative_high_value_source: myRole === 'assistant' && cap.important ? 'helper' : (aiTentative ? 'ai' : ''),
+        tentative_high_value_reason: myRole === 'assistant' && cap.important ? reasonFromCap(cap) : (aiTentative ? aiTentativeReason : ''),
         ai_confidence: cap.ai?.confidence ?? null,
         identifiers: buildIdentifiers(),
         recipient_hint: cap.recipient
@@ -2956,7 +2990,64 @@ $('#roomOneItem').onclick = () => {
   }
 };
 
-$('#roomDoneBtn').onclick = () => setRoomFinished('done');
+$('#roomDoneBtn').onclick = () => checkRoomReviewBeforeFinish();
+$('#roomReviewDone').onclick = () => { $('#roomReviewPanel').hidden = true; setRoomFinished('done'); };
+
+/**
+ * Before marking a room done, check if any items in this room have
+ * tentative_high_value flags (from helpers or AI). If so, surface them
+ * for owner review. The owner can confirm (promote to permanent) or
+ * dismiss (remove the tentative flag), then finish the room.
+ */
+async function checkRoomReviewBeforeFinish() {
+  if (!room?.room_id) { setRoomFinished('done'); return; }
+  try {
+    const { items } = await api(`/api/items?room_id=${room.room_id}&tentative_high_value_only=true`);
+    if (!items || items.length === 0) { setRoomFinished('done'); return; }
+    // Show the review panel
+    const list = $('#roomReviewList');
+    list.innerHTML = items.map((it) => `
+      <div class="review-item" data-id="${it.item_id}">
+        ${it.photos?.[0] ? `<img src="${API}/api/photos/${it.photos[0].photo_id}" alt="">` : '<div class="noimg" style="width:72px;height:72px;border-radius:10px">no photo</div>'}
+        <div class="review-body">
+          <h4>${escapeHtml(it.title)}</h4>
+          <p class="review-flag">${it.tentative_high_value_source === 'ai'
+            ? 'AI flagged — ' + escapeHtml(it.tentative_high_value_reason || 'may be significant')
+            : 'Helper flagged — ' + escapeHtml(it.tentative_high_value_reason || 'marked important')}</p>
+          <div class="review-actions">
+            <button class="btn-confirm" data-confirm="${it.item_id}">Mark important</button>
+            <button class="btn-dismiss" data-dismiss="${it.item_id}">Not important</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+    // Wire up confirm/dismiss buttons
+    list.querySelectorAll('[data-confirm]').forEach((btn) => {
+      btn.onclick = async () => {
+        const id = btn.dataset.confirm;
+        await api(`/api/items/${id}/confirm-important`, { method: 'POST' });
+        const row = btn.closest('.review-item');
+        row.style.opacity = '0.5';
+        row.querySelector('.review-actions').innerHTML = '<span class="badge kept">Marked important</span>';
+      };
+    });
+    list.querySelectorAll('[data-dismiss]').forEach((btn) => {
+      btn.onclick = async () => {
+        const id = btn.dataset.dismiss;
+        await api(`/api/items/${id}/dismiss-important`, { method: 'POST' });
+        const row = btn.closest('.review-item');
+        row.style.opacity = '0.5';
+        row.querySelector('.review-actions').innerHTML = '<span class="badge draft">dismissed</span>';
+      };
+    });
+    $('#roomReviewPanel').hidden = false;
+    toast(`${items.length} item${items.length === 1 ? '' : 's'} flagged for review.`);
+  } catch (e) {
+    // If the check fails, just finish the room — don't block
+    console.warn('room review check failed:', e.message);
+    setRoomFinished('done');
+  }
+}
 $('#roomSkipBtn').onclick = () => setRoomFinished('skipped');
 $('#roomPauseBtn').onclick = () => pauseWalk();
 

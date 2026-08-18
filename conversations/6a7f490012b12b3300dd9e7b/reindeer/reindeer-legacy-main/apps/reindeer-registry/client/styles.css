@@ -998,3 +998,19 @@ hr.softrule {
 /* Ownership tag selector */
 .ownership-block { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
 .ownership-chips .chip[aria-pressed="true"] { background: var(--accent-bg, #e8f0fe); border-color: var(--accent-border, #4a90d9); font-weight: 600; }
+
+/* Owner review panel for tentative-flagged items */
+.roomreview{margin-top:24px; padding:20px; border:2px solid var(--line); border-radius:14px; background:var(--card)}
+.roomreview h3{margin:0 0 8px}
+.roomreview .reassure{margin:0 0 16px; font-size:15px}
+.review-item{display:flex; gap:14px; align-items:flex-start; padding:14px 0; border-bottom:1px solid var(--line)}
+.review-item:last-child{border-bottom:0}
+.review-item img{width:72px; height:72px; object-fit:cover; border-radius:10px; flex-shrink:0}
+.review-item .review-body{flex:1; min-width:0}
+.review-item .review-body h4{margin:0 0 4px; font-size:16px}
+.review-item .review-flag{font-size:13px; font-style:italic; color:#9a6716; margin:0 0 10px}
+.review-item .review-actions{display:flex; gap:10px}
+.review-item .review-actions button{padding:8px 16px; border-radius:8px; font-size:14px; font-weight:600; border:1px solid var(--line); cursor:pointer}
+.review-item .btn-confirm{background:var(--ok); color:#fff; border:0}
+.review-item .btn-dismiss{background:transparent; color:var(--ink)}
+.roomreview .primary.wide{margin-top:18px}

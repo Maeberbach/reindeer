@@ -690,5 +690,87 @@ await check('the print template renders the comment verbatim, dollar figure incl
   assert.doesNotMatch(clean, /\$\d/);
 });
 
+console.log('\n8. Tentative high-value flags (helper + AI)');
+
+// A helper flags an item as important — it should land as tentative, not permanent.
+await inv.itemRepo.create({
+  title: 'Grandfather clock',
+  review_state: 'draft',
+  owner_high_value: false,
+  owner_high_value_reason: '',
+  tentative_high_value: true,
+  tentative_high_value_source: 'helper',
+  tentative_high_value_reason: 'sentimental: family heirloom',
+}, inv.ctx);
+
+await check('a helper flag is tentative, not a permanent owner flag', async () => {
+  const { items } = await inv.itemRepo.list({}, inv.ctx);
+  const clock = items.find((i) => i.title === 'Grandfather clock');
+  assert.ok(clock, 'clock not found');
+  assert.equal(clock.tentative_high_value, true);
+  assert.equal(clock.tentative_high_value_source, 'helper');
+  assert.equal(clock.owner_high_value, false);
+  assert.equal(clock.review_state, 'draft');
+});
+
+// An AI flag from rarity/appraisal_suggested should also be tentative.
+await inv.itemRepo.create({
+  title: 'Antique violin',
+  review_state: 'draft',
+  owner_high_value: false,
+  tentative_high_value: true,
+  tentative_high_value_source: 'ai',
+  tentative_high_value_reason: 'AI flagged: may warrant professional appraisal',
+}, inv.ctx);
+
+await check('an AI flag is tentative with source=ai', async () => {
+  const { items } = await inv.itemRepo.list({}, inv.ctx);
+  const violin = items.find((i) => i.title === 'Antique violin');
+  assert.ok(violin, 'violin not found');
+  assert.equal(violin.tentative_high_value, true);
+  assert.equal(violin.tentative_high_value_source, 'ai');
+  assert.equal(violin.owner_high_value, false);
+});
+
+// The tentative_high_value_only filter should find both flagged items.
+await check('tentative_high_value_only filter returns flagged items', async () => {
+  const { items } = await inv.itemRepo.list({ tentative_high_value_only: true }, inv.ctx);
+  assert.ok(items.length >= 2, `expected >= 2, got ${items.length}`);
+  assert.ok(items.every((i) => i.tentative_high_value === true));
+});
+
+// Confirm (promote): tentative → permanent owner_high_value.
+await check('confirm-important promotes tentative to permanent', async () => {
+  const { items } = await inv.itemRepo.list({ tentative_high_value_only: true }, inv.ctx);
+  const clock = items.find((i) => i.title === 'Grandfather clock');
+  await inv.itemRepo.update(clock.item_id, {
+    owner_high_value: true,
+    owner_high_value_reason: clock.tentative_high_value_reason,
+    tentative_high_value: false,
+    tentative_high_value_source: '',
+    tentative_high_value_reason: '',
+    review_state: 'kept',
+  }, inv.ctx);
+  const updated = await inv.itemRepo.get(clock.item_id, inv.ctx);
+  assert.equal(updated.owner_high_value, true);
+  assert.equal(updated.owner_high_value_reason, 'sentimental: family heirloom');
+  assert.equal(updated.tentative_high_value, false);
+  assert.equal(updated.review_state, 'kept');
+});
+
+// Dismiss: tentative flag removed, no promotion.
+await check('dismiss-important removes tentative without promoting', async () => {
+  const { items } = await inv.itemRepo.list({ tentative_high_value_only: true }, inv.ctx);
+  const violin = items.find((i) => i.title === 'Antique violin');
+  await inv.itemRepo.update(violin.item_id, {
+    tentative_high_value: false,
+    tentative_high_value_source: '',
+    tentative_high_value_reason: '',
+  }, inv.ctx);
+  const updated = await inv.itemRepo.get(violin.item_id, inv.ctx);
+  assert.equal(updated.tentative_high_value, false);
+  assert.equal(updated.owner_high_value, false);
+});
+
 console.log(`\n${pass} checks passed.`);
 console.log(`Artifacts: ${tmp}\n`);
