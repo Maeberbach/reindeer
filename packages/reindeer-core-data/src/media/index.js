@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { MediaStore, PHOTO_ROLE, MEDIA_KIND, mediaKindFor } from '@reindeer/core-api';
+import { MediaStore, PHOTO_ROLE, MEDIA_KIND, mediaKindFor } from '@reindeer-legacy/core-api';
 
 const EXT = {
   'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic',

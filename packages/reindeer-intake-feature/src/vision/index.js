@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { VisionProvider } from '@reindeer/core-api';
+import { VisionProvider } from '@reindeer-legacy/core-api';
 
 /**
  * "Worth a professional look" screening.

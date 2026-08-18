@@ -1,6 +1,6 @@
-import { NON_BINDING_DISCLAIMER, ExchangeVersionError } from '@reindeer/core-api';
+import { NON_BINDING_DISCLAIMER, ExchangeVersionError } from '@reindeer-legacy/core-api';
 
-export const EXCHANGE_FORMAT = 'reindeer-exchange';
+export const EXCHANGE_FORMAT = 'legacy-exchange';
 export const EXCHANGE_VERSION = '1.0';
 
 /**
@@ -59,9 +59,6 @@ export function buildEnvelope({
       category_name: i.category?.name ?? null,
       room_id: i.room_id,
       room_name: i.room?.name ?? null,
-      // Multi-site: which site this item belongs to. Null/empty = primary/home.
-      site_id: i.site_id ?? null,
-      site_name: i.site_name ?? '',
       description: i.description,
       story: i.story,
       quantity: i.quantity,

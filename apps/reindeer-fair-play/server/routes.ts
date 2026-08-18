@@ -4,14 +4,9 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { storage, sqlite, ESTATE_ID } from "./storage";
+import { storage } from "./storage";
 import { enforcePause } from "./middleware/enforcePause";
 import { requireLicenseForWrite } from "./middleware/licenseMiddleware";
-import {
-  requireSubscriptionForWrite,
-  getEstateSubscription,
-} from "./middleware/subscriptionMiddleware";
-import { FEATURE_FLAGS, isSubscriptionGateEnabled, isHeirVisibilityEnabled } from "./featureFlags";
 import {
   HEIR_CAPABILITIES,
   canHeirDo,
@@ -37,7 +32,7 @@ import {
   canHelperDo,
   isHelperParticipant,
 } from "@shared/schema";
-import type { Participant, EstateSubscription } from "@shared/schema";
+import type { Participant } from "@shared/schema";
 import { looksLikeSameThing } from "./duplicates/match";
 import { analyzeItem } from "./ai/analyzer";
 import {
@@ -520,10 +515,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       // Once a captain exists, session details are no longer public.
     }
     if (req.method === "POST" && req.path === "/session/welcome") return next();
-    // Trustee onboarding: activating a license key may happen before any
-    // heir is signed in. The handler validates the key itself; allowing it
-    // here does not grant access to any estate data.
-    if (req.method === "POST" && req.path === "/license/activate") return next();
     if (req.actor) return next();
     res.status(401).json({ message: SIGN_IN_REQUIRED_MESSAGE });
   });
@@ -534,13 +525,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // (POST/PUT/PATCH/DELETE) — reads are never blocked. No-op while
   // FEATURE_FLAGS.licenseKeys is false (testing mode).
   app.use("/api", requireLicenseForWrite);
-
-  /* ---------- per-estate subscription gate (write gate) ---------- */
-  // Mounted after attachActor + deny-by-default + requireLicenseForWrite, so the
-  // actor is resolved and authenticated first. Only blocks writes
-  // (POST/PUT/PATCH/DELETE) — reads are never blocked. No-op while
-  // FEATURE_FLAGS.subscriptionGate is false (testing mode).
-  app.use("/api", requireSubscriptionForWrite);
 
   /* ---------- v8 high-value fiduciary workflow ---------- */
   app.use("/api/fiduciary", createFiduciaryRouter());
@@ -580,7 +564,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       })
       .parse(req.body);
     const { heirPermissions, ...rest } = body;
-    // `setup` and `cataloging` are human names for real phases.
+    // `setup` and `cataloging` are legacy/human names for real phases.
     if (rest.phase) rest.phase = normalizePhase(rest.phase) as any;
     // Opening the ranking phase by hand still starts the countdown.
     if (rest.phase === "ranking" || rest.phase === "secondary_ranking") {
@@ -991,15 +975,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.patch("/api/taxonomy/:id", enforcePause(), async (req, res) => {
     if (await denyIfNotHeirAdmin(req, res)) return;
     try {
-      const body = z
-        .object({ isEnabled: z.boolean().optional(), label: z.string().optional(), actorId: z.any().optional() })
-        .parse(req.body);
-      const id = Number(req.params.id);
-      if (body.label !== undefined) {
-        res.json(await storage.renameTaxonomy(id, body.label));
-      } else {
-        res.json(await storage.setTaxonomyEnabled(id, body.isEnabled!));
-      }
+      const body = z.object({ isEnabled: z.boolean() }).parse(req.body);
+      res.json(await storage.setTaxonomyEnabled(Number(req.params.id), body.isEnabled));
     } catch (e) {
       fail(res, e);
     }
@@ -1605,57 +1582,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   });
 
   /* ---------- items ---------- */
-  // ─── Sites: list all sites for this estate ─────────────────────
-  app.get("/api/sites", async (_req, res) => {
-    // Sites live in the Registry DB; FairPlay reads them from the imported
-    // item data (siteId/siteName on each item). Return distinct sites.
-    const allItems = await storage.listItems();
-    const siteMap = new Map<string, { siteId: string | null; siteName: string }>();
-    for (const item of allItems as any[]) {
-      const key = item.siteId ?? '__primary__';
-      if (!siteMap.has(key)) {
-        siteMap.set(key, { siteId: item.siteId ?? null, siteName: item.siteName || (item.siteId ? 'Site' : 'Home') });
-      }
-    }
-    // Always include Home (null site) even if no items
-    if (!siteMap.has('__primary__')) {
-      siteMap.set('__primary__', { siteId: null, siteName: 'Home' });
-    }
-    res.json({ sites: [...siteMap.values()] });
-  });
-
-  app.get("/api/items", async (req, res) => {
-    let allItems = await storage.listItems();
-
-    // Optional site filter: ?site_id=xxx filters to one site,
-    // ?site_id=__primary__ filters to the home site (null site_id).
-    const siteFilter = req.query.site_id as string | undefined;
-    if (siteFilter !== undefined) {
-      allItems = (allItems as any[]).filter((item) => {
-        if (siteFilter === '__primary__') return !item.siteId;
-        return item.siteId === siteFilter;
-      });
-    }
-
-    // Apply heir visibility filtering: when the flag is ON and the viewer
-    // is not the Captain (admin), strip private fields (estimated_value,
-    // value_basis, recipient_hint, owner_high_value, etc.) from each item.
-    if (isHeirVisibilityEnabled() && req.actor && !req.actor.isAdmin) {
-      const filtered = allItems.map((item: any) => {
-        const {
-          estimatedValue, aiEstimatedValue, approvedValue, valueSource, valueStatus,
-          recipientHint, recipientHintNote,
-          ownerAssignedName, ownerAssignedParticipantId, ownerAssignedSource,
-          ownerAssignedEvidence,
-          aiCategoryConfidence, aiSuggestions, aiSuggestsHighValue, aiHighValueReason,
-          ...heirVisible
-        } = item;
-        return heirVisible;
-      });
-      res.json(filtered);
-    } else {
-      res.json(allItems);
-    }
+  app.get("/api/items", async (_req, res) => {
+    res.json(await storage.listItems());
   });
 
   const itemInput = z.object({
@@ -2759,271 +2687,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", 'attachment; filename="estate-inventory.csv"');
     res.send(lines.join("\n"));
-  });
-
-
-  /* ---- item interests (desire layer) ---- */
-
-  // Get the current heir's interests
-  app.get("/api/interests/:participantId", async (req, res) => {
-    try {
-      const pid = Number(req.params.participantId);
-      const interests = await storage.listInterests(pid);
-      res.json({ interests });
-    } catch (e) {
-      fail(res, e);
-    }
-  });
-
-  // Get all interests in the session (captain view)
-  app.get("/api/interests", async (req, res) => {
-    if (await denyIfNotHeirAdmin(req, res)) return;
-    try {
-      const interests = await storage.listAllInterests();
-      res.json({ interests });
-    } catch (e) {
-      fail(res, e);
-    }
-  });
-
-  // Set / update an interest
-  app.put("/api/interests/:participantId", enforcePause(), async (req, res) => {
-    const pid = Number(req.params.participantId);
-    const actor = await actorOf(req);
-    // An heir can set their own; captain can set via assist
-    if (!actor || (actor.id !== pid && !actor.isAdmin)) {
-      return res.status(403).json({ error: "You can only set your own interests." });
-    }
-    try {
-      const body = z
-        .object({
-          itemId: z.number().int(),
-          interest: z.enum(["want", "interested", "dont_care"]),
-        })
-        .parse(req.body);
-      const row = await storage.setInterest(pid, body.itemId, body.interest);
-      res.json({ ok: true, interest: row });
-
-      // Auto-flag: if 2+ heirs now want this item, mark it important
-      if (body.interest === "want") {
-        const wantCount = await storage.countWantsForItem(body.itemId);
-        if (wantCount >= 2) {
-          // Flag the item as important (heirloom candidate) so it surfaces in resolution
-          const allItems = await storage.listItems();
-          const item = allItems.find((i) => i.id === body.itemId);
-          if (item && !item.isHeirloomCandidate) {
-            await storage.setItemFlags(
-              body.itemId,
-              { isHeirloom: true },
-              null,
-              `Auto-flagged: ${wantCount} heirs want this item.`,
-            );
-          }
-        }
-      }
-    } catch (e) {
-      fail(res, e);
-    }
-  });
-
-  // Get items with 2+ wants (for the captain dashboard / resolution view)
-  app.get("/api/interests/contested", async (req, res) => {
-    if (await denyIfNotHeirAdmin(req, res)) return;
-    try {
-      const contested = await storage.itemsWithMultipleWants();
-      const allItems = await storage.listItems();
-      const allParticipants = await storage.listParticipants();
-      const allInterests = await storage.listAllInterests();
-
-      const enriched = contested.map((c) => {
-        const item = allItems.find((i) => i.id === c.itemId);
-        const itemInterests = allInterests.filter((i) => i.itemId === c.itemId);
-        return {
-          ...c,
-          itemName: item?.name ?? "Unknown",
-          itemPhoto: item?.photoUrl ?? null,
-          interests: itemInterests.map((interest) => ({
-            interest: interest.interest,
-            heirName: allParticipants.find((p) => p.id === interest.participantId)?.name ?? "Unknown",
-          })),
-        };
-      });
-      res.json({ contested: enriched });
-    } catch (e) {
-      fail(res, e);
-    }
-  });
-
-  /* ---------- subscription status ---------- */
-  /**
-   * GET /api/subscription/status
-   * Returns the current estate's subscription state. Reads are never
-   * blocked, so this is always available to a signed-in heir. The
-   * `gate_enabled` flag tells the client whether the server is actually
-   * enforcing the gate (false in testing mode).
-   */
-  app.get("/api/subscription/status", async (req, res) => {
-    if (!req.actor) {
-      return res.status(401).json({ message: SIGN_IN_REQUIRED_MESSAGE });
-    }
-    const sub = getEstateSubscription(ESTATE_ID);
-    if (!sub) {
-      return res.json({
-        scope_id: ESTATE_ID,
-        status: "active",
-        subscription_expires_at: null,
-        license_expires_at: null,
-        gate_enabled: isSubscriptionGateEnabled(),
-      });
-    }
-    res.json({
-      scope_id: ESTATE_ID,
-      status: sub.status,
-      subscription_expires_at: sub.subscription_expires_at,
-      license_expires_at: sub.license_expires_at,
-      gate_enabled: isSubscriptionGateEnabled(),
-    });
-  });
-
-  /* ---------- license activation (trustee onboarding) ---------- */
-  /**
-   * POST /api/license/activate
-   * Trustee onboarding path. Accepts a Reindeer license key (issued by the
-   * registry) and activates / refreshes the subscription for this estate.
-   * Idempotent: re-activating an already-active estate updates the stored
-   * key and expiry rather than failing.
-   *
-   * While the subscription gate is OFF this still records the key so that
-   * flipping the flag later does not strand estates that onboarded during
-   * testing. The handler is reachable without a signed-in session (see the
-   * deny-by-default allowlist) because the trustee activates the license
-   * before any heir signs in.
-   */
-  app.post("/api/license/activate", async (req, res) => {
-    const body = z
-      .object({
-        licenseKey: z.string().min(1, "A license key is required."),
-        trusteeAccountId: z.string().optional(),
-        licenseExpiresAt: z.string().optional(),
-        stripeCustomerId: z.string().optional(),
-        stripeSubscriptionId: z.string().optional(),
-      })
-      .parse(req.body);
-
-    const now = new Date().toISOString();
-    const existing = sqlite
-      .prepare("SELECT scope_id FROM estate_subscriptions WHERE scope_id = ?")
-      .get(ESTATE_ID) as { scope_id: string } | undefined;
-
-    if (existing) {
-      const stmt = sqlite.prepare(
-        "UPDATE estate_subscriptions SET " +
-          "status = 'active', license_key = ?, license_expires_at = ?, " +
-          "trustee_account_id = COALESCE(?, trustee_account_id), " +
-          "stripe_customer_id = COALESCE(?, stripe_customer_id), " +
-          "stripe_subscription_id = COALESCE(?, stripe_subscription_id), " +
-          "updated_at = ? " +
-          "WHERE scope_id = ?",
-      );
-      stmt.run(
-        body.licenseKey,
-        body.licenseExpiresAt ?? null,
-        body.trusteeAccountId ?? null,
-        body.stripeCustomerId ?? null,
-        body.stripeSubscriptionId ?? null,
-        now,
-        ESTATE_ID,
-      );
-    } else {
-      const stmt = sqlite.prepare(
-        "INSERT INTO estate_subscriptions " +
-          "(scope_id, status, license_key, license_expires_at, " +
-          "trustee_account_id, stripe_customer_id, stripe_subscription_id, " +
-          "license_pool_slots, created_at, updated_at) " +
-          "VALUES (?, 'active', ?, ?, ?, ?, ?, 0, ?, ?)",
-      );
-      stmt.run(
-        ESTATE_ID,
-        body.licenseKey,
-        body.licenseExpiresAt ?? null,
-        body.trusteeAccountId ?? null,
-        body.stripeCustomerId ?? null,
-        body.stripeSubscriptionId ?? null,
-        now,
-        now,
-      );
-    }
-
-    const updated = getEstateSubscription(ESTATE_ID);
-    res.json({
-      ok: true,
-      scope_id: ESTATE_ID,
-      status: updated?.status ?? "active",
-      license_expires_at: updated?.license_expires_at ?? null,
-      gate_enabled: isSubscriptionGateEnabled(),
-    });
-  });
-
-  // ─── Admin: Feature flag status & runtime toggle ──────────────
-  //
-  // Mirror of the Registry admin feature-flags endpoints. Lets a
-  // Reindeer Corp admin inspect and flip feature flags at runtime
-  // before client distribution. Persisted in estate_settings table.
-
-  // Create estate_settings table if it doesn't exist
-  sqlite.exec(`
-    CREATE TABLE IF NOT EXISTS estate_settings (
-      scope_id  TEXT NOT NULL,
-      key       TEXT NOT NULL,
-      value     TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      PRIMARY KEY (scope_id, key)
-    );
-  `);
-
-  // GET /api/admin/feature-flags — current flag state
-  app.get("/api/admin/feature-flags", requireCaptain, async (_req, res) => {
-    const overrides = sqlite.prepare('SELECT key, value FROM estate_settings WHERE scope_id = ?').all(ESTATE_ID);
-    const overrideMap: Record<string, string> = {};
-    for (const row of overrides) overrideMap[row.key] = row.value;
-
-    res.json({
-      flags: {
-        heirVisibility: overrideMap.heirVisibility !== undefined
-          ? overrideMap.heirVisibility === 'true'
-          : FEATURE_FLAGS.heirVisibility,
-        subscriptionGate: overrideMap.subscriptionGate !== undefined
-          ? overrideMap.subscriptionGate === 'true'
-          : FEATURE_FLAGS.subscriptionGate,
-      },
-      effective: {
-        heirVisibility: isHeirVisibilityEnabled(),
-        subscriptionGate: isSubscriptionGateEnabled(),
-      },
-    });
-  });
-
-  // POST /api/admin/feature-flags — toggle a flag at runtime
-  app.post("/api/admin/feature-flags", requireCaptain, async (req, res) => {
-    const { flag, value } = req.body || {};
-    const allowedFlags = ['heirVisibility', 'subscriptionGate'];
-    if (!allowedFlags.includes(flag)) {
-      return res.status(400).json({ error: `Unknown flag: ${flag}. Allowed: ${allowedFlags.join(', ')}` });
-    }
-    if (typeof value !== 'boolean') {
-      return res.status(400).json({ error: 'value must be a boolean' });
-    }
-
-    const now = new Date().toISOString();
-    sqlite.prepare(
-      'INSERT INTO estate_settings (scope_id, key, value, updated_at) VALUES (?, ?, ?, ?) ' +
-      'ON CONFLICT(scope_id, key) DO UPDATE SET value = ?, updated_at = ?'
-    ).run(ESTATE_ID, flag, String(value), now, String(value), now);
-
-    // Update in-memory flag for immediate effect
-    FEATURE_FLAGS[flag] = value;
-
-    res.json({ ok: true, flag, value, message: `${flag} is now ${value ? 'ON' : 'OFF'}` });
   });
 
   return httpServer;

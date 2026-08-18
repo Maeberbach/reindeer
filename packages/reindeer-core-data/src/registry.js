@@ -1,11 +1,11 @@
-import { DEFAULT_ROOMS, DEFAULT_CATEGORIES, MORE_ROOMS, MORE_CATEGORIES, ReindeerError } from '@reindeer/core-api';
+import { DEFAULT_ROOMS, DEFAULT_CATEGORIES, MORE_ROOMS, MORE_CATEGORIES, LegacyError } from '@reindeer-legacy/core-api';
 import { ulid } from './db/index.js';
 
 /**
  * Bumped whenever DEFAULT_ROOMS or DEFAULT_CATEGORIES gains an entry that
  * existing inventories should be offered. See migration 6.
  */
-export const DEFAULTS_VERSION = 4;
+export const DEFAULTS_VERSION = 2;
 
 /**
  * Room and category registry, shared so an exported inventory can be mapped
@@ -159,24 +159,17 @@ export class Registry {
     return MORE_CATEGORIES.filter((n) => !have.has(n.toLowerCase()));
   }
 
-  seedDefaults(scopeId, siteId = null) {
-    const room = this.db.prepare('INSERT OR IGNORE INTO rooms (room_id, scope_id, name, is_custom, sort_order, site_id) VALUES (?,?,?,0,?,?)');
+  seedDefaults(scopeId) {
+    const room = this.db.prepare('INSERT OR IGNORE INTO rooms (room_id, scope_id, name, is_custom, sort_order) VALUES (?,?,?,0,?)');
     const cat = this.db.prepare('INSERT OR IGNORE INTO categories (category_id, scope_id, name, is_custom, sort_order) VALUES (?,?,?,0,?)');
     const tx = this.db.transaction(() => {
-      DEFAULT_ROOMS.forEach((n, i) => room.run(ulid(), scopeId, n, i, siteId));
+      DEFAULT_ROOMS.forEach((n, i) => room.run(ulid(), scopeId, n, i));
       DEFAULT_CATEGORIES.forEach((n, i) => cat.run(ulid(), scopeId, n, i));
     });
     tx();
   }
 
-  rooms(ctx, siteId = null) {
-    // When a siteId is given, return only rooms for that site.
-    // NULL site_id rooms belong to the primary/home site.
-    if (siteId !== null) {
-      return this.db.prepare(
-        'SELECT * FROM rooms WHERE scope_id = ? AND (site_id = ? OR (site_id IS NULL AND ? IS NULL)) ORDER BY sort_order, name',
-      ).all(ctx.scopeId, siteId, siteId);
-    }
+  rooms(ctx) {
     return this.db.prepare('SELECT * FROM rooms WHERE scope_id = ? ORDER BY sort_order, name').all(ctx.scopeId);
   }
 
@@ -193,9 +186,9 @@ export class Registry {
    */
   async setRoomState(roomId, state, ctx, { documented = false } = {}) {
     const room = this.db.prepare('SELECT * FROM rooms WHERE room_id = ? AND scope_id = ?').get(roomId, ctx.scopeId);
-    if (!room) throw new ReindeerError('That room is not on your list.', 'NOT_FOUND', 404);
+    if (!room) throw new LegacyError('That room is not on your list.', 'NOT_FOUND', 404);
     const allowed = ['not_started', 'started', 'done', 'skipped'];
-    if (!allowed.includes(state)) throw new ReindeerError('Unknown room state.', 'BAD_STATE', 400);
+    if (!allowed.includes(state)) throw new LegacyError('Unknown room state.', 'BAD_STATE', 400);
     const now = new Date().toISOString();
     this.db.prepare(`UPDATE rooms SET
         walkthrough_state = ?,
@@ -221,26 +214,16 @@ export class Registry {
    * full. Someone may have nothing in the shed worth recording, and saying so is
    * a complete answer.
    */
-  walkthrough(ctx, siteId = null) {
-    const rooms = (siteId !== null
-      ? this.db.prepare(`
-        SELECT r.room_id, r.name, r.is_custom, r.sort_order,
-               r.walkthrough_state, r.documented_at, r.completed_at,
-               (SELECT COUNT(*) FROM items i
-                  WHERE i.room_id = r.room_id AND i.scope_id = r.scope_id
-                    AND i.review_state <> 'discarded') AS item_count
-          FROM rooms r
-         WHERE r.scope_id = ? AND (r.site_id = ? OR (r.site_id IS NULL AND ? IS NULL))
-         ORDER BY r.sort_order, r.name`).all(ctx.scopeId, siteId, siteId)
-      : this.db.prepare(`
-        SELECT r.room_id, r.name, r.is_custom, r.sort_order,
-               r.walkthrough_state, r.documented_at, r.completed_at,
-               (SELECT COUNT(*) FROM items i
-                  WHERE i.room_id = r.room_id AND i.scope_id = r.scope_id
-                    AND i.review_state <> 'discarded') AS item_count
-          FROM rooms r
-         WHERE r.scope_id = ?
-         ORDER BY r.sort_order, r.name`).all(ctx.scopeId));
+  walkthrough(ctx) {
+    const rooms = this.db.prepare(`
+      SELECT r.room_id, r.name, r.is_custom, r.sort_order,
+             r.walkthrough_state, r.documented_at, r.completed_at,
+             (SELECT COUNT(*) FROM items i
+                WHERE i.room_id = r.room_id AND i.scope_id = r.scope_id
+                  AND i.review_state <> 'discarded') AS item_count
+        FROM rooms r
+       WHERE r.scope_id = ?
+       ORDER BY r.sort_order, r.name`).all(ctx.scopeId);
 
     const done = rooms.filter((r) => r.walkthrough_state === 'done');
     const skipped = rooms.filter((r) => r.walkthrough_state === 'skipped');
@@ -278,18 +261,15 @@ export class Registry {
    * otherwise "Attic" would be presented back to them as though they had
    * thought of it.
    */
-  resolveRoom(name, ctx, { createIfMissing = true, isCustom = true, siteId = null } = {}) {
+  resolveRoom(name, ctx, { createIfMissing = true, isCustom = true } = {}) {
     if (!name) return null;
-    // Search within the same site (NULL = primary/home)
-    const found = this.db.prepare(
-      'SELECT * FROM rooms WHERE scope_id = ? AND name = ? COLLATE NOCASE AND (site_id IS ? OR (site_id IS NULL AND ? IS NULL))',
-    ).get(ctx.scopeId, name, siteId, siteId);
+    const found = this.db.prepare('SELECT * FROM rooms WHERE scope_id = ? AND name = ? COLLATE NOCASE').get(ctx.scopeId, name);
     if (found) return found;
     if (!createIfMissing) return null;
     const id = ulid();
     const custom = isCustom && !MORE_ROOMS.some((n) => n.toLowerCase() === name.toLowerCase()) ? 1 : 0;
-    this.db.prepare('INSERT INTO rooms (room_id, scope_id, name, is_custom, sort_order, site_id) VALUES (?,?,?,?,?,?)')
-      .run(id, ctx.scopeId, name, custom, custom ? 999 : 500, siteId);
+    this.db.prepare('INSERT INTO rooms (room_id, scope_id, name, is_custom, sort_order) VALUES (?,?,?,?,?)')
+      .run(id, ctx.scopeId, name, custom, custom ? 999 : 500);
     return this.db.prepare('SELECT * FROM rooms WHERE room_id = ?').get(id);
   }
 
@@ -313,32 +293,17 @@ export class Registry {
     return this.db.prepare('SELECT * FROM categories WHERE category_id = ?').get(id);
   }
 
-  /** Rename a room. The owner can call Bedroom 2 "Bobby's Room" etc. */
-  async renameRoom(roomId, name, ctx) {
-    const room = this.db.prepare('SELECT * FROM rooms WHERE room_id = ? AND scope_id = ?').get(roomId, ctx.scopeId);
-    if (!room) throw new ReindeerError('That room is not on your list.', 'NOT_FOUND', 404);
-    const trimmed = (name || '').trim();
-    if (!trimmed) throw new ReindeerError('A room needs a name.', 'BAD_NAME', 400);
-    this.db.prepare('UPDATE rooms SET name = ? WHERE room_id = ? AND scope_id = ?')
-      .run(trimmed, roomId, ctx.scopeId);
-    await this.audit.append(
-      { action: 'room.rename', entity: 'room', entity_id: roomId, payload: { old_name: room.name, new_name: trimmed } },
-      ctx,
-    );
-    return this.db.prepare('SELECT * FROM rooms WHERE room_id = ?').get(roomId);
-  }
-
   /** Deleting a referenced room or category requires reassignment first. */
   async deleteRoom(roomId, ctx) {
     const n = this.db.prepare('SELECT COUNT(*) c FROM items WHERE room_id = ? AND scope_id = ?').get(roomId, ctx.scopeId).c;
-    if (n > 0) throw new ReindeerError(`${n} item(s) still use this room. Move them first.`, 'IN_USE', 409, { count: n });
+    if (n > 0) throw new LegacyError(`${n} item(s) still use this room. Move them first.`, 'IN_USE', 409, { count: n });
     this.db.prepare('DELETE FROM rooms WHERE room_id = ? AND scope_id = ?').run(roomId, ctx.scopeId);
     await this.audit.append({ action: 'room.delete', entity: 'room', entity_id: roomId }, ctx);
   }
 
   async deleteCategory(categoryId, ctx) {
     const n = this.db.prepare('SELECT COUNT(*) c FROM items WHERE category_id = ? AND scope_id = ?').get(categoryId, ctx.scopeId).c;
-    if (n > 0) throw new ReindeerError(`${n} item(s) still use this category. Move them first.`, 'IN_USE', 409, { count: n });
+    if (n > 0) throw new LegacyError(`${n} item(s) still use this category. Move them first.`, 'IN_USE', 409, { count: n });
     this.db.prepare('DELETE FROM categories WHERE category_id = ? AND scope_id = ?').run(categoryId, ctx.scopeId);
     await this.audit.append({ action: 'category.delete', entity: 'category', entity_id: categoryId }, ctx);
   }

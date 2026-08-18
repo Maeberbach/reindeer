@@ -27,8 +27,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { eq, and, desc } from "drizzle-orm";
-import { readBundle } from "@reindeer/exchange/reader";
-import type { ExchangeItem, ExchangeEnvelope } from "@reindeer/exchange/reader";
+import { readBundle } from "@reindeer-legacy/exchange/reader";
+import type { ExchangeItem, ExchangeEnvelope } from "@reindeer-legacy/exchange/reader";
 import { db, storage } from "../storage";
 import { looksLikeSameThing } from "../duplicates/match";
 import {
@@ -41,6 +41,7 @@ import {
   stagedMedia,
   itemMedia,
   items,
+  classificationChanges,
   type ImportBatch,
   type StagedItem,
   type StagedMedia,
@@ -148,8 +149,6 @@ export type StageBundleResult = {
   batch: ImportBatch;
   stagedItems: StagedItem[];
   stagedMedia: StagedMedia[];
-  importedRooms: string[];
-  importedCategories: string[];
   unmatchedRooms: string[];
   unmatchedCategories: string[];
   problems: string[];
@@ -195,19 +194,19 @@ function extractMediaFile(
  * "Reindeer Registry". Bundles written under the old name must still open —
  * a family's export from last year is not a file we get to reject.
  */
-const IMPORT_SOURCE_ALIASES: Record<string, string> = {
+const LEGACY_SOURCE_APP_ALIASES: Record<string, string> = {
   // Old ids, kept deliberately. A rename in our code must never make a
   // family's existing export unreadable.
   legacy_inventory: "reindeer_registry",
   "legacy-inventory": "reindeer_registry",
-  "reindeer-inventory-memories": "reindeer_registry",
+  "legacy-inventory-memories": "reindeer_registry",
   legacy_inventory_memories: "reindeer_registry",
   "legacy-registry": "reindeer_registry",
 };
 
 export function normalizeSourceApp(app: string | null | undefined): string {
   if (!app) return "reindeer_registry";
-  return IMPORT_SOURCE_ALIASES[app] ?? app;
+  return LEGACY_SOURCE_APP_ALIASES[app] ?? app;
 }
 
 export async function stageBundle(
@@ -272,56 +271,16 @@ export async function stageBundle(
     if (it.category) knownCategories.add(it.category.toLowerCase().trim());
   }
 
-  // ---- pour-over: create rooms + categories from the bundle in this estate's taxonomy ----
-  //
-  // The Registry bundle carries a top-level rooms[] and categories[] array.
-  // Any label the estate doesn't already have is created now (enabled by
-  // default) so the captain sees them immediately in Administration and
-  // the room/category pickers pick them up without manual setup.
-  // Item-level room_name / category_name values not in the top-level arrays
-  // are also created (disabled) via ensureTaxonomyLabel below.
-  const bundleRooms: Array<{ id: string; name: string; is_custom: boolean }> =
-    Array.isArray((envelope as any).rooms) ? (envelope as any).rooms : [];
-  const bundleCategories: Array<{ id: string; name: string; is_custom: boolean }> =
-    Array.isArray((envelope as any).categories) ? (envelope as any).categories : [];
-
-  const importedRooms: string[] = [];
-  for (const r of bundleRooms) {
-    const label = r.name?.trim();
-    if (!label) continue;
-    if (!knownRooms.has(label.toLowerCase())) {
-      await storage.addTaxonomy("room", label, true);
-      knownRooms.add(label.toLowerCase());
-      importedRooms.push(label);
-    }
-  }
-  const importedCategories: string[] = [];
-  for (const c of bundleCategories) {
-    const label = c.name?.trim();
-    if (!label) continue;
-    if (!knownCategories.has(label.toLowerCase())) {
-      await storage.addTaxonomy("category", label, true);
-      knownCategories.add(label.toLowerCase());
-      importedCategories.push(label);
-    }
-  }
-
   const unmatchedRoomsSet = new Set<string>();
   const unmatchedCategoriesSet = new Set<string>();
   for (const it of envelope.items) {
     const roomName = it.room_name?.trim();
     if (roomName && !knownRooms.has(roomName.toLowerCase())) {
       unmatchedRoomsSet.add(roomName);
-      // Item-level room not in the bundle's top-level rooms[] — create it
-      // as a disabled custom row so the captain can enable it later.
-      await storage.ensureTaxonomyLabel("room", roomName);
-      knownRooms.add(roomName.toLowerCase());
     }
     const catName = it.category_name?.trim();
     if (catName && !knownCategories.has(catName.toLowerCase())) {
       unmatchedCategoriesSet.add(catName);
-      await storage.ensureTaxonomyLabel("category", catName);
-      knownCategories.add(catName.toLowerCase());
     }
   }
   const unmatchedRooms = Array.from(unmatchedRoomsSet).sort();
@@ -366,18 +325,13 @@ export async function stageBundle(
       audioCount: envelope.counts?.audio ?? 0,
       scopeMediaCount: envelope.counts?.scope_media ?? 0,
       state: "staged",
-      notes: [
-        importedRooms.length || importedCategories.length
-          ? `Imported ${importedRooms.length} room(s): ${importedRooms.join(", ") || "none"}. Imported ${importedCategories.length} category(s): ${importedCategories.join(", ") || "none"}.`
-          : "",
-        batchId === exportedBatchId ? "" : `Re-import of export batch ${exportedBatchId}.`,
-      ].filter(Boolean).join(" "),
       unmatchedRooms: jsonArray(unmatchedRooms),
       unmatchedCategories: jsonArray(unmatchedCategories),
       problems: jsonArray(
         hasChecksumFailure ? [...problems, "One or more files failed checksum verification."] : problems,
       ),
       arrivedDuringLockedRound,
+      notes: batchId === exportedBatchId ? "" : `Re-import of export batch ${exportedBatchId}.`,
       importedAt,
       importedByParticipantId: actorId,
     })
@@ -494,9 +448,7 @@ export async function stageBundle(
         category: srcItem.category_name ?? null,
         notes: srcItem.description ?? "",
         inventoryStory: srcItem.story ?? "",
-        siteId: (srcItem as any).site_id ?? null,
-        siteName: (srcItem as any).site_name ?? "",
-        // The owner's Registry "Important" comment travels through as
+        // The owner's Registry "Important" comment travels through as legacy
         // content. Default '' when the envelope pre-dates the field (older
         // Registry versions). See docs/decisions/2026-08-06-fc-honors-owner-important.md.
         ownerImportantComment,
@@ -506,15 +458,13 @@ export async function stageBundle(
         estimatedValue:
           typeof srcItem.value_estimate_cents === "number" ? srcItem.value_estimate_cents / 100 : null,
         valueSource: srcItem.value_basis ?? null,
-        // The owner's Important flag (owner_high_value) is carried through to
-        // FairPlay as metadata, but it does NOT auto-trigger appraisal.
-        // Appraisal is determined by AI value estimation: if AI estimates
-        // the item at >= 85% of the captain's threshold (default $3,000),
-        // autoFlagAfterAiAnalysis flags it. The captain can also manually
-        // flag any item. See docs/decisions/2026-08-06-fc-honors-owner-important.md.
-        needsAppraisal: false,
-        ownerHighValue: !!(srcItem as any).owner_high_value,
-        ownerHighValueReason: (srcItem as any).owner_high_value_reason ?? "",
+        // Registry's high_value_flag OR the owner's Important mark promotes
+        // the item to high-value on the FC side. Same mechanism as an heir
+        // promoting an item during cataloguing; the audited classification
+        // change is written on approveStaged (not here at stage time) so the
+        // PR still gets to review the batch before the flag becomes a real
+        // items row. See docs/decisions/2026-08-06-fc-honors-owner-important.md.
+        needsAppraisal: !!srcItem.high_value_flag || !!(srcItem as any).owner_high_value,
         isSentimental: false,
         recipientHint,
         recipientHintNote,
@@ -655,8 +605,6 @@ export async function stageBundle(
     batch: finalBatch,
     stagedItems: createdStagedItems,
     stagedMedia: createdStagedMedia,
-    importedRooms,
-    importedCategories,
     unmatchedRooms,
     unmatchedCategories,
     problems,
@@ -921,18 +869,14 @@ export async function approveStaged(
         needsAppraisal: staged.needsAppraisal,
         isSentimental: staged.isSentimental,
         estimatedValue: staged.estimatedValue,
-        ownerHighValue: !!(staged as any).ownerHighValue,
-        ownerHighValueReason: (staged as any).ownerHighValueReason ?? "",
         originApp: "reindeer_registry",
         originItemId: staged.originItemId,
         importBatchId: staged.batchId,
-        siteId: staged.siteId,
-        siteName: staged.siteName,
         // Owner-assignment fields land on the item exactly as computed
         // above. We DO NOT flip an already-awarded item back to
         // owner_assigned; only items still in `available` (the pool) are
         // moved into the owner_assigned bucket on a re-import. See guard
-        // below
+        // below.
         ownerAssignedName,
         ownerAssignedParticipantId,
         ownerAssignedSource,
@@ -968,13 +912,9 @@ export async function approveStaged(
       needsAppraisal: staged.needsAppraisal,
       isSentimental: staged.isSentimental,
       estimatedValue: staged.estimatedValue,
-      ownerHighValue: !!(staged as any).ownerHighValue,
-      ownerHighValueReason: (staged as any).ownerHighValueReason ?? "",
       originApp: "reindeer_registry",
       originItemId: staged.originItemId,
       importBatchId: staged.batchId,
-      siteId: staged.siteId,
-      siteName: staged.siteName,
       // Owner-assignment lifts a new item straight into the
       // `owner_assigned` bucket, bypassing the ranked pool. Otherwise it
       // starts life in the pool as `available` like any other imported
@@ -989,6 +929,64 @@ export async function approveStaged(
       photoUrl: primaryPhoto?.url ?? null,
       thumbnailUrl: primaryPhoto?.url ?? null,
     } as any);
+
+    // When approving a NEW item that arrived flagged high-value (either the
+    // source app said so via high_value_flag, OR the owner marked it Important
+    // in Registry via owner_high_value), record the flip in the classification
+    // audit log the same way an heir's promotion would be recorded. Attribution
+    // is null-participant because the owner is not an FC participant; the
+    // reason column names the source in plain English. Heirs can flip and PR
+    // can revert this later exactly like any other classification change.
+    // See docs/decisions/2026-08-06-fc-honors-owner-important.md.
+    if (staged.needsAppraisal) {
+      const session = await storage.getSession();
+      db.insert(classificationChanges)
+        .values({
+          sessionId: session.id,
+          itemId: item.id,
+          flagName: "needsAppraisal",
+          oldValue: false,
+          newValue: true,
+          changedByParticipantId: null,
+          changedAt: reviewedAt,
+          reason: "Imported from Reindeer Registry — the owner marked this item Important.",
+          phase: session.phase,
+          isRevert: false,
+          removedRankings: "[]",
+        })
+        .run();
+    }
+  }
+
+  // Registry-owner Important → appraisal_flags row with source='owner'.
+  // Fires on BOTH branches (new item + update). Owner-source rows are
+  // permanent (unflagAppraisal returns undefined for them), so the storage
+  // layer's idempotence guard makes a re-import a no-op when an active
+  // owner-source row is already present. This is what makes the trustee's
+  // queue, the RoD escalation section, and the captain review screen see
+  // the owner's Important mark as a real flag — up to now items.needsAppraisal
+  // was flipped but no appraisal_flags row existed, so those surfaces
+  // could not attribute the flag to the owner.
+  // See docs/decisions/2026-08-06-fc-honors-owner-important.md.
+  if (staged.needsAppraisal) {
+    const trimmedComment = staged.ownerImportantComment.trim();
+    const prefix = "The owner marked this Important in Registry";
+    let reason: string;
+    if (trimmedComment === "") {
+      reason = `${prefix}.`;
+    } else {
+      // Cap the whole reason at 500 characters so trustee UI/exports
+      // stay predictable. The prefix + ' — "' + '"' overhead is 47
+      // chars, leaving ~453 for the verbatim quote before an ellipsis.
+      const withComment = `${prefix} — "${trimmedComment}"`;
+      reason = withComment.length <= 500 ? withComment : `${withComment.slice(0, 499)}…`;
+    }
+    await storage.flagForAppraisal({
+      itemId: item.id,
+      source: "owner",
+      participantId: null,
+      reason,
+    });
   }
 
   // Copy staged_media -> item_media. On an update via a re-import, the same

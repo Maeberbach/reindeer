@@ -135,10 +135,10 @@ async function main() {
       value_estimate_cents: 4500,
       review_state: "kept",
       // The owner marked this Important in Registry (emotional value, not
-      // dollar value) and wrote a comment. FairPlay carries the Important
-      // flag through as metadata (ownerHighValue) but does NOT auto-trigger
-      // appraisal. Appraisal is decided by AI value estimation (>= 85% of
-      // the captain's threshold) or manual captain flag.
+      // dollar value) and wrote a comment. Fair Choice should honor the
+      // Important mark as an needsAppraisal promotion at approve time, with an
+      // audited classification-change row. The comment travels through as
+      // legacy content. See docs/decisions/2026-08-06-fc-honors-owner-important.md.
       owner_high_value: true,
       owner_important_comment: "Grandma made a hundred meals in this. Keep it in the family.",
     } as any,
@@ -318,16 +318,11 @@ async function main() {
     assert.equal(motor!.room, "Boat House");
   });
 
-  /* ---------- v13: owner's Registry Important is carried as metadata ---------- */
-  await check("the skillet arrives with ownerHighValue=true (owner marked it Important in Registry)", () => {
+  /* ---------- v13: owner's Registry Important promotes to needsAppraisal ---------- */
+  await check("the skillet arrives in Fair Choice already flagged high value (owner marked it Important in Registry)", () => {
     const s = db.select().from(items).where(eq(items.originItemId, skillet.item_id)).get();
     assert.ok(s, "skillet should be present in items after approveBatch");
-    assert.equal((s as any)?.ownerHighValue, true, "owner_high_value must carry through import as metadata");
-  });
-
-  await check("the skillet does NOT get needsAppraisal from the owner's Important flag alone", () => {
-    const s = db.select().from(items).where(eq(items.originItemId, skillet.item_id)).get();
-    assert.equal(s!.needsAppraisal, false, "owner_high_value must not auto-trigger appraisal");
+    assert.equal(s!.needsAppraisal, true, "owner_high_value in Registry must promote needsAppraisal on the FC side");
   });
 
   await check("the owner's Important comment travels through as ownerImportantComment on the FC item", () => {
@@ -339,7 +334,7 @@ async function main() {
     );
   });
 
-  await check("no classification-change row is written for the import (no auto-appraisal promotion)", () => {
+  await check("a classification-change row records the flip with null-participant attribution and a plain-English reason", () => {
     const s = db.select().from(items).where(eq(items.originItemId, skillet.item_id)).get();
     const changes = db
       .select()
@@ -349,14 +344,33 @@ async function main() {
     const importFlip = changes.find(
       (c) => c.flagName === "needsAppraisal" && c.newValue === true && c.oldValue === false,
     );
-    assert.equal(importFlip, undefined, "no auto-promotion should occur from owner_high_value alone");
+    assert.ok(importFlip, "expected a classificationChanges row for the import-time promotion");
+    assert.equal(importFlip!.changedByParticipantId, null, "owner is not a participant — attribution stays null");
+    assert.equal(
+      importFlip!.reason,
+      "Imported from My Legacy Registry — the owner marked this item Important.",
+      "the audit trail must say why the flag was set",
+    );
+    assert.equal(importFlip!.isRevert, false, "the import row is a normal set, not a revert");
   });
 
-  await check("no owner-source appraisal_flags row is created automatically", () => {
+  /* v15 commit 5: the same import also creates an owner-source appraisal_flags
+   * row so the trustee's queue, the RoD escalation section, and the captain
+   * review screen see the owner's Important mark as a real flag. Up to now the
+   * items.needsAppraisal bit was flipped but no appraisal_flags row existed,
+   * so those surfaces could not attribute the flag to the owner. */
+  await check("the skillet has an appraisal_flags row with source='owner' so the trustee queue sees it", () => {
     const s = db.select().from(items).where(eq(items.originItemId, skillet.item_id)).get();
     const flags = db.select().from(appraisalFlags).where(eq(appraisalFlags.itemId, s!.id)).all();
     const ownerFlags = flags.filter((f) => f.flaggedBySource === "owner" && f.revertedAt == null);
-    assert.equal(ownerFlags.length, 0, "owner_high_value must not auto-create an appraisal flag");
+    assert.equal(ownerFlags.length, 1, "expected exactly one active owner-source appraisal_flags row");
+  });
+
+  await check("the owner-source appraisal_flags row carries null participantId (the owner is not a participant)", () => {
+    const s = db.select().from(items).where(eq(items.originItemId, skillet.item_id)).get();
+    const flags = db.select().from(appraisalFlags).where(eq(appraisalFlags.itemId, s!.id)).all();
+    const ownerFlag = flags.find((f) => f.flaggedBySource === "owner");
+    assert.equal(ownerFlag!.flaggedByParticipantId, null, "owner-source rows must not be attributed to an heir");
   });
 
   await check("the owner-source appraisal_flags row's reason quotes the owner's comment verbatim", () => {

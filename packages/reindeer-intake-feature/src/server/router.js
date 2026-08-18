@@ -1,19 +1,9 @@
 import express from 'express';
 import {
-  ReindeerError, REVIEW_STATE, PHOTO_ROLE, makeScopeCtx,
+  LegacyError, REVIEW_STATE, PHOTO_ROLE, makeScopeCtx,
   MEDIA_KIND, MEDIA_ACCEPT, RECORDING_ROLE, mediaKindFor, DEFAULT_CATEGORIES,
-} from '@reindeer/core-api';
+} from '@reindeer-legacy/core-api';
 import { screenHighValue } from '../vision/index.js';
-import { titleSimilarity } from '../duplicates.js';
-
-/** Extract serial number from identifiers JSON — mirrors SimpleDuplicateDetector.#serialMatch. */
-function serialMatch(identifiersA, identifiersB) {
-  try {
-    const a = typeof identifiersA === 'string' ? JSON.parse(identifiersA || '{}') : (identifiersA || {});
-    const b = typeof identifiersB === 'string' ? JSON.parse(identifiersB || '{}') : (identifiersB || {});
-    return Boolean(a.serial && b.serial && String(a.serial).trim() === String(b.serial).trim());
-  } catch { return false; }
-}
 
 /**
  * Mountable intake router. Both app shells mount this at /api — the only
@@ -31,9 +21,8 @@ export function createIntakeRouter(deps) {
   // ---- registry -----------------------------------------------------------
   r.get('/registry', wrap(async (req, res) => {
     const ctx = ctxOf(req);
-    const siteId = req.query.site_id || null;
     res.json({
-      rooms: registry.rooms(ctx, siteId),
+      rooms: registry.rooms(ctx),
       categories: registry.categories(ctx),
       more_rooms: registry.moreRooms(ctx),
       more_categories: registry.moreCategories(ctx),
@@ -47,22 +36,9 @@ export function createIntakeRouter(deps) {
 
   r.post('/rooms', wrap(async (req, res) => {
     const ctx = ctxOf(req);
-    const siteId = req.body.site_id || null;
     // `is_custom: false` marks a room taken off the offered list rather than
     // invented, so it is not shown back to the owner as one of theirs.
-    res.json(registry.resolveRoom(req.body.name, ctx, { isCustom: req.body.is_custom !== false, siteId }));
-  }));
-
-  r.delete('/rooms/:roomId', wrap(async (req, res) => {
-    const ctx = ctxOf(req);
-    await registry.deleteRoom(req.params.roomId, ctx);
-    res.json({ ok: true });
-  }));
-
-  r.patch('/rooms/:roomId', wrap(async (req, res) => {
-    const ctx = ctxOf(req);
-    const room = await registry.renameRoom(req.params.roomId, req.body.name, ctx);
-    res.json(room);
+    res.json(registry.resolveRoom(req.body.name, ctx, { isCustom: req.body.is_custom !== false }));
   }));
 
   r.post('/categories', wrap(async (req, res) => {
@@ -76,8 +52,7 @@ export function createIntakeRouter(deps) {
   // The room, not the item, is the unit of work. These three routes are the
   // whole of it: where am I, this room is finished, I want back into that room.
   r.get('/walkthrough', wrap(async (req, res) => {
-    const siteId = req.query.site_id || null;
-    res.json(registry.walkthrough(ctxOf(req), siteId));
+    res.json(registry.walkthrough(ctxOf(req)));
   }));
 
   r.post('/rooms/:roomId/state', wrap(async (req, res) => {
@@ -88,8 +63,7 @@ export function createIntakeRouter(deps) {
     // Return the whole walk, not just the room: the client's next screen is
     // always "what is left", so this saves it a second round trip on a phone
     // that may be on one bar of signal.
-    const siteId = req.query.site_id || null;
-    res.json({ room, walkthrough: registry.walkthrough(ctx, siteId) });
+    res.json({ room, walkthrough: registry.walkthrough(ctx) });
   }));
 
   // ---- items --------------------------------------------------------------
@@ -106,6 +80,7 @@ export function createIntakeRouter(deps) {
       // computed high-value set should never inadvertently pick up items the
       // owner flagged but FairPlay's estimator did not agree with.
       owner_high_value_only: req.query.owner_high_value_only === 'true',
+      tentative_high_value_only: req.query.tentative_high_value_only === 'true',
       has_recipient: req.query.has_recipient === undefined ? undefined : req.query.has_recipient === 'true',
       recipient_name: req.query.recipient_name,
     };
@@ -115,13 +90,19 @@ export function createIntakeRouter(deps) {
   r.get('/items/:id', wrap(async (req, res) => {
     const ctx = ctxOf(req);
     const item = await itemRepo.get(req.params.id, ctx);
-    if (!item) throw new ReindeerError('That item was not found.', 'NOT_FOUND', 404);
+    if (!item) throw new LegacyError('That item was not found.', 'NOT_FOUND', 404);
     res.json(item);
   }));
 
   r.post('/items', wrap(async (req, res) => {
     const ctx = ctxOf(req);
     const body = { ...req.body };
+    // Helpers cannot designate items — strip any recipient hint from the
+    // request body. They CAN flag items as important (tentative), but
+    // assigning items to specific people is owner/co-owner only.
+    if (req.participant?.role === 'assistant' && body.recipient_hint) {
+      delete body.recipient_hint;
+    }
     if (body.room_name) body.room_id = registry.resolveRoom(body.room_name, ctx)?.room_id;
     if (body.category_name) body.category_id = registry.resolveCategory(body.category_name, ctx)?.category_id;
     // The registry documents; it does not value. high_value_flag stays false
@@ -162,6 +143,9 @@ export function createIntakeRouter(deps) {
   // ---- addendum-side assignment (Two-Output Delivery Model) ---------------
   // Assign or unassign an heir. Body: { heir_id: string | null }.
   r.patch('/items/:id/assign', wrap(async (req, res) => {
+    if (req.participant?.role === 'assistant') {
+      return res.status(403).json({ error: 'Helpers cannot assign items to people. Only the owner or co-owner can do that.' });
+    }
     const ctx = ctxOf(req);
     const heirId = req.body?.heir_id ?? null;
     res.json(await itemRepo.assignHeir(req.params.id, heirId, ctx));
@@ -206,10 +190,10 @@ export function createIntakeRouter(deps) {
     const mime = req.get('content-type') || 'audio/webm';
     const kind = mediaKindFor(mime);
     if (kind === MEDIA_KIND.PHOTO) {
-      throw new ReindeerError('That file is not a video or a voice recording.', 'BAD_MEDIA_KIND', 400);
+      throw new LegacyError('That file is not a video or a voice recording.', 'BAD_MEDIA_KIND', 400);
     }
     if (!MEDIA_ACCEPT[kind].includes(mime)) {
-      throw new ReindeerError(`This app cannot read ${mime} files yet. Try recording again in the app.`, 'UNSUPPORTED_MEDIA', 415);
+      throw new LegacyError(`This app cannot read ${mime} files yet. Try recording again in the app.`, 'UNSUPPORTED_MEDIA', 415);
     }
     const saved = await mediaStore.put(req.body, {
       item_id: req.params.id,
@@ -246,7 +230,7 @@ export function createIntakeRouter(deps) {
   }));
 
   r.post('/scope-media', express.raw({ type: '*/*', limit: '800mb' }), wrap(async (req, res) => {
-    if (!scopeMediaStore) throw new ReindeerError('This app does not store whole-inventory recordings.', 'NO_SCOPE_MEDIA', 501);
+    if (!scopeMediaStore) throw new LegacyError('This app does not store whole-inventory recordings.', 'NO_SCOPE_MEDIA', 501);
     const ctx = ctxOf(req);
     const mime = req.get('content-type') || 'video/mp4';
     const saved = await scopeMediaStore.put(req.body, {
@@ -288,7 +272,7 @@ export function createIntakeRouter(deps) {
       frame_index: img.frame_index ?? i,
       buffer: Buffer.from((img.data_url ?? img.data ?? '').split(',').pop() ?? '', 'base64'),
     }));
-    if (!images.length) throw new ReindeerError('No photos were received.', 'NO_IMAGES', 400);
+    if (!images.length) throw new LegacyError('No photos were received.', 'NO_IMAGES', 400);
     const detections = await vision.detectItems(images, { room_hint: req.body.room_hint });
     await audit.append({ action: 'intake.detect', entity: 'batch', entity_id: null, payload: { images: images.length, detections: detections.length } }, ctx);
     // Tell the client whether a real model looked at the photo. The mock is a
@@ -302,39 +286,36 @@ export function createIntakeRouter(deps) {
   r.post('/intake/commit', express.json({ limit: '60mb' }), wrap(async (req, res) => {
     const ctx = ctxOf(req);
     const created = [];
-    const skippedDuplicates = [];
-
-    // Fetch existing items in this scope for pre-commit duplicate checking.
-    // This prevents the same room photos from adding items that are already on
-    // the list — e.g. if the owner returns to a room for close-ups and the AI
-    // re-identifies something already recorded from the wide shot.
-    const existingItems = ctx.scopeId
-      ? itemRepo.list({}, ctx).map((it) => ({ item_id: it.item_id, title: it.title, room_id: it.room_id, identifiers: it.identifiers }))
-      : [];
-    const DUPLICATE_THRESHOLD = 0.72;
-
-    let detectionIdx = 0;
     for (const d of req.body.detections ?? []) {
-      // Pre-commit duplicate check: compare AI label against existing items
-      // in the same room (or same scope if no room). Skip if above threshold.
-      const roomId = d.room_hint ? registry.resolveRoom(d.room_hint, ctx)?.room_id : null;
-      const isDuplicate = existingItems.some((existing) => {
-        // Only check items in the same room, or items with no room assigned
-        if (roomId && existing.room_id && existing.room_id !== roomId) return false;
-        return titleSimilarity(d.label, existing.title) >= DUPLICATE_THRESHOLD
-          || serialMatch(d.identifiers, existing.identifiers);
-      });
-
-      if (isDuplicate) {
-        skippedDuplicates.push({ label: d.label, detection_index: detectionIdx, reason: 'duplicate' });
-        detectionIdx++;
-        continue;
+      // AI tentative flag evaluation (server-side, for batch room intake):
+      // Registry doesn't value items, but the vision model can still flag
+      // based on rarity (appraisal_suggested), maker marks, category, or
+      // low confidence. These queue for owner review, same as helper flags.
+      let aiTentative = false;
+      let aiTentativeReason = '';
+      if (d.appraisal_suggested) {
+        aiTentative = true;
+        aiTentativeReason = 'AI flagged: may warrant professional appraisal';
+      } else if (d.maker_identified) {
+        aiTentative = true;
+        aiTentativeReason = 'AI flagged: brand or maker mark visible';
+      } else {
+        const cat = (d.category_hint || '').toLowerCase();
+        const flaggedCats = ['jewelry', 'jewellery', 'art', 'painting', 'sculpture',
+          'antique', 'collectible', 'firearm', 'firearms', 'gun', 'coins', 'coin',
+          'silver', 'gold', 'watch', 'watches', 'instrument', 'rug', 'tapestry'];
+        if (flaggedCats.some((c) => cat.includes(c))) {
+          aiTentative = true;
+          aiTentativeReason = 'AI flagged: ' + cat + ' \u2014 worth a closer look';
+        } else if (d.confidence != null && d.confidence < 0.45) {
+          aiTentative = true;
+          aiTentativeReason = 'AI flagged: low confidence identification';
+        }
       }
-
       const item = await itemRepo.create({
         title: d.label,
         category_id: d.category_hint ? registry.resolveCategory(d.category_hint, ctx)?.category_id : null,
-        room_id: roomId,
+        room_id: d.room_hint ? registry.resolveRoom(d.room_hint, ctx)?.room_id : null,
         quantity: d.quantity ?? 1,
         identifiers: d.identifiers ?? {},
         // Bulk intake records what a thing IS, never what it is worth. An
@@ -349,6 +330,11 @@ export function createIntakeRouter(deps) {
         // "not flagged, no reason" and the owner can flip the flag from there.
         owner_high_value: false,
         owner_high_value_reason: '',
+        // AI-sourced tentative flag: queued for owner review during room
+        // completion. Not a permanent mark — the owner confirms or dismisses.
+        tentative_high_value: aiTentative,
+        tentative_high_value_source: aiTentative ? 'ai' : '',
+        tentative_high_value_reason: aiTentativeReason,
         // Bulk intake also never writes the owner's comment. A comment is a
         // deliberate authorial act; a walkthrough detection is not. The
         // owner opens the item and writes anything they want to write.
@@ -363,16 +349,14 @@ export function createIntakeRouter(deps) {
           source_frame_index: d.frame_index ?? null,
         }, ctx);
       }
-      created.push({ item_id: item.item_id, detection_index: detectionIdx });
-      // Add to existing list so subsequent detections in the same batch
-      // don't create duplicates of each other.
-      existingItems.push({ item_id: item.item_id, title: d.label, room_id: roomId, identifiers: d.identifiers ?? {} });
-      detectionIdx++;
+      created.push(item.item_id);
     }
-    // Count possible duplicates among what was actually committed.
-    const createdIds = created.map((c) => c.item_id);
-    const possibleDuplicates = createdIds.length ? await duplicates.previewBatch(createdIds, ctx) : 0;
-    res.status(201).json({ created, possible_duplicates: possibleDuplicates, skipped_duplicates: skippedDuplicates });
+    // Count possible duplicates, but record nothing. Saving must never hand the
+    // owner a mandatory review — the goal is to get things documented. The
+    // review is offered on request via /intake/duplicates/scan, and the
+    // captain can also do it later in Reindeer: FairPlay.
+    const possibleDuplicates = created.length ? await duplicates.previewBatch(created, ctx) : 0;
+    res.status(201).json({ created, possible_duplicates: possibleDuplicates });
   }));
 
   // ---- review + duplicates ------------------------------------------------
@@ -384,6 +368,34 @@ export function createIntakeRouter(deps) {
   r.post('/items/:id/reject', wrap(async (req, res) => {
     const ctx = ctxOf(req);
     res.json(await itemRepo.update(req.params.id, { review_state: REVIEW_STATE.REJECTED }, ctx));
+  }));
+
+  // ---- tentative high-value: owner review endpoints -----------------------
+  // Confirm: promote a tentative flag to a permanent owner_high_value.
+  // The helper's tentative reason becomes the owner_high_value_reason.
+  r.post('/items/:id/confirm-important', wrap(async (req, res) => {
+    const ctx = ctxOf(req);
+    const item = await itemRepo.get(req.params.id, ctx);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+    const reason = item.tentative_high_value_reason || '';
+    res.json(await itemRepo.update(req.params.id, {
+      owner_high_value: true,
+      owner_high_value_reason: reason,
+      tentative_high_value: false,
+      tentative_high_value_source: '',
+      tentative_high_value_reason: '',
+      review_state: REVIEW_STATE.KEPT,
+    }, ctx));
+  }));
+
+  // Dismiss: remove the tentative flag without promoting.
+  r.post('/items/:id/dismiss-important', wrap(async (req, res) => {
+    const ctx = ctxOf(req);
+    res.json(await itemRepo.update(req.params.id, {
+      tentative_high_value: false,
+      tentative_high_value_source: '',
+      tentative_high_value_reason: '',
+    }, ctx));
   }));
 
   r.get('/duplicates/scan', wrap(async (req, res) => {
@@ -411,7 +423,7 @@ export function createIntakeRouter(deps) {
 }
 
 /** Shared error handler so both apps return the same plain-language shape. */
-export function reindeerErrorHandler(err, _req, res, _next) {
+export function legacyErrorHandler(err, _req, res, _next) {
   const status = err.status ?? 500;
   if (status >= 500) console.error(err);
   // Only expose specific error details for client errors (4xx).

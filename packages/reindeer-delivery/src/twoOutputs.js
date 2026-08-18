@@ -7,8 +7,8 @@ import {
   writeInventoryBundle,
   writeAddendumBundle,
   saveTwoOutputsBundleToDisk,
-} from '@reindeer/exchange';
-import { ValidationError, NotFoundError } from '@reindeer/core-api';
+} from '@reindeer-legacy/exchange';
+import { ValidationError, NotFoundError } from '@reindeer-legacy/core-api';
 
 /**
  * The Two-Output Delivery Model service.
@@ -24,7 +24,7 @@ import { ValidationError, NotFoundError } from '@reindeer/core-api';
  *
  * The service reaches through the item repo for items and the heirs /
  * wills_caretakers repos for the recipient roster; it does NOT reach into
- * FC's trustees. The old `TrusteeRepository` continues to feed the
+ * FC's trustees. The old `TrusteeRepository` continues to feed the legacy
  * .reindeer delivery path.
  */
 export class TwoOutputsService {
@@ -268,10 +268,10 @@ export class TwoOutputsService {
       'and get the paper to whoever holds the will for it to have legal standing. If you would prefer a',
       'fully executed version for your records, please let ' + ownerNameLine + ' know.',
       '',
-      'The attached file is a machine-readable Reindeer Registry bundle. If you would like a human-readable',
+      'The attached file is a machine-readable Legacy Registry bundle. If you would like a human-readable',
       'PDF instead, ask ' + ownerNameLine + ' to print the memorandum from the app and send you the paper.',
       '',
-      'Sent from Reindeer Registry, a preparation tool. Reindeer Registry is not a legal or fiduciary service.',
+      'Sent from Legacy Registry, a preparation tool. Legacy Registry is not a legal or fiduciary service.',
     ].join('\n');
 
     const send = await this.mailer.send({

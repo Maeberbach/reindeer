@@ -25,10 +25,6 @@
 <main id="main">
 
   <!-- WELCOME -->
-  <!--
-    Welcome — merged from three former screens (welcome, whattoexpect, quietgift).
-    One page, one Begin button.
-  -->
   <section class="screen welcome" data-screen="welcome" hidden>
     <h2 class="bighead">Welcome to Reindeer Registry</h2>
     <p class="lede">A loving place to begin.</p>
@@ -42,12 +38,43 @@
       to your heart. Along the way, it becomes a tender portrait of the home
       you&rsquo;ve made.
     </p>
+    <button class="primary wide" data-go="whattoexpect">Continue</button>
+    <button class="ghost wide" id="quickTestBtn">📸 Quick start</button>
+
+    <!--
+      AI item detection is on by default for the web app. The server's
+      OPENAI_API_KEY environment variable powers vision — users never
+      see a key prompt. If the server key is missing, the app falls
+      back to manual naming (graceful degradation, not a user problem).
+    -->
+  </section>
+
+  <!--
+    Screen 2 — What to expect. Sets the scope so the owner doesn't try to
+    inventory the entire house. Most memorandums are small. Reassurance
+    that nothing moves forward until they're ready.
+  -->
+  <section class="screen" data-screen="whattoexpect" hidden>
+    <h2 class="bighead">This is something only you can give.</h2>
     <p class="lede">
       You don&rsquo;t need to account for everything. Most memorandums include
       fewer than thirty wishes. Begin with the pieces that tug at you first
       &mdash; the ones with a story, memory, or feeling you want someone to
       understand.
     </p>
+    <p class="lede">
+      Change your mind anytime. Nothing moves forward until you&rsquo;re ready.
+    </p>
+    <button class="primary wide" data-go="quietgift">Continue</button>
+  </section>
+
+  <!--
+    Screen 3 — The quiet gift. What this prevents. Introduces FairPlay
+    as the companion for everything else. Legal framing: the signed
+    memorandum governs, not the app.
+  -->
+  <section class="screen" data-screen="quietgift" hidden>
+    <h2 class="bighead">Its quiet gift is peace.</h2>
     <p class="lede">
       Family uncertainty often begins in small moments &mdash; a drawer opened
       later, an object no one recognizes, a memory someone wishes they could
@@ -60,10 +87,8 @@
     </p>
     <p class="disclaimer">
       Reindeer Registry isn&rsquo;t the legal instrument itself; your signed
-      memorandum is what governs. Change your mind anytime. Nothing moves
-      forward until you&rsquo;re ready.
+      memorandum is what governs.
     </p>
-    <button class="ghost wide" data-go="howto">How to use this app</button>
     <button class="primary wide" data-go="guidedpartner">Begin</button>
   </section>
 
@@ -105,7 +130,7 @@
         <span class="hint">A friend or family member to help with photos and writing.</span>
       </button>
     </div>
-    <button class="ghost wide" id="guidedSkipPartner" data-go="home">I'll do this on my own</button>
+    <button class="ghost wide" id="guidedSkipPartner" data-go="guidedphoto">I'll do this on my own</button>
     <p class="reassure">You can add someone any time from the home screen.</p>
   </section>
 
@@ -127,8 +152,8 @@
     <h2 class="bighead">Now tell its story.</h2>
     <p class="lede">
       Who gave it to you? Where did it come from? Why does it matter?
-      Even one sentence is enough, or use your voice to add detail &mdash; this
-      is the part that means the most to the people who come after you.
+      Even one sentence is enough &mdash; this is the part that means the
+      most to the people who come after you.
     </p>
     <p class="lede">
       If you skipped the photo, that's fine. You can capture items and
@@ -164,83 +189,6 @@
     </p>
     <button class="primary wide" id="recipientStartBtn">Start with one item</button>
   </section>
-  <!--
-    Helper welcome — shown when a helper (assistant role) arrives via invite link.
-    They don't see owner options like "add a co-owner" or "add a helper".
-    They go straight to capturing items.
-  -->
-  <section class="screen welcome" data-screen="helperwelcome" hidden>
-    <h2 class="bighead">Welcome.</h2>
-    <p class="lede">
-      You have been invited to help with an estate inventory.
-    </p>
-    <p class="lede">
-      You can take photos of items, name them, and write down their
-      stories. The owner will review everything you add.
-    </p>
-    <p class="lede">
-      Let&rsquo;s start with one item for practice &mdash; something close by
-      that matters. You&rsquo;ll take a photo, name it, and tell its story.
-      After that, we&rsquo;ll move to the rooms.
-    </p>
-    <button class="primary wide" id="helperStartBtn">Start with one item</button>
-    <button class="ghost wide" data-go="howto">How to use this app</button>
-  </section>
-
-  <!--
-    How to use the app — visible to everyone, revisit any time.
-  -->
-  <section class="screen welcome" data-screen="howto" hidden>
-    <h2 class="bighead">How to use Reindeer Registry</h2>
-    <p class="lede">
-      This app helps you create a personal property memorandum &mdash;
-      a loving record of who should receive the belongings closest to
-      your heart.
-    </p>
-    <p class="lede">
-      <strong>Photograph items.</strong> Point the camera at an item and
-      take a close-up so details are clearly visible. The app will try to
-      identify it for you &mdash; accept the name or type your own.
-    </p>
-    <p class="lede">
-      <strong>Photograph rooms.</strong> For each room, take a few wider
-      shots from different angles. These give a sense of the whole space
-      and help your family recognize where things belong. The app will
-      automatically identify items it sees and add them to your list.
-    </p>
-    <p class="lede">
-      <strong>Name who gets it.</strong> Choose someone from your people
-      list, or add a new name. That&rsquo;s a wish &mdash; the app records it.
-    </p>
-    <p class="lede">
-      <strong>Tell its story.</strong> Write a sentence or two about why
-      the item matters, or use your voice to add detail. This is the part that
-      means the most to the people who come after you.
-    </p>
-    <p class="lede">
-      <strong>Work room by room.</strong> Use &ldquo;The rooms in your
-      house&rdquo; to go through one room at a time. The app automatically
-      identifies items in each photo and adds them to your list. It keeps
-      track of where you left off.
-    </p>
-    <p class="lede">
-      <strong>Mark important items.</strong> When something is important,
-      mark it. The app will ask for a close-up photo so the details are
-      captured clearly.
-    </p>
-    <p class="lede">
-      <strong>Sign and deliver.</strong> When you&rsquo;re ready, sign your
-      memorandum and send it to your trustee or to Reindeer: FairPlay.
-      Nothing moves forward until you are ready.
-    </p>
-    <p class="disclaimer">
-      Nothing here is a will. It records your wishes so your family is not
-      guessing. Change your mind anytime.
-    </p>
-    <button class="primary wide" data-go="home">Got it</button>
-  </section>
-
-
 
   <!--
     "Who's doing this?" — onboarding fork. Appears after the welcome intro
@@ -325,15 +273,14 @@
     -->
     <div class="pivot" id="promisePivot" hidden>
       <p class="pivot-line">Those are the ones you knew.</p>
-      <p class="pivot-rest" id="promisePivotRest">The rooms in your house, your family will have to
+      <p class="pivot-rest" id="promisePivotRest">Everything else in the house, your family will have to
         work out between themselves. Writing those down is what stops that becoming an argument.</p>
       <button class="primary wide" id="promiseOnward">Show me what's left to write down</button>
     </div>
   </section>
 
   <section class="screen" data-screen="home" hidden>
-    <h2 class="bighead">Welcome to Reindeer Registry</h2>
-    <p class="lede">A loving place to begin naming who should receive the belongings closest to your heart. Photograph what matters, write down who it's for, and hand it on.</p>
+    <h2 class="bighead">Photograph the things that matter. Write down who they are for. Print it, and hand it on.</h2>
     <!--
       Co-owner invitation card — at the top so it's the first thing
       a solo owner sees. Shown ONLY when household_mode === 'solo'.
@@ -349,32 +296,37 @@
     <p class="partner-linked" id="homePartnerLinked" hidden>Linked with <span id="homePartnerName"></span>.</p>
 
     <!--
-      "Add my people" tile — sits under the co-owner card.
-      Lets the owner build their people roster early to save typing later.
+      Two counts, never one bar.
+
+      A progress bar needs a denominator and an estate does not have one — the
+      app can never know how many things are in a house, so any percentage it
+      showed would be a lie, and a lie that either flatters or frightens. Two
+      honest numbers instead: the warm one grows as wishes are recorded, the
+      neutral one states what is still not assigned. Neither can ever be
+      "finished", and neither shames anyone.
     -->
-    <button class="partner-card" data-go="people">
-      <span class="ico">👤</span>
-      <span class="txt">
-        <span class="lbl">Add my people.</span>
-        <span class="hint">This can be done now or as you go, it just may save more typing later.</span>
-      </span>
-    </button>
+    <div class="counters" id="homeCounters" hidden>
+      <div class="counter spoken">
+        <span class="cnum" id="cntSpoken">0</span>
+        <span class="clbl">Assigned to a person</span>
+      </div>
+      <div class="counter open">
+        <span class="cnum" id="cntOpen">0</span>
+        <span class="clbl">written down, nobody named</span>
+      </div>
+      <p class="counter-note" id="counterNote" hidden></p>
+    </div>
 
     <!--
-      "Photograph your first item" — quick-start tile under Add my people.
-      Opens the capture flow so a new owner can start immediately.
+      Step 5 — memorandum conflict counter on Home.
+      Shown only when the two partners have unresolved conflicts.
+      Gold to match the writer's conflict banner. Tapping it opens
+      the memorandum writer where the conflicts can be resolved.
     -->
-    <button class="partner-card" id="homeQuickStart">
-      <span class="ico">📸</span>
-      <span class="txt">
-        <span class="lbl">Add your first item</span>
-        <span class="hint">Point the camera at something with a story. We'll write it down together.</span>
-      </span>
+    <button class="counter conflict-counter" id="homeConflictCounter" data-go="memo" hidden>
+      <span class="cnum" id="cntConflict">0</span>
+      <span class="clbl">things to sort out with your partner</span>
     </button>
-
-    <!--
-      Counters and conflict counter moved to the bottom of the home page.
-    -->
 
     <!--
       Where you left off.
@@ -397,10 +349,33 @@
     <div class="queuebadge" id="queueBadge" hidden></div>
 
     <!--
+      Quick start — take a photo.
+
+      The most immediate action. For a new owner who just finished the
+      welcome flow and wants to capture something right now, this is the
+      fastest path: point the camera, name it, save. No rooms, no
+      categories, no preamble. The welcome screen has the same shortcut;
+      this is its permanent home for returning users.
+    -->
+    <div class="suggest-first">
+      <button class="tile primary" id="homeQuickStart">
+        <span class="ico">📸</span>
+        <span class="txt">
+          <span class="lbl">Take a photo to get started</span>
+          <span class="hint">Point the camera at something that matters. Name it, say who it's for, and it's written down.</span>
+        </span>
+      </button>
+    </div>
+
+    <!--
       Two doors and two endings, in order.
 
-      2. Items already designated to a specific person — the only part nobody else can do.
-      3. The rooms in your house — the second door.
+      1. Quick start (above) — the fastest way in.
+      2. Things meant for someone — the only part nobody else can do.
+      3. Everything else in the house — the second door.
+      4. Jewelry and small valuables — a strong recommendation, do this
+         yourself in private. Placed after the two doors so it does not
+         jump the queue, but before the secondary tiles so it stands out.
       5. Things families fight over — secondary, organised by category.
       6. Holiday reminders — secondary, time-based nudges.
       7. Specific gifts by name — the memorandum writer.
@@ -413,86 +388,25 @@
       owner to work out which one they want before they can start.
     -->
     <div class="tiles">
-      <button class="tile primary" data-go="memo"><span class="ico">💝</span><span class="lbl">Items already designated to a specific person</span><span class="hint">Name who gets what — take a photo or pick from your list.</span></button>
-      <button class="tile" data-go="walk"><span class="ico">🏠</span><span class="lbl">The rooms in your house</span><span class="hint">One room at a time. Point the camera, and it writes down what it sees and adds the items it finds to your list</span></button>
-      <button class="tile" data-go="contested"><span class="ico">🤝</span><span class="lbl">Possessions with high emotional connections that can cause conflict</span><span class="hint">The kinds of things that cause the most trouble. Get ahead of them one category at a time.</span></button>
-      <button class="tile" data-go="reminders"><span class="ico">📅</span><span class="lbl">Holiday reminders</span><span class="hint">Get a nudge before holidays to capture things while family is together.</span></button>
-    </div>
-
-    <!--
-      Other sites — second home, vacation property, storage unit.
-      Each site branches to its own set of rooms. The primary "Home"
-      site is the default and doesn't show as a separate tile unless
-      additional sites exist.
-    -->
-    <div class="sites-section" id="homeSitesSection" hidden>
-      <h3 class="sites-heading">Your places</h3>
-      <div class="tiles" id="homeSitesTiles"></div>
-      <button class="partner-card" id="homeAddSite">
-        <span class="ico">📍</span>
+      <button class="tile primary" data-go="promise"><span class="ico">💝</span><span class="lbl">Things meant for someone</span><span class="hint">Add items and people you have already decided.</span></button>
+      <button class="tile" data-go="walk"><span class="ico">🏠</span><span class="lbl">Everything else in the house</span><span class="hint">One room at a time. Point the camera, and it writes down what it sees</span></button>
+      <button class="tile" data-go="contested">
+        <span class="ico">💍</span>
         <span class="txt">
-          <span class="lbl">Add another site</span>
-          <span class="hint">A second home, vacation property, or storage unit — each with its own rooms.</span>
+          <span class="lbl">Jewelry and small valuables — do this yourself, in private</span>
+          <span class="hint">These are the things that go missing first and cause the most trouble later. Do this one yourself, in private — don't delegate it.</span>
         </span>
       </button>
-      <div class="site-add-form" id="homeAddSiteForm" hidden>
-        <input type="text" id="homeSiteName" class="bigin" placeholder="Name this place (e.g. Lake House, Storage Unit)">
-        <select id="homeSiteKind" class="bigin">
-          <option value="second_home">Second home</option>
-          <option value="vacation">Vacation home</option>
-          <option value="storage">Storage unit</option>
-          <option value="other">Other location</option>
-        </select>
-        <label class="fieldlabel" for="homeSiteAddress">Address (optional)</label>
-        <input type="text" id="homeSiteAddress" class="bigin" placeholder="123 Main St, City, State — or leave blank to use GPS">
-        <button class="ghost wide" id="homeSiteGpsBtn">📍 Use my current location (GPS)</button>
-        <span id="homeSiteGpsResult" class="reassure" hidden></span>
-        <button class="primary" id="homeSiteSaveBtn">Add this site</button>
-      </div>
+      <button class="tile" data-go="contested"><span class="ico">🤝</span><span class="lbl">Things families find hardest to divide</span><span class="hint">The kinds of things that cause the most trouble. Get ahead of them one category at a time.</span></button>
+      <button class="tile" data-go="reminders"><span class="ico">📅</span><span class="lbl">Holiday reminders</span><span class="hint">Get a nudge before holidays to capture things while family is together.</span></button>
+      <button class="tile" data-go="memo"><span class="ico">🎁</span><span class="lbl">Specific gifts by name</span><span class="hint" id="giftsTileHint">Say who a particular thing is for. Friends and charities count too, not only family</span></button>
+      <button class="tile" data-go="signing"><span class="ico">✍️</span><span class="lbl">Sign it and give it to your trustee</span><span class="hint">Print it, sign it by hand, photograph the signed page</span></button>
+      <button class="tile" data-go="handoff"><span class="ico">✅</span><span class="lbl">Send it to FairPlay</span><span class="hint">Or email it, print it, or save a copy</span></button>
     </div>
 
-    <!--
-      Counters — moved to the bottom. Two honest numbers: assigned and unassigned.
-    -->
-    <div class="counters" id="homeCounters" hidden>
-      <div class="counter spoken">
-        <span class="cnum" id="cntSpoken">0</span>
-        <span class="clbl">Assigned to a person</span>
-      </div>
-      <div class="counter open">
-        <span class="cnum" id="cntOpen">0</span>
-        <span class="clbl">written down, nobody named</span>
-      </div>
-      <p class="counter-note" id="counterNote" hidden></p>
-    </div>
-
-    <!--
-      Conflict counter — shown only when partners have unresolved conflicts.
-    -->
-    <button class="counter conflict-counter" id="homeConflictCounter" data-go="memo" hidden>
-      <span class="cnum" id="cntConflict">0</span>
-      <span class="clbl">things to sort out with your partner</span>
-    </button>
-
-    <!--
-      Sign and Send — the two endings. Moved to the bottom of the home page
-      because they are concluding actions, not starting points.
-    -->
-    <div class="tiles">
-      <button class="tile" id="homePrintTile"><span class="ico">🖨️</span><span class="lbl">Print your list</span><span class="hint">Opens a printable list, organized by room — for review or sharing</span></button>
-      <button class="tile" data-go="handoff"><span class="ico">✅</span><span class="lbl">Send it to FairPlay or Discovery</span><span class="hint">Or email it, print it, or save a copy</span></button>
-      <button class="tile" data-go="admin" id="adminTile" hidden><span class="ico">🔑</span><span class="lbl">Estate license keys</span><span class="hint">Generate a key for your trustee or attorney</span></button>
-    </div>
-
-    <p class="reassure">Nothing here is a will. It records your wishes so your family is not guessing.</p>
-    <button class="linky" data-go="welcome">Why am I doing this?</button>
-
-    <!--
-      Quiet row — moved to the very bottom. These are secondary links
-      that don't need prime placement on the home screen.
-    -->
     <div class="quietrow">
       <button class="linky" data-go="list">My items</button>
+      <button class="linky" data-go="people">My people</button>
       <button class="linky" data-go="print">Print</button>
       <!--
         Slice 4a — quiet-row entry for household-link. Kept out of the main
@@ -500,9 +414,11 @@
         top should not multiply. The link row is here for households of two.
       -->
       <button class="linky" data-go="householdlink">Add a co-owner or helper</button>
-          <button class="linky" data-go="howto">How to use this app</button>
-</div>
+    </div>
+    <p class="reassure">Nothing here is a will. It records your wishes so your family is not guessing.</p>
+    <button class="linky" data-go="welcome">Why am I doing this?</button>
   </section>
+\n
   <!--
     WALKTHROUGH — the room list.
 
@@ -529,20 +445,13 @@
     reads reminder_prefs and dispatches the emails on the right days.
   -->
   <section class="screen" data-screen="contested" hidden>
-    <h2>Things families fight over</h2>
-    <p class="lede">These carry the most emotional weight. Pick a category and get ahead of it one item at a time.</p>
-    <p class="reassure">Nothing here is a will — you are just writing down what you would like to happen. Try to do small and precious items in private. They tend to go missing.</p>
+    <h2>Things families find hardest to divide</h2>
+    <p class="lede">These carry the most emotional weight. Pick a category and get ahead of it one item at a time. Nothing here is a will — you are just writing down what you would like to happen.</p>
     <div id="contestedCards" class="contested-cards"></div>
-
-    <div class="contested-special">
-      <h3>Special collections</h3>
-      <p class="why">A curated set — coins, stamps, records, trading cards, anything you have built up over the years. These matter to the people who love them.</p>
-      <button class="primary wide" id="specialCollectionsBtn">Add special collection items</button>
-    </div>
-
     <div class="contested-done">
-      <p class="reassure">Done with the hard categories?</p>
-      <button class="primary wide" data-go="walk">Walk through the rest of the house</button>
+      <p class="reassure">Done with the hard categories? Now walk through the rest of the house.</p>
+      <button class="primary wide" data-go="walk">Start the room walkthrough</button>
+      <p class="reassure" style="margin-top:8px">One room at a time. Point the camera, and it writes down what it sees.</p>
     </div>
   </section>
 
@@ -562,11 +471,7 @@
   </section>
 
   <section class="screen" data-screen="walk" hidden>
-    <div class="walk-site-bar" id="walkSiteBar" hidden>
-      <button class="ghost walk-site-back" id="walkSiteBack">&larr; All places</button>
-      <span class="walk-site-name" id="walkSiteName"></span>
-    </div>
-    <p class="lede">Take one room at a time. There is no hurry, and you can stop whenever you like. The app will automatically add items it finds and will add them to your list. This is a pretty comprehensive list &mdash; just delete the extras.</p>
+    <p class="lede">Take one room at a time. There is no hurry, and you can stop whenever you like.</p>
 
     <div class="walkprogress" id="walkProgress" hidden>
       <div class="walkbar"><div class="walkbar-fill" id="walkBarFill"></div></div>
@@ -591,11 +496,7 @@
     <div id="walkDone" class="alldone" hidden>
       <p class="alldone-title">Every room is finished.</p>
       <p>You have been through the whole house. You can still go back into any room and add more.</p>
-      <div class="tiles alldone-tiles">
-        <button class="tile" data-go="signing"><span class="ico">✍️</span><span class="lbl">Sign it and give it to your trustee</span><span class="hint">Print it, sign it by hand, photograph the signed page</span></button>
-        <button class="tile" id="homePrintTile"><span class="ico">🖨️</span><span class="lbl">Print your list</span><span class="hint">Opens a printable list, organized by room — for review or sharing</span></button>
-      <button class="tile" data-go="handoff"><span class="ico">✅</span><span class="lbl">Send it to FairPlay or Discovery</span><span class="hint">Or email it, print it, or save a copy</span></button>
-      </div>
+      <button class="primary wide" data-go="handoff">See what to do next</button>
     </div>
   </section>
 
@@ -610,45 +511,42 @@
   -->
   <section class="screen" data-screen="room" hidden>
     <p class="roomname" id="roomTitle"></p>
-    <p class="lede" id="roomLede">Take wide photos of the room, then come back with close-ups if you like. AI identifies what it sees and skips duplicates.</p>
+    <p class="lede" id="roomLede">Walk slowly around the room with the camera. Getting it recorded is what matters.</p>
 
     <div class="roomstats" id="roomStats"></div>
 
     <div class="roomactions">
       <label class="tile primary filetile">
         <span class="ico">📷</span>
-        <span class="lbl">Take wide photos of the room</span>
-        <span class="hint">Several pictures from different angles. AI identifies what it sees.</span>
+        <span class="lbl">Take photos of this room</span>
+        <span class="hint">Several pictures. This works on every phone, tablet and computer.</span>
         <input type="file" id="roomPhotos" accept="image/*" multiple hidden>
       </label>
 
-      <!--
-        Video recording tile — hidden for now, kept coded for future use.
-        The roomVideo input and its JS handler (app.js $('#roomVideo').onchange)
-        remain wired; just not shown to users yet.
-      -->
-      <label class="tile filetile" data-video-tile hidden>
+      <label class="tile filetile">
         <span class="ico">🎥</span>
         <span class="lbl">Record a video instead</span>
         <span class="hint">Walk around slowly. Hold on anything important for a moment.</span>
         <input type="file" id="roomVideo" accept="video/*" capture="environment" hidden>
       </label>
 
-      <button class="tile" id="roomOneItem"><span class="ico">🔍</span><span class="lbl">Add a close-up</span><span class="hint">Focus on one thing — AI names it, you add the story</span></button>
+      <button class="tile" id="roomOneItem"><span class="ico">💎</span><span class="lbl">Add one thing carefully</span><span class="hint">For something you want named, with a story or a person</span></button>
     </div>
 
     <div id="roomCaptured" class="captured" hidden></div>
-
-    <div id="roomNextAsk" class="ask" hidden>
-      <p class="askq">What would you like to do next?</p>
-      <button class="primary wide" id="roomNextAssign">Add specific items you know are assigned to someone</button>
-      <button class="ghost wide" id="roomNextRoom">Go to the next room</button>
-    </div>
 
     <div class="roomfinish">
       <button class="primary wide" id="roomDoneBtn">This room is finished</button>
       <button class="ghost wide" id="roomSkipBtn">Nothing here to record</button>
       <button class="linky" id="roomPauseBtn">Stop for now</button>
+    </div>
+
+    <!-- Owner review: items flagged by helpers or AI in this room -->
+    <div id="roomReviewPanel" class="roomreview" hidden>
+      <h3>Review flagged items</h3>
+      <p class="reassure">Some items in this room were flagged for your attention — by a helper or by automatic recognition. Take a look before finishing the room.</p>
+      <div id="roomReviewList"></div>
+      <button class="primary wide" id="roomReviewDone">Finish this room</button>
     </div>
   </section>
 
@@ -682,187 +580,192 @@
 
   <!-- GUIDED CAPTURE -->
   <section class="screen" data-screen="capture" hidden>
-    <h2>Add an item</h2>
-    <p class="cap-site-breadcrumb" id="capSiteBreadcrumb" hidden></p>
+    <div class="steps" id="stepDots"></div>
+    <!-- Helper banner: shown only when myRole === 'assistant'. Explains
+         that they can capture and flag for review, but cannot assign items. -->
+    <p class="reassure" id="helperBanner" hidden style="background:#f5f0e8;padding:10px 14px;border-radius:8px;margin:8px 0;font-size:14px">
+      You're helping by capturing items. Flag anything important and the owner will review it. You can't designate items to specific people — that's for the owner.
+    </p>
 
-    <!-- Photo area — camera button, then preview -->
-    <div id="capPhotoArea">
-      <label class="bigfile" id="capPhotoLabel">
+    <div class="step" data-stepname="Photo" data-step="0">
+      <h2>Take a photo of the item</h2>
+      <label class="bigfile">
         <input type="file" accept="image/*" capture="environment" id="capPhoto">
         <span>Open camera</span>
       </label>
       <img id="capPreview" class="preview" hidden alt="">
-      <button class="ghost wide" id="capRetake" hidden>Take it again</button>
-      <p class="reassure" id="capPhotoHint">Hold the item so it fills most of the picture.</p>
+      <p class="reassure">Hold the item so it fills most of the picture.</p>
     </div>
 
-    <!-- All details below the photo, on one page -->
-    <div id="capDetails" hidden>
+    <div class="step" data-stepname="Name" data-step="1" hidden>
+      <h2>What is it?</h2>
       <p class="aiNote" id="aiNote" hidden></p>
-
-      <!-- Name -->
-      <label class="fieldlabel" for="capTitle">Name (optional)</label>
-      <input type="text" id="capTitle" class="bigin" placeholder="The photo is the record — name it if you like">
-      <p class="reassure">Skip this and name it later. The photo is what matters.</p>
-
-      <!-- Who would you like to have it? -->
-      <div class="cap-section">
-        <label class="fieldlabel">Who would you like to have it?</label>
-        <div class="chips" id="personChips"></div>
-        <input type="text" id="capRecipient" class="bigin" placeholder="A name — or leave this blank">
-        <input type="text" id="capRelationship" class="bigin" placeholder="Relationship, for example: daughter">
-        <p class="note" id="newPersonNote" hidden></p>
-        <textarea id="capOwnerNote" class="bigin" rows="2" placeholder="Anything you want them to know"></textarea>
-        <div class="important-block" id="capGiftBlock" hidden>
-          <label class="important-check">
-            <input type="checkbox" id="capMakeGift" checked>
-            <span class="important-lbl">Add this to my special gifts</span>
-          </label>
-          <p class="important-hint">Puts <span id="capGiftWho">this person</span> and this item on your list of special gifting. You can change it later.</p>
-        </div>
-        <p class="reassure">This is a wish, not a legal instruction. You can change it any time.</p>
-      </div>
-
-      <!-- Room -->
-      <div class="cap-section">
-        <label class="fieldlabel">Where is it kept?</label>
-        <div class="chips" id="roomChips"></div>
-        <input type="text" id="capRoomOther" class="bigin" placeholder="Somewhere else — type it here" hidden>
-        <div class="room-more" id="roomMoreWrap" hidden>
-          <label class="room-more-lbl" for="roomMore">Somewhere not listed?</label>
-          <select id="roomMore" class="bigin">
-            <option value="">Add another room…</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Geosyncing: site detection -->
-      <div class="cap-section" id="capSiteSection" hidden>
-        <label class="fieldlabel">Site</label>
-        <div id="capSiteDisplay" class="site-display"></div>
-        <select id="capSiteSelect" class="bigin" hidden></select>
-      </div>
-
-      <!-- Offsite / wrong-location warning -->
-      <div class="offsite-warning" id="capOffsiteWarning" hidden>
-        <p><strong>⚠ Location notice.</strong></p>
-        <p class="offsite-detail offsite-msg">Items can be added from a storage unit, second home, or vacation site — but only if that site is registered first. This prevents confusion when items from different locations are mixed together.</p>
-        <div class="offsite-actions">
-          <button class="ghost wide" id="capAddSiteBtn">Register this location as a new site</button>
-          <button class="ghost wide" id="capSkipGeoBtn">Add anyway from an unknown location</button>
-        </div>
-        <div class="offsite-add-form" id="capAddSiteForm" hidden>
-          <input type="text" id="capSiteName" class="bigin" placeholder="Name this site (e.g. Storage unit, Lake house)">
-          <select id="capSiteKind" class="bigin">
-            <option value="storage">Storage unit</option>
-            <option value="second_home">Second home</option>
-            <option value="vacation">Vacation home</option>
-            <option value="other">Other location</option>
-          </select>
-          <button class="primary" id="capSiteSaveBtn">Register site</button>
-        </div>
-      </div>
-
-      <!-- Story -->
-      <div class="cap-section">
-        <label class="fieldlabel" for="capStory">Tell its story (optional)</label>
-        <textarea id="capStory" class="bigin" rows="4" placeholder="Where it came from, who it belonged to, why it matters"></textarea>
-        <button class="ghost wide" data-mic="capStory">🎤 Or use your voice to add detail</button>
-      </div>
-
-      <!-- Important toggle -->
-      <div class="cap-section">
-        <div class="important-block">
-          <label class="important-check">
-            <input type="checkbox" id="capImportant">
-            <span class="important-lbl">This one is important</span>
-          </label>
-          <p class="important-hint">It matters, for whatever reason.</p>
-          <div class="chips important-chips" id="capImportantChips" hidden>
-            <button type="button" class="chip" data-reason="feeling" aria-pressed="false">It means a lot</button>
-            <button type="button" class="chip" data-reason="money" aria-pressed="false">It is worth money</button>
-          </div>
-        </div>
-
-        <!-- Close-up photo — shows when important is checked -->
-        <div class="closeup-block" id="capCloseupBlock" hidden>
-          <label class="fieldlabel">A close-up photo</label>
-          <p class="important-hint">Get close so this exact item is unmistakable. You can skip this and add it later.</p>
-          <label class="bigfile" id="capCloseupLabel">
-            <input type="file" accept="image/*" capture="environment" id="capCloseupPhoto">
-            <span>Take a close-up</span>
-          </label>
-          <img id="capCloseupPreview" class="preview" hidden alt="">
-          <button class="ghost wide" id="capCloseupRetake" hidden>Take it again</button>
-        </div>
-
-        <!-- Voice memo — shows when important is checked -->
-        <div class="voice-memo-block" id="capVoiceBlock" hidden>
-          <label class="fieldlabel">Say a few words (optional)</label>
-          <p class="important-hint">Why does this one matter? Your voice is worth more than the words. Never required.</p>
-          <button class="ghost wide" id="capVoiceRecord">🎙 Record a voice memo</button>
-          <audio id="capVoicePlayer" controls hidden></audio>
-          <button class="ghost wide" id="capVoiceRedo" hidden>Record it again</button>
-        </div>
-      </div>
-
-      <!-- More details collapsible -->
-      <details class="cap-more-details">
-        <summary>Add more details (maker, marks, value, kind)</summary>
-        <div class="cap-section">
-          <label class="fieldlabel" for="capMaker">Maker, artist, or brand</label>
-          <input type="text" id="capMaker" class="bigin" placeholder="A name — or leave this blank">
-          <button class="ghost wide" data-mic="capMaker">🎤 Speak instead of typing</button>
-
-          <label class="fieldlabel" for="capMarks">Any signature, stamp, or numbers on it</label>
-          <textarea id="capMarks" class="bigin" rows="2" placeholder="For example: signed on the back, or a number stamped underneath"></textarea>
-          <button class="ghost wide" data-mic="capMarks">🎤 Speak instead of typing</button>
-        </div>
-        <div class="cap-section">
-          <label class="fieldlabel" for="capValue">Your best idea of the value</label>
-          <div class="moneyrow">
-            <span class="moneysign">$</span>
-            <input type="text" inputmode="decimal" id="capValue" class="bigin" placeholder="Leave blank if you don't know">
-          </div>
-          <button class="ghost wide" data-mic="capValue">🎤 Say the amount instead</button>
-          <label class="fieldlabel" for="capValueBasis">How do you know?</label>
-          <select id="capValueBasis" class="bigin">
-            <option value="unknown">I'm not sure — this is a guess</option>
-            <option value="owner_estimate">My own estimate</option>
-            <option value="appraisal">A written appraisal</option>
-            <option value="receipt">A receipt or purchase record</option>
-            <option value="comparable_sale">I saw a similar one sell</option>
-            <option value="insurance">It is listed on my insurance</option>
-          </select>
-        </div>
-        <div class="cap-section">
-          <label class="fieldlabel">What kind of thing is it?</label>
-          <p class="step-lede" style="font-size:0.85rem">Choose one only if there is a particular person you want to have this item. If there is nobody particular in mind, choose <strong>Everything else</strong>.</p>
-          <div class="chips" id="catChips"></div>
-          <div class="room-more" id="catMoreWrap" hidden>
-            <label class="room-more-lbl" for="catMore">Something more specific?</label>
-            <select id="catMore" class="bigin">
-              <option value="">Add another kind…</option>
-            </select>
-          </div>
-        </div>
-      </details>
+      <input type="text" id="capTitle" class="bigin" placeholder="For example: Grandpa's pocket watch">
+      <p class="reassure">You can change this later.</p>
     </div>
 
-    <!-- Cancel and Save -->
-    <div class="navrow" id="capNav" hidden>
-      <button class="ghost" id="stepBack">Cancel</button>
-      <button class="primary" id="stepNext">Save item</button>
-      <button class="primary" id="stepNextAnother" hidden>Save & take another</button>
+    <div class="step" data-stepname="Maker" data-step="2" hidden>
+      <h2>Who made it?</h2>
+      <label class="fieldlabel" for="capMaker">Maker, artist, or brand</label>
+      <input type="text" id="capMaker" class="bigin" placeholder="A name — or leave this blank">
+      <button class="ghost wide" data-mic="capMaker">🎤 Speak instead of typing</button>
+
+      <label class="fieldlabel" for="capMarks">Any signature, stamp, or numbers on it</label>
+      <textarea id="capMarks" class="bigin" rows="2" placeholder="For example: signed on the back, or a number stamped underneath"></textarea>
+      <button class="ghost wide" data-mic="capMarks">🎤 Speak instead of typing</button>
+
+      <p class="reassure">If a piece is signed, this is often the single most valuable thing to write down. Look on the back, the underside, and the edges.</p>
     </div>
 
-    <!-- After saving: take another or finish -->
-    <div class="navrow" id="capAnother" hidden>
-      <button class="ghost" id="capAnotherDone">All done</button>
-      <button class="primary" id="capAnotherTake">Take another photo</button>
+    <div class="step" data-stepname="Story" data-step="3" hidden>
+      <h2>Tell its story</h2>
+      <textarea id="capStory" class="bigin" rows="4" placeholder="Where it came from, who it belonged to, why it matters"></textarea>
+      <button class="ghost wide" data-mic="capStory">🎤 Speak instead of typing</button>
+      <p class="reassure">This is optional. Even one sentence helps.</p>
     </div>
+
+    <div class="step" data-stepname="Worth" data-step="4" hidden data-retired="1">
+      <h2>What is it worth?</h2>
+      <label class="fieldlabel" for="capValue">Your best idea of the value</label>
+      <div class="moneyrow">
+        <span class="moneysign">$</span>
+        <input type="text" inputmode="decimal" id="capValue" class="bigin" placeholder="Leave blank if you don't know">
+      </div>
+      <button class="ghost wide" data-mic="capValue">🎤 Say the amount instead</button>
+
+      <label class="fieldlabel" for="capValueBasis">How do you know?</label>
+      <select id="capValueBasis" class="bigin">
+        <option value="unknown">I'm not sure — this is a guess</option>
+        <option value="owner_estimate">My own estimate</option>
+        <option value="appraisal">A written appraisal</option>
+        <option value="receipt">A receipt or purchase record</option>
+        <option value="comparable_sale">I saw a similar one sell</option>
+        <option value="insurance">It is listed on my insurance</option>
+      </select>
+
+      <p class="reassure">A rough number is far better than none. Nobody is held to it, and you can change it any time.</p>
+    </div>
+
+    <div class="step" data-stepname="Room" data-step="5" hidden>
+      <h2>Where is it kept?</h2>
+      <div class="chips" id="roomChips"></div>
+      <input type="text" id="capRoomOther" class="bigin" placeholder="Somewhere else — type it here" hidden>
+      <div class="room-more" id="roomMoreWrap" hidden>
+        <label class="room-more-lbl" for="roomMore">Somewhere not listed?</label>
+        <select id="roomMore" class="bigin">
+          <option value="">Add another room…</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="step" data-stepname="Kind" data-step="6" hidden>
+      <h2>What kind of thing is it?</h2>
+      <p class="step-lede">These are the things families most often disagree over.
+        Choose one only if there is a particular person you want to have this item —
+        something special to you that you mean to pass on to them by name.
+        If there is nobody particular in mind, choose <strong>Everything else</strong>
+        and carry on. The app takes care of the rest.</p>
+      <div class="chips" id="catChips"></div>
+      <div class="room-more" id="catMoreWrap" hidden>
+        <label class="room-more-lbl" for="catMore">Something more specific?</label>
+        <select id="catMore" class="bigin">
+          <option value="">Add another kind…</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="step" data-stepname="For whom" data-step="7" hidden>
+      <h2>Who would you like to have it?</h2>
+      <div class="chips" id="personChips"></div>
+      <input type="text" id="capRecipient" class="bigin" placeholder="A name — or leave this blank">
+      <input type="text" id="capRelationship" class="bigin" placeholder="Relationship, for example: daughter">
+      <p class="note" id="newPersonNote" hidden></p>
+      <textarea id="capOwnerNote" class="bigin" rows="2" placeholder="Anything you want them to know"></textarea>
+      <p class="reassure">This is a wish, not a legal instruction. You can change it any time.</p>
+
+      <!--
+        Auto-populate the addendum from the capture flow. When the owner has
+        chosen a name, this toggle offers to put the pair (person + item)
+        onto the Special gifts list too. It defaults to on because the
+        owner has already said who the item is for.
+      -->
+      <div class="important-block" id="capGiftBlock" hidden>
+        <label class="important-check">
+          <input type="checkbox" id="capMakeGift" checked>
+          <span class="important-lbl">Add this to my special gifts</span>
+        </label>
+        <p class="important-hint">Puts <span id="capGiftWho">this person</span> and this item on your list of special gifting. You can change it later on the Special gifts screen.</p>
+      </div>
+    </div>
+
+    <div class="step" data-stepname="Save" data-step="8" hidden>
+      <h2>Save this item</h2>
+      <div class="summary" id="capSummary"></div>
+
+      <!--
+        The owner's own "this matters" mark. Optional, and phrased so the owner
+        never has to say WHY — the two reason chips reveal only if they tick
+        the box. "It matters, for whatever reason." is the exact hint approved
+        for this control. Both chips can be on, off, or partial.
+      -->
+      <div class="important-block">
+        <label class="important-check">
+          <input type="checkbox" id="capImportant">
+          <span class="important-lbl">This one is important</span>
+        </label>
+        <p class="important-hint">It matters, for whatever reason.</p>
+        <div class="chips important-chips" id="capImportantChips" hidden>
+          <button type="button" class="chip" data-reason="feeling" aria-pressed="false">It means a lot</button>
+          <button type="button" class="chip" data-reason="money" aria-pressed="false">It is worth money</button>
+        </div>
+      </div>
+
+      <!--
+        Close-up photo — offered only when the owner marks the item as
+        important. This is a separate photo from the inventory shot,
+        framed tight on the item so no other object in the household
+        could be confused for it. Optional: the item saves fine without
+        one, and the owner can add it later from the item detail screen.
+      -->
+      <div class="closeup-block" id="capCloseupBlock" hidden>
+        <h3>A close-up photo</h3>
+        <p class="important-hint">Get close so this exact item is unmistakable. You can skip this and add it later.</p>
+        <label class="bigfile" id="capCloseupLabel">
+          <input type="file" accept="image/*" capture="environment" id="capCloseupPhoto">
+          <span>Take a close-up</span>
+        </label>
+        <img id="capCloseupPreview" class="preview" hidden alt="">
+        <button class="ghost wide" id="capCloseupRetake" hidden>Take it again</button>
+      </div>
+
+      <!--
+        Voice memo — offered when the item is important, never required.
+        The owner can record a few words about why this item matters.
+        One recording per item; re-record replaces. Sixty-second cap is
+        enforced by the recorder, not the server.
+      -->
+      <div class="voice-memo-block" id="capVoiceBlock" hidden>
+        <h3>Say a few words (optional)</h3>
+        <p class="important-hint">Why does this one matter? Your voice is worth more than the words. Never required.</p>
+        <button class="ghost wide" id="capVoiceRecord">🎙 Record a voice memo</button>
+        <audio id="capVoicePlayer" controls hidden></audio>
+        <button class="ghost wide" id="capVoiceRedo" hidden>Record it again</button>
+      </div>
+
+      <!-- The extra questions are offered here, after the item is already safe
+           to save, so that nobody has to answer them to get onto the list. -->
+      <button class="ghost wide" id="capMoreDetail" hidden>Add more detail first</button>
+      <p class="reassure" id="capMoreDetailNote">You can add the room, the maker, or its story now or at any time later.</p>
+    </div>
+
+    <div class="navrow">
+      <button class="ghost" id="stepBack">Back</button>
+      <button class="primary" id="stepNext">Next</button>
+    </div>
+    <p class="where" id="whereAmI"></p>
   </section>
 
+  <!-- BATCH -->
   <section class="screen" data-screen="batch" hidden>
     <!--
       Everything down to #batchResults is the upload half of this screen. When the
@@ -872,14 +775,10 @@
     -->
     <div id="batchIntake">
     <h2>Add a lot of things at once</h2>
-    <p class="lede">Choose photos and everything we can see goes on your list.</p>
+    <p class="lede">Two ways. Walk through a room with the camera running, or choose photos.
+      Either way, everything we can see goes on your list.</p>
 
-    <!--
-      Video walkthrough lane — hidden for now, kept coded for future use.
-      The batchVideo input, videoState div, and JS handler (app.js
-      $('#batchVideo').onchange) remain wired; just not shown yet.
-    -->
-    <div class="lane" data-video-lane hidden>
+    <div class="lane">
       <h3>Walk through a room</h3>
       <p class="reassure">Hold the phone up and walk slowly. Pause a moment on anything you want
         recorded. A minute or two of one room works better than a long tour of the house.</p>
@@ -978,7 +877,6 @@
       <p class="lawlede"><strong>This is the one thing you cannot do on a screen.</strong></p>
       <p>The law that lets people sign contracts and tax returns electronically has a short list of things it deliberately leaves out. Wills are on that list &mdash; and so is any paper that takes effect through a will, which is what your list does.</p>
       <p>So there is no <em>Sign here</em> button in this app. A signature typed or drawn on a screen would look finished and then fail at the one moment it was ever needed. You need to print the page and sign it with a pen.</p>
-      <p><strong>Only a signed paper document carries any legal weight.</strong> The photograph you take in the next step is for documentation only &mdash; it shows your trustee that the signed page exists and what it says. It is not a substitute for the signed original.</p>
       <p class="lawnote">It is three minutes of work. Then it is done.</p>
     </div>
 
@@ -1009,7 +907,7 @@
         <span class="stepnum">4</span>
         <div class="stepbody">
           <h3>Take a photo of the signed page</h3>
-          <p>This photograph is for documentation only &mdash; it shows your trustee that the signed page exists and what it says. It does not replace the signed original, which is the only copy with legal weight.</p>
+          <p>Then your trustee can see that it exists and what it says, without anyone having to move the original.</p>
           <label class="bigfile">
             <input type="file" accept="image/*,application/pdf" capture="environment" id="signScan">
             <span>Photograph or scan the signed page</span>
@@ -1074,10 +972,6 @@
 
     <div id="attList" class="note" hidden></div>
     <p class="reassure">Rules differ from state to state, and a few states give a list like this no effect at all. Your own attorney can tell you in one sentence which you are in.</p>
-
-    <div class="sign-footer">
-      <button class="linky" id="signVersionsBtn">Past signed versions</button>
-    </div>
   </section>
 
   <section class="screen" data-screen="handoff" hidden>
@@ -1140,32 +1034,11 @@
           </span>
         </label>
       </li>
-      <li class="choice">
-        <label>
-          <input type="checkbox" id="optDiscovery">
-          <span class="choicebody">
-            <span class="choicelbl">Send it to Reindeer: Discovery</span>
-            <span class="choicehint">Invite your family to privately browse the collection and mark what matters to them</span>
-          </span>
-        </label>
-      </li>
     </ul>
 
     <button class="primary wide" id="finishGo" disabled>Choose at least one</button>
     <div id="finishResult" class="note" hidden></div>
     <div id="verifyBox" class="note"></div>
-
-    <!-- Post-action instructions: data access code + safe keeping -->
-    <div id="finalInstructions" class="note" hidden style="margin-top:1.5rem;border-top:1px solid var(--border);padding-top:1.5rem">
-      <h3 style="margin:0 0 .5rem;font-size:1.05rem;color:var(--primary)">Important — don&rsquo;t skip this</h3>
-      <ol style="margin:0;padding-left:1.2rem;line-height:1.6">
-        <li><b>Generate a license key and send it to your trustee.</b> Go to <b>Estate license keys</b> on the home screen to generate a key. The key lets your trustee open the .reindeer file in Reindeer: FairPlay. Print the attorney/trustee letter (marked privileged and confidential) and deliver it with the estate documents. Share the key separately from the file &mdash; in person or by phone, not by email.</li>
-        <li><b>Give the data file to your trustee and/or the lawyer holding your will.</b> Your .reindeer file should be stored with your estate planning documents. Send it to your trustee, your attorney, or both &mdash; whoever you trust to keep it safe and hand it over at the right time. Tell them it is your personal property memorandum referenced by your will.</li>
-        <li><b>Keep your own copy somewhere safe.</b> Download a copy to a place your trustee will know to look &mdash; a labeled USB drive, a safe deposit box, or a folder your executor is aware of. The file is no good to anyone if they can&rsquo;t find it.</li>
-        <li><b>The key and the file must travel separately.</b> If someone finds the file, they cannot open it without the key. If someone has the key but no file, they cannot read your wishes. Give the key to your trustee by phone or in person. Send the file to your trustee and/or lawyer by any secure means. Your will can reference both.</li>
-      </ol>
-      <p style="margin:.75rem 0 0;color:var(--muted);font-size:.9rem">These instructions are also printed on the last page of your printable list, so a paper copy goes wherever your estate papers go.</p>
-    </div>
   </section>
 
   <!-- CONFIRM EMAIL -->
@@ -1208,8 +1081,8 @@
   -->
   <section class="screen" data-screen="memo" hidden>
     <div class="memo-head">
-      <h1 class="memo-title" id="memoTitle">Items already designated to a specific person</h1>
-      <p class="memo-sub" id="memoSub">Name who gets what. Take a photo or pick from your list.</p>
+      <h1 class="memo-title" id="memoTitle">Specific gifts by name</h1>
+      <p class="memo-sub" id="memoSub">Tell your family which things go to particular people.</p>
       <p class="memo-version" id="memoVersion"></p>
     </div>
 
@@ -1220,8 +1093,7 @@
       below it still render in-place when their state is on.
     -->
     <div class="memo-actions memo-actions-top">
-      <button class="primary wide" id="memoPhotoBtn">📸 Take a photo and name who it's for</button>
-      <button class="primary wide" id="memoAddBtn">Add from your existing items</button>
+      <button class="primary wide" id="memoAddBtn">Add specific gift by name</button>
     </div>
 
     <!--
@@ -1246,6 +1118,10 @@
 
     <div class="memo-list" id="memoList"></div>
 
+    <div class="memo-footer">
+      <button class="primary wide" id="memoSignBtn">Print and sign</button>
+      <button class="linky" id="memoVersionsBtn">Past signed versions</button>
+    </div>
   </section>
 
   <!--
@@ -1382,13 +1258,13 @@
     <p class="reassure" style="margin-top:0">
       Pressing the button below saves your list of special gifting with
       today's date and locks it so it can't change without you confirming
-      again. This is not a legal document, and Reindeer Registry is not a
+      again. This is not a legal document, and Legacy Registry is not a
       legal or fiduciary service. What matters is that you print your list,
       sign the paper with a pen, and get it to whoever holds your will —
       your trustee, your attorney, or wherever your will lives at home.
     </p>
     <p class="reassure">
-      On the next screen, Reindeer Registry can email an unsigned preview to
+      On the next screen, Legacy Registry can email an unsigned preview to
       your trustee or attorney so they know what you confirmed today. That
       email is a courtesy, not a filing. Confirm with them how they want
       the finished paper.
@@ -1445,7 +1321,7 @@
     <div id="emailPreviewOffer" class="email-preview-offer" hidden>
       <h2>Send an unsigned preview by email</h2>
       <p class="reassure">
-        Reindeer Registry can email an unsigned preview of the current
+        Legacy Registry can email an unsigned preview of the current
         version to your trustee or attorney. This is a
         <strong>courtesy, not a filing</strong> — the paper you sign by
         hand and get to them is what carries the weight — but it lets
@@ -1457,7 +1333,7 @@
         <button class="primary" id="emailPreviewSend">Send unsigned preview</button>
       </div>
       <p class="reassure">
-        Reindeer Registry is a preparation tool, not a legal or fiduciary
+        Legacy Registry is a preparation tool, not a legal or fiduciary
         service. Your trustee or attorney may want a fully executed version
         for their records — confirm with them the best option.
       </p>
@@ -1481,43 +1357,6 @@
     shared decision made by one hand. Every irreversible-feeling action
     (invite, confirm, unlink) confirms first.
   -->
-
-  <!-- ADMIN: LICENSE KEY MANAGEMENT -->
-  <section class="screen" data-screen="admin" hidden>
-    <h2>Estate License Keys</h2>
-    <p class="lede">Generate a license key for your trustee or attorney. The key lets them open your .reindeer file in Reindeer: FairPlay.</p>
-
-    <div id="licenseList" class="note">
-      <p style="color:var(--muted)">Loading…</p>
-    </div>
-
-    <h3 style="margin-top:2rem">Generate a new key</h3>
-    <div class="subfields" style="display:block">
-      <label class="fieldlabel" for="licenseDuration">Duration (days)</label>
-      <select id="licenseDuration" class="bigin">
-        <option value="30">30 days</option>
-        <option value="90" selected>90 days</option>
-        <option value="180">180 days</option>
-        <option value="365">1 year</option>
-      </select>
-
-      <label class="fieldlabel" for="licenseSlots" style="margin-top:12px">Trustee pool slots (0 for individual estate)</label>
-      <input type="number" id="licenseSlots" class="bigin" value="0" min="0" max="100" placeholder="0">
-
-      <button class="primary" id="generateLicenseBtn" style="margin-top:16px">Generate license key</button>
-    </div>
-
-    <div id="licenseResult" class="note" hidden style="margin-top:1.5rem"></div>
-
-    <h3 style="margin-top:2rem">Feature flags</h3>
-    <p class="reassure" style="margin-bottom:1rem">Toggle capabilities on or off for this estate. Changes take effect immediately.</p>
-    <div id="flagList" class="note">
-      <p style="color:var(--muted)">Loading…</p>
-    </div>
-
-    <button class="ghost wide" id="adminBackBtn" style="margin-top:1.5rem">Back to home</button>
-  </section>
-
   <section class="screen" data-screen="householdlink" hidden>
     <div id="householdLinkBody"><p class="reassure">Loading…</p></div>
   </section>
@@ -1530,15 +1369,6 @@
   -->
   <section class="screen" data-screen="helperinvite" hidden>
     <div id="helperInviteBody"><p class="reassure">Loading…</p></div>
-  </section>
-
-
-  <!--
-        <li><strong>Mailgun:</strong> smtp.mailgun.org, port 587</li>
-      </ul>
-    </div>
-
-    <button class="ghost wide" data-go="home" style="margin-top:16px">Back to home</button>
   </section>
 
 </main>
@@ -1574,7 +1404,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
-<!-- Floating home button — fixed bar at the bottom of every screen except home/welcome -->
+<!-- Floating home button — visible on every screen except home/welcome -->
 <button id="floatingHome" class="floating-home" hidden onclick="document.getElementById('homeBtn').click()">
   <span class="fh-ico">🏠</span>
   <span class="fh-lbl">Home</span>

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, index, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import type * as z from "zod";
@@ -249,7 +249,7 @@ export const items = sqliteTable("items", {
   name: text("name").notNull(),
   room: text("room").notNull().default(""),
   /**
-   * Optional. Null (or the empty string) means the item sits in the
+   * Optional. Null (or the legacy empty string) means the item sits in the
    * implicit "Uncategorized" bucket — it still enters rankings and the draft.
    */
   category: text("category"),
@@ -331,9 +331,6 @@ export const items = sqliteTable("items", {
   originApp: text("origin_app"),
   /** The item's id in the app it came from. Stable across re-imports. */
   originItemId: text("origin_item_id"),
-  /** Multi-site: which site this item belongs to. Null = primary/home. */
-  siteId: text("site_id"),
-  siteName: text("site_name").notNull().default(""),
   importBatchId: text("import_batch_id"),
   quantity: integer("quantity").notNull().default(1),
   conditionNote: text("condition_note").notNull().default(""),
@@ -345,7 +342,7 @@ export const items = sqliteTable("items", {
    * The owner's own words about why they marked this item Important in
    * Registry, if any. Distinct from inventory_story (biography). This is the
    * comment that traveled from Registry's owner_important_comment field via
-   * the exchange envelope. content — display only, never a valuation.
+   * the exchange envelope. Legacy content — display only, never a valuation.
    */
   ownerImportantComment: text("owner_important_comment").notNull().default(""),
   /**
@@ -397,11 +394,6 @@ export const items = sqliteTable("items", {
    */
   lockedByMemorandum: integer("locked_by_memorandum", { mode: "boolean" }).notNull().default(false),
   memorandumOwnerName: text("memorandum_owner_name").notNull().default(""),
-  /* Owner's Important flag from Registry \u2014 metadata only, does NOT
-     auto-trigger appraisal. Appraisal is decided by AI value estimation
-     (>= 85% of captain's threshold) or captain manual flag. */
-  ownerHighValue: integer("owner_high_value", { mode: "boolean" }).notNull().default(false),
-  ownerHighValueReason: text("owner_high_value_reason").notNull().default(""),
 });
 
 /* ------------------------------------------------------------------ */
@@ -852,7 +844,7 @@ export const methodAgreements = sqliteTable(
      * later captain change requires a fresh signature on the new mandate;
      * old rows stay on the record for audit but no longer count toward
      * the current mandate. Defaults to 0 (nonexistent participant id) for
-     * rows written before captain was part of the wire format.
+     * legacy rows written before captain was part of the wire format.
      * See docs/specs/2026-08-08-captain-model.md.
      */
     captainParticipantId: integer("captain_participant_id")
@@ -1435,7 +1427,7 @@ export const PRACTICE_SAMPLE_ITEMS = [
   { name: "Wool blanket", room: "Bedroom 2", category: "Miscellaneous", aiEstimatedValue: 45 },
 ] as const;
 
-/** @deprecated superseded by the taxonomy table; kept for old imports. */
+/** @deprecated superseded by the taxonomy table; kept for legacy imports. */
 export const PRESET_ROOMS = [
   "Living Room",
   "Dining Room",
@@ -1647,9 +1639,6 @@ export const stagedItems = sqliteTable("staged_items", {
   inventoryStory: text("inventory_story").notNull().default(""),
   /** Owner's Important comment from Registry, staged for captain review. */
   ownerImportantComment: text("owner_important_comment").notNull().default(""),
-  /** Multi-site: which site this item belongs to. Null = primary/home. */
-  siteId: text("site_id"),
-  siteName: text("site_name").notNull().default(""),
   quantity: integer("quantity").notNull().default(1),
   conditionNote: text("condition_note").notNull().default(""),
   identifiers: text("identifiers").notNull().default("{}"),
@@ -1709,8 +1698,6 @@ export const stagedItems = sqliteTable("staged_items", {
   createdAt: integer("created_at").notNull(),
   reviewedAt: integer("reviewed_at"),
   reviewedByParticipantId: integer("reviewed_by_participant_id"),
-  ownerHighValue: integer("owner_high_value", { mode: "boolean" }).notNull().default(false),
-  ownerHighValueReason: text("owner_high_value_reason").notNull().default(""),
 });
 
 export const stagedMedia = sqliteTable("staged_media", {
@@ -1960,88 +1947,3 @@ export const CAPTAIN_PASSPHRASE_UNAVAILABLE =
 /** Attempts allowed per window before passphrase sign-in throttles, per IP. */
 export const CAPTAIN_SIGN_IN_RATE_LIMIT = 8;
 export const CAPTAIN_SIGN_IN_RATE_WINDOW_MS = 15 * 60 * 1000;
-
-/* ================================================================== */
-/* item_interests — per-heir, per-item interest level                 */
-/* ================================================================== */
-/**
- * One row per heir per item per session. Records the heir's interest
- * level — "want", "interested", or "don't care" — so the UI can surface
- * how many heirs want each item and so the draft engine can factor
- * interest density into its heuristics.
- */
-export const itemInterests = sqliteTable(
-  "item_interests",
-  {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    sessionId: integer("session_id").notNull(),
-    participantId: integer("participant_id").notNull(),
-    itemId: integer("item_id").notNull(),
-    /** 'want' | 'interested' | 'dont_care' */
-    interest: text("interest").notNull(),
-    createdAt: integer("created_at").notNull(),
-    updatedAt: integer("updated_at").notNull(),
-  },
-  (t) => ({
-    /** One interest row per heir per item. */
-    uniqPerParticipantItem: uniqueIndex(
-      "item_interests_unique",
-    ).on(t.sessionId, t.participantId, t.itemId),
-    /** Supports the "count wants per item" query. */
-    bySessionItem: index("item_interests_item").on(t.sessionId, t.itemId),
-  }),
-);
-
-export const INTEREST_LEVELS = ["want", "interested", "dont_care"] as const;
-export type InterestLevel = (typeof INTEREST_LEVELS)[number];
-export type ItemInterest = typeof itemInterests.$inferSelect;
-export const insertItemInterestSchema = createInsertSchema(itemInterests).omit({ id: true });
-export type InsertItemInterest = z.infer<typeof insertItemInterestSchema>;
-
-/* ================================================================== */
-/* estate_subscriptions — per-estate subscription / license state      */
-/* ================================================================== */
-/**
- * One row per estate, keyed by scope_id (the estate identifier — ESTATE_ID
- * for the single-estate install, a per-estate ULID when multiEstate is on).
- *
- * Drives the subscription gate (FEATURE_FLAGS.subscriptionGate). While the
- * gate is off (current testing mode) this table is informational only —
- * writes are never blocked. When the gate is on, requireSubscriptionForWrite
- * reads this row and returns 402 for estates whose status is
- * 'expired' | 'locked' | 'cancelled', or whose subscription_expires_at /
- * license_expires_at has lapsed. Reads are never blocked; data is never
- * deleted for non-payment.
- *
- * Mirrors the estate_subscriptions table added to apps/reindeer-discovery.
- */
-export const estateSubscriptions = sqliteTable("estate_subscriptions", {
-  /** The estate identifier this subscription governs. */
-  scopeId: text("scope_id").primaryKey(),
-  /** 'active' | 'trialing' | 'expired' | 'locked' | 'cancelled'. */
-  status: text("status").notNull().default("active"),
-  /** ISO-8601 timestamp; null for lifetime / manual subscriptions. */
-  subscriptionExpiresAt: text("subscription_expires_at"),
-  /** Stripe customer id when billing through Stripe. */
-  stripeCustomerId: text("stripe_customer_id"),
-  /** Stripe subscription / price id when billing through Stripe. */
-  stripeSubscriptionId: text("stripe_subscription_id"),
-  /** Reindeer license key (JWT) issued by the registry, for offline / non-Stripe estates. */
-  licenseKey: text("license_key"),
-  /** ISO-8601 expiry for the offline license key. */
-  licenseExpiresAt: text("license_expires_at"),
-  /** The trustee / fiduciary account this estate is bound to (registry account id). */
-  trusteeAccountId: text("trustee_account_id"),
-  /** Pool slots granted by a multi-estate license (0 for single-estate). */
-  licensePoolSlots: integer("license_pool_slots").notNull().default(0),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-});
-
-export type EstateSubscription = typeof estateSubscriptions.$inferSelect;
-export type InsertEstateSubscription = typeof estateSubscriptions.$inferInsert;
-export const insertEstateSubscriptionSchema = createInsertSchema(
-  estateSubscriptions,
-).omit({});
-export type InsertEstateSubscriptionZod = z.infer<typeof insertEstateSubscriptionSchema>;
-

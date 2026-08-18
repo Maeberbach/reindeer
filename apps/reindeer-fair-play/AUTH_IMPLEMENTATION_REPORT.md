@@ -42,7 +42,7 @@ message strings) live at the end of `shared/schema.ts`.
 | `tokens.ts` | `sha256Hex`, `timingSafeEqualStr`, raw-token/short-code generation, `issueToken`, `findTokenRow`, `checkTokenFresh` (read-only), `markTokenConsumedInTx` (only ever called inside the redemption transaction). |
 | `sessionStore.ts` | `redeemToken` (atomic consume-token + create-session via a real `sqlite.transaction()`), `lookupSession`, `touchSession` (sliding 30-day expiry), `revokeSession`, `revokeAllForParticipant`, `listSessionsForParticipant`, `getSessionRow`, `createBootstrapSession` (one-time PR bootstrap only). |
 | `events.ts` | `recordAuthEvent` — writes to `auth_events`. |
-| `mailer.ts` / `delivery.d.ts` | Reuses `packages/reindeer-delivery` (`ConsoleMailer` by default, `SmtpMailer` only if `REINDEER_SMTP_HOST` is set, `RecordingMailer` for tests) via the package root import `@reindeer/delivery`. `setMailerForTests`/`getMailer` let tests swap in `RecordingMailer`. Plain-language email copy including the 6-character short code and 20-minute expiry note. |
+| `mailer.ts` / `delivery.d.ts` | Reuses `packages/legacy-delivery` (`ConsoleMailer` by default, `SmtpMailer` only if `LEGACY_SMTP_HOST` is set, `RecordingMailer` for tests) via the package root import `@reindeer-legacy/delivery`. `setMailerForTests`/`getMailer` let tests swap in `RecordingMailer`. Plain-language email copy including the 6-character short code and 20-minute expiry note. |
 | `cookies.ts` | `readSignedSessionCookie` (cookie header → `cookie.parse` → `cookie-signature.unsign`, `"s:"` prefix, same convention as `cookie-parser`), `setSessionCookie`, `clearSessionCookie`. Cookie name `fc_session`: httpOnly, `sameSite: "lax"`, `secure` only in production, 30-day `maxAge`, path `/`. |
 | `middleware.ts` | `attachActor` (cookie → session → `req.actor`; **never** reads body/query/headers), `requireAuth` (401), `requirePR` (403, fails closed on null actor), `requireSelfOrPR(targetId)`. |
 | `router.ts` | `createAuthRouter()`: `POST /request` (rate-limited 5/15min per email and per IP, identical response regardless of match), `POST /redeem` (token or short code), `GET /me`, `POST /sign-out`, `GET /sessions`, `POST /sessions/:id/revoke`, `POST /participants/:id/invite` (PR-only). |
@@ -50,7 +50,7 @@ message strings) live at the end of `shared/schema.ts`.
 | `vendor.d.ts` | Ambient types for the two untyped transitive deps `cookie` and `cookie-signature`. |
 | `selftest.mts` | The verification suite described below. |
 
-`package.json` gained `"@reindeer/delivery": "file:../../packages/reindeer-delivery"` (installed, symlinked, resolves cleanly from the package root — the package's `package.json` has `"main": "src/index.js"` with no `exports` map, so the deep `/src/mailer.js` path used in earlier drafts didn't type-resolve; importing `@reindeer/delivery` directly does).
+`package.json` gained `"@reindeer-legacy/delivery": "file:../../packages/legacy-delivery"` (installed, symlinked, resolves cleanly from the package root — the package's `package.json` has `"main": "src/index.js"` with no `exports` map, so the deep `/src/mailer.js` path used in earlier drafts didn't type-resolve; importing `@reindeer-legacy/delivery` directly does).
 
 ## Exact route protection model
 
@@ -104,7 +104,7 @@ message strings) live at the end of `shared/schema.ts`.
 - **`npm run build`**: succeeds (client + server bundles built).
 - **`npx tsx server/fiduciary/selftest.mts`**: **40/40** checks passed (run
   from a throwaway cwd, per the file's own documented convention, using
-  `TSX_TSCONFIG_PATH` to keep `@shared/*`/`@reindeer/*` path aliases
+  `TSX_TSCONFIG_PATH` to keep `@shared/*`/`@reindeer-legacy/*` path aliases
   resolvable from outside the app directory).
 - **`npx tsx server/import/selftest.mts`**: **35/35** checks passed (same
   throwaway-cwd convention, `REINDEER_FAIR_PLAY_UPLOAD_DIR` set to a scratch dir).
@@ -192,7 +192,7 @@ the client agent still needs to build the actual sign-in screens.**
   need to move to the database or a shared store before any horizontal
   scaling.
 - **No email deliverability guarantee** — `ConsoleMailer` (the default
-  outside of `REINDEER_SMTP_HOST` being set) just writes files to disk; there
+  outside of `LEGACY_SMTP_HOST` being set) just writes files to disk; there
   is no verification here that a configured SMTP transport actually
   delivers, only that the app never *silently* fails to attempt sending.
 - **Short codes and full tokens share one `auth_tokens` row and TTL** — a
@@ -254,6 +254,6 @@ the client agent still needs to build the actual sign-in screens.**
 - `server/fiduciary/router.ts` (uses shared guards, no local reimplementation)
 - `server/import/router.ts` (uses shared guards, `actorIdFrom(req)` instead
   of `actorIdFrom(body)`)
-- `package.json` / `package-lock.json` (added `@reindeer/delivery`
+- `package.json` / `package-lock.json` (added `@reindeer-legacy/delivery`
   dependency)
 - `.gitignore` (added `.auth-secret`)

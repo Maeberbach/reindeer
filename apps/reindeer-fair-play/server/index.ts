@@ -106,7 +106,10 @@ app.use((req, res, next) => {
   httpServer.listen(
     {
       port,
+      // The platform already owns the link-local address for port forwarding,
+      // so allow the bind address to be narrowed.
       host: process.env.HOST || "0.0.0.0",
+      reusePort: true,
     },
     () => {
       log(`serving on port ${port}`);

@@ -14,7 +14,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (!info || !info.connectUrl) return;
 
     const container = document.createElement('div');
-    container.id = 'reindeer-wifi-overlay-container';
+    container.id = 'legacy-wifi-overlay-container';
     
     // Attach Shadow DOM so styles don't conflict with main app CSS
     const shadow = container.attachShadow({ mode: 'open' });

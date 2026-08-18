@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { AuditLog } from '@reindeer/core-api';
+import { AuditLog } from '@reindeer-legacy/core-api';
 
 /**
  * Hash-chained audit log. Each row hashes the previous row's hash, so any

@@ -14,23 +14,6 @@ import {
 } from "@/components/ui/table";
 import { Download, Printer } from "lucide-react";
 
-
-async function downloadSnapshot() {
-  const res = await fetch("/api/fiduciary/snapshot");
-  if (!res.ok) throw new Error("Could not fetch snapshot");
-  const data = await res.json();
-  const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `fair-play-snapshot-${ts}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
 export default function ResultsPage() {
   const { data, isLoading } = useAppState();
   const isCaptain = useIsCaptain();
@@ -89,19 +72,6 @@ export default function ResultsPage() {
             >
               <Download className="mr-1.5 h-4 w-4" />
               Export CSV
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              data-testid="button-results-save-snapshot"
-              onClick={() =>
-                downloadSnapshot().catch((e: Error) =>
-                  console.error("Snapshot download failed:", e)
-                )
-              }
-            >
-              <Download className="mr-1.5 h-4 w-4" />
-              Save to device
             </Button>
             <Button size="sm" data-testid="button-print-results" onClick={() => window.print()}>
               <Printer className="mr-1.5 h-4 w-4" />

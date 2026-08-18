@@ -55,7 +55,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Download, FlaskConical, Merge, Plus, Trash2, Pencil } from "lucide-react";
+import { Download, FlaskConical, Merge, Plus } from "lucide-react";
 
 const PHASES = [
   "welcome",
@@ -161,39 +161,6 @@ function TaxonomyPanel({
     },
   });
 
-  const del = useMutation({
-    mutationFn: async (id: number) =>
-      (await apiRequest("DELETE", `/api/taxonomy/${id}`)).json(),
-    onSuccess: () => {
-      refresh();
-      toast({ title: `${noun === "room" ? "Room" : "Category"} deleted` });
-    },
-    onError: (e: Error) =>
-      toast({
-        title: "Cannot delete",
-        description: e.message.replace(/^\d+:\s*/, "").replace(/^\{"message":"|"\}$/g, ""),
-        variant: "destructive",
-      }),
-  });
-
-  const [renameId, setRenameId] = useState<number | null>(null);
-  const [renameVal, setRenameVal] = useState("");
-  const renameMut = useMutation({
-    mutationFn: async ({ id, label }: { id: number; label: string }) =>
-      (await apiRequest("PATCH", `/api/taxonomy/${id}`, { label, actorId })).json(),
-    onSuccess: () => {
-      setRenameId(null);
-      refresh();
-      toast({ title: `Renamed` });
-    },
-    onError: (e: Error) =>
-      toast({
-        title: "Cannot rename",
-        description: e.message.replace(/^\d+:\s*/, "").replace(/^\{"message":"|"\}$/g, ""),
-        variant: "destructive",
-      }),
-  });
-
   const chosen = rows.filter((r) => selected.includes(r.id));
   const newLabel = chosen.map((r) => r.label).join("-");
   const totalItems = chosen.reduce((n, r) => n + r.itemCount, 0);
@@ -242,42 +209,6 @@ function TaxonomyPanel({
               >
                 {r.itemCount}
               </span>
-              {renameId === r.id ? (
-                <Input
-                  className="h-7 w-28 px-1.5 text-xs"
-                  value={renameVal}
-                  data-testid={`input-rename-${kind}-${slug(r.label)}`}
-                  autoFocus
-                  onChange={(e) => setRenameVal(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && renameVal.trim()) {
-                      renameMut.mutate({ id: r.id, label: renameVal.trim() });
-                    }
-                    if (e.key === "Escape") setRenameId(null);
-                  }}
-                  onBlur={() => {
-                    if (renameVal.trim() && renameVal.trim() !== r.label) {
-                      renameMut.mutate({ id: r.id, label: renameVal.trim() });
-                    } else {
-                      setRenameId(null);
-                    }
-                  }}
-                />
-              ) : (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 w-7 p-0"
-                  data-testid={`button-rename-${kind}-${slug(r.label)}`}
-                  title={`Rename ${r.label}`}
-                  onClick={() => {
-                    setRenameId(r.id);
-                    setRenameVal(r.label);
-                  }}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-              )}
               <Switch
                 aria-label={`Enable ${r.label}`}
                 data-testid={`switch-enable-${kind}-${slug(r.label)}`}
@@ -285,40 +216,6 @@ function TaxonomyPanel({
                 disabled={toggleEnabled.isPending}
                 onCheckedChange={(v) => toggleEnabled.mutate({ id: r.id, isEnabled: v })}
               />
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                    data-testid={`button-delete-${kind}-${slug(r.label)}`}
-                    title={`Delete ${r.label}`}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete “{r.label}”?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This removes “{r.label}” from the {plural.toLowerCase()} list.
-                      {r.itemCount > 0
-                        ? ` ${r.itemCount} item${r.itemCount === 1 ? "" : "s"} still use it — move or merge them first.`
-                        : " No items use it, so it is safe to delete."}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      data-testid={`button-confirm-delete-${kind}-${slug(r.label)}`}
-                      disabled={r.itemCount > 0 || del.isPending}
-                      onClick={() => del.mutate(r.id)}
-                    >
-                      {del.isPending ? "Deleting…" : "Delete"}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
             </div>
           ))}
         </div>

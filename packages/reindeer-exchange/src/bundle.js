@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { ulid } from '@reindeer/core-data';
+import { ulid } from '@reindeer-legacy/core-data';
 import { buildEnvelope, parseEnvelope } from './v1/envelope.js';
 import { toCsv } from './v1/csv.js';
 import { zipSync, unzipSync } from './zip.js';
@@ -84,7 +84,7 @@ export async function writeBundle({
 
   const batchId = ulid();
   const manifest = {
-    format: 'reindeer-exchange-bundle',
+    format: 'legacy-exchange-bundle',
     version: '1.0',
     batch_id: batchId,
     created_at: new Date().toISOString(),

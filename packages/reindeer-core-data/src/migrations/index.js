@@ -285,7 +285,7 @@ export const MIGRATIONS = [
      *
      * Purely additive: three nullable/defaulted columns on an existing table and
      * one index. No column is dropped, renamed or retyped, so an inventory.db
-     * written by this build stays readable by every existing query, and Reindeer:
+     * written by this build stays readable by every existing query, and Legacy:
      * FairPlay never reads `rooms` at all.
      */
     sql: `
@@ -350,7 +350,7 @@ export const MIGRATIONS = [
     name: 'owner_important_comment',
     /*
      * The owner's own note on an item they flagged as Important. Free text,
-     * content, kept for the heirs and the trustee. The owner author
+     * legacy content, kept for the heirs and the trustee. The owner author
      * anything they want in here — a story, a maker, a memory, a dollar
      * figure if they choose. Registry does not shape the owner's own words;
      * FairPlay does its own appraisal work separately.
@@ -910,100 +910,55 @@ export const MIGRATIONS = [
   },
   {
     id: 23,
-    name: 'user_email_settings',
+    name: 'estate_subscriptions_and_access_log',
+    // Per-estate subscription infrastructure.
+    //
+    // estate_subscriptions: one row per estate (scope_id) tracking the
+    // subscription state. The 'status' column drives the subscription gate:
+    //   - active:  full read/write access
+    //   - expired: write operations blocked (HTTP 402), reads allowed
+    //   - locked:  write operations blocked (HTTP 402), reads allowed
+    // The gate is controlled by FEATURE_FLAGS.subscriptionGate (currently OFF).
+    //
+    // estate_access_log: append-only audit of subscription-relevant events
+    // (license issued, subscription expired, access blocked, webhook received).
+    // Kept separate from the core audit_log so subscription analytics do not
+    // interleave with item-change audit chains.
     sql: `
-    -- Per-user SMTP email configuration.
-    -- Stored in the database so users can configure their own email
-    -- service through the app UI without server-level env vars.
-    CREATE TABLE IF NOT EXISTS email_settings (
-      key         TEXT PRIMARY KEY DEFAULT 'default',
-      host        TEXT,
-      port        INTEGER DEFAULT 587,
-      secure      INTEGER DEFAULT 0,
-      user        TEXT,
-      pass        TEXT,
-      from_addr   TEXT,
-      updated_at  TEXT NOT NULL
-    );
+      CREATE TABLE estate_subscriptions (
+        subscription_id   TEXT PRIMARY KEY,
+        scope_id          TEXT NOT NULL UNIQUE,
+        license_key       TEXT,
+        status            TEXT NOT NULL DEFAULT 'active'
+          CHECK (status IN ('active', 'expired', 'locked')),
+        current_period_start TEXT,
+        current_period_end   TEXT,
+        stripe_customer_id   TEXT,
+        stripe_subscription_id TEXT,
+        created_at        TEXT NOT NULL,
+        updated_at        TEXT NOT NULL
+      );
+      CREATE INDEX idx_estate_subscriptions_scope ON estate_subscriptions(scope_id);
+      CREATE INDEX idx_estate_subscriptions_status ON estate_subscriptions(status);
+
+      CREATE TABLE estate_access_log (
+        log_id      TEXT PRIMARY KEY,
+        scope_id    TEXT NOT NULL,
+        event       TEXT NOT NULL,
+        detail      TEXT NOT NULL DEFAULT '{}',
+        created_at  TEXT NOT NULL
+      );
+      CREATE INDEX idx_estate_access_log_scope ON estate_access_log(scope_id, created_at);
     `,
   },
   {
     id: 24,
-    name: 'estate_subscriptions',
+    name: 'tentative_high_value',
     sql: `
-    -- Per-estate subscription and licensing tables.
-    -- Tracks subscription status, Stripe references, and license keys.
-    -- The subscription gate middleware checks estate_subscriptions.status
-    -- before allowing write operations (when FEATURE_FLAGS.subscriptionGate is ON).
-    CREATE TABLE IF NOT EXISTS estate_subscriptions (
-      scope_id                TEXT PRIMARY KEY,
-      status                  TEXT NOT NULL DEFAULT 'active',
-      subscription_expires_at TEXT,
-      stripe_customer_id      TEXT,
-      stripe_subscription_id  TEXT,
-      license_key             TEXT,
-      license_expires_at      TEXT,
-      trustee_account_id      TEXT,
-      license_pool_slots      INTEGER DEFAULT 0,
-      created_at              TEXT NOT NULL,
-      updated_at              TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS estate_access_log (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      scope_id    TEXT NOT NULL,
-      event       TEXT NOT NULL,
-      details     TEXT,
-      created_at  TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_estate_access_log_scope
-      ON estate_access_log(scope_id, created_at DESC);
-    `,
-  },
-  {
-    id: 25,
-    name: 'geo_sites',
-    sql: `
-    -- Authorized locations where items can be added. The home/primary
-    -- site is created with the scope; additional sites (storage unit,
-    -- second home, vacation home) are added by the owner. Each site has
-    -- optional GPS coordinates for geosyncing — when the capture flow
-    -- detects the device is at a known site, items are auto-tagged.
-    CREATE TABLE sites (
-      site_id     TEXT PRIMARY KEY,
-      scope_id    TEXT NOT NULL REFERENCES scopes(scope_id) ON DELETE CASCADE,
-      name        TEXT NOT NULL,
-      kind        TEXT NOT NULL DEFAULT 'home',
-      lat         REAL,
-      lon         REAL,
-      radius_m    INTEGER NOT NULL DEFAULT 100,
-      is_primary  INTEGER NOT NULL DEFAULT 0,
-      created_at  TEXT NOT NULL
-    );
-    CREATE INDEX idx_sites_scope ON sites(scope_id);
-
-    -- Tag each item with the site it was added from. NULL means the
-    -- item was added before geosyncing or from an unrecognized location.
-    ALTER TABLE items ADD COLUMN site_id TEXT REFERENCES sites(site_id) ON DELETE SET NULL;
-    ALTER TABLE items ADD COLUMN site_name TEXT NOT NULL DEFAULT '';
-
-    -- Track where each item was captured (lat/lon at time of add).
-    ALTER TABLE items ADD COLUMN captured_lat REAL;
-    ALTER TABLE items ADD COLUMN captured_lon REAL;
-
-    -- Scope rooms to a site so each site (home, second home, vacation
-    -- property) carries its own room list. Existing rooms get NULL
-    -- site_id (treated as the primary/home site).
-    ALTER TABLE rooms ADD COLUMN site_id TEXT REFERENCES sites(site_id) ON DELETE SET NULL;
-    CREATE INDEX IF NOT EXISTS idx_rooms_site ON rooms(scope_id, site_id);
-    `,
-  },
-  {
-    id: 26,
-    name: 'site_address',
-    sql: `
-    ALTER TABLE sites ADD COLUMN address TEXT NOT NULL DEFAULT '';
+      ALTER TABLE items ADD COLUMN tentative_high_value INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE items ADD COLUMN tentative_high_value_source TEXT NOT NULL DEFAULT '';
+      ALTER TABLE items ADD COLUMN tentative_high_value_reason TEXT NOT NULL DEFAULT '';
+      CREATE INDEX IF NOT EXISTS idx_items_tentative_high_value ON items(scope_id, tentative_high_value);
     `,
   },
 ];

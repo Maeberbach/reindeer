@@ -1,14 +1,14 @@
 {
-  "name": "@reindeer/delivery",
+  "name": "@reindeer-legacy/delivery",
   "version": "0.1.0",
   "type": "module",
   "main": "src/index.js",
   "description": "Builds the trustee package and delivers it by email, as an attachment or a secure link, with a printable cover packet.",
   "dependencies": {
-    "@reindeer/core-api": "*",
-    "@reindeer/core-data": "*",
-    "@reindeer/exchange": "*",
-    "@reindeer/print-feature": "*",
+    "@reindeer-legacy/core-api": "*",
+    "@reindeer-legacy/core-data": "*",
+    "@reindeer-legacy/exchange": "*",
+    "@reindeer-legacy/print-feature": "*",
     "express": "^4.19.2",
     "nodemailer": "^6.9.14"
   }

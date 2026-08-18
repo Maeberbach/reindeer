@@ -27,14 +27,14 @@
  * to invite) come from the body.
  */
 import express from 'express';
-import { makeScopeCtx } from '@reindeer/core-api';
+import { makeScopeCtx } from '@reindeer-legacy/core-api';
 
 function ownerOnly(req, res, next) {
   const p = req.participant;
   if (!p) return res.status(401).json({ error: 'Sign in to continue.' });
   if (p.participant_id === 'bootstrap-owner') return next();
   if (p.role === 'owner') return next();
-  return res.status(403).json({ error: 'Only the owner can invite a co-owner.' });
+  return res.status(403).json({ error: 'Only the account owner can invite a co-owner.' });
 }
 
 /**
@@ -102,16 +102,6 @@ export function createHouseholdLinkRouter({ registry, participants, auth, resolv
     const partnerPresent = partners.length > 0;
     const assistants = rows.filter((p) => p.role === 'assistant' && p.status === 'active')
       .map((p) => ({ participant_id: p.participant_id, email: p.email, display_name: p.display_name || '' }));
-    // Pending invites — invited but not yet signed in (status='invited' or 'invited-assistant')
-    const pendingInvites = rows
-      .filter((p) => p.status === 'invited' || p.status === 'invited-assistant')
-      .map((p) => ({
-        participant_id: p.participant_id,
-        email: p.email,
-        display_name: p.display_name || '',
-        role: p.role === 'invited-assistant' ? 'assistant' : p.role,
-        status: p.status,
-      }));
     const alreadyCouple = scope.household_mode === 'couple';
     res.json({
       scope_id: scope.scope_id,
@@ -125,7 +115,6 @@ export function createHouseholdLinkRouter({ registry, participants, auth, resolv
       can_confirm: !alreadyCouple && partnerPresent,
       can_unlink: alreadyCouple,
       assistants,
-      pending_invites: pendingInvites,
     });
   });
 
@@ -181,7 +170,7 @@ export function createHouseholdLinkRouter({ registry, participants, auth, resolv
       }
       const scope = registry.getScope(ctxOf(req));
       const scopeId = scope?.scope_id || 'inventory-default';
-      const { link, expiresAt, emailError } = await auth.requestLink({
+      const { link, expiresAt } = await auth.requestLink({
         email,
         invite: { scopeId, role },
       });
@@ -207,7 +196,7 @@ export function createHouseholdLinkRouter({ registry, participants, auth, resolv
       }
       // link is null in production when a real mailer sent it; only echoed
       // back in tests / REINDEER_MAILER_OFF=1 mode.
-      res.status(201).json({ ok: true, link, expires_at: expiresAt, emailError: emailError || null });
+      res.status(201).json({ ok: true, link, expires_at: expiresAt });
     } catch (e) { next(e); }
   });
 
@@ -232,7 +221,7 @@ export function createHouseholdLinkRouter({ registry, participants, auth, resolv
       .map((p) => ({ participant_id: p.participant_id, email: p.email, display_name: p.display_name || '' }));
     if (!partnerPresent) {
       return res.status(400).json({
-        error: 'Both partners need to be on this Registry before you can link. Invite your co-owner and ask them to sign in first.',
+        error: 'Both co-owners need to be on this Registry before you can link. Invite your co-owner and ask them to sign in first.',
       });
     }
     const meId = me(req);
@@ -251,37 +240,6 @@ export function createHouseholdLinkRouter({ registry, participants, auth, resolv
     }
     const updated = registry.linkHousehold(ctx, { linkedByParticipantId: meId });
     res.status(200).json({ ok: true, scope: publicScope(updated) });
-  });
-
-  /**
-   * POST /household-link/revoke
-   *   Owner or partner. Removes a pending invite OR an active helper.
-   *   - Pending invites (status='invited'/'invited-assistant'): deleted entirely.
-   *   - Active assistants (status='active', role='assistant'): set to
-   *     status='revoked' so their magic link no longer works, but the
-   *     audit trail of what they photographed is preserved.
-   *   Active partners (co-owners) cannot be removed here — use unlink.
-   */
-  r.post('/household-link/revoke', ownerOrPartner, (req, res, next) => {
-    try {
-      const { participant_id } = req.body || {};
-      if (!participant_id) return res.status(400).json({ error: 'A participant id is needed.' });
-      const p = participants.get(participant_id);
-      if (!p) return res.status(404).json({ error: 'That person is not on this Registry.' });
-      if (p.status === 'invited' || p.status === 'invited-assistant') {
-        // Pending invite — delete it; they never signed in.
-        db.prepare('DELETE FROM participants WHERE participant_id = ?').run(participant_id);
-        res.json({ ok: true });
-      } else if (p.status === 'active' && p.role === 'assistant') {
-        // Active helper — revoke their access. Set status to 'revoked' so
-        // their magic link stops working, but keep the row for the audit
-        // trail of what they captured.
-        db.prepare('UPDATE participants SET status = ? WHERE participant_id = ?').run('revoked', participant_id);
-        res.json({ ok: true });
-      } else {
-        return res.status(400).json({ error: 'Only pending invites and helpers can be revoked. To remove a co-owner, use unlink.' });
-      }
-    } catch (e) { next(e); }
   });
 
   /*

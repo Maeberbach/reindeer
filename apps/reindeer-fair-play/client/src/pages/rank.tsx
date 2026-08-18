@@ -38,7 +38,6 @@ import { AppShell, PageHeader, LoadingRows } from "@/components/shell";
 import { ClassificationChangeBanner } from "@/components/notifications";
 import { FlagToggles } from "@/components/classification-flags";
 import { AskForAppraisalButton } from "@/components/ask-for-appraisal";
-import { InterestSelector } from "@/components/interest-selector";
 import { CategoryChip, DiscussionBadge } from "@/components/category-chips";
 import { UNCATEGORIZED_LABEL } from "@shared/schema";
 import {
@@ -101,14 +100,12 @@ function RankRowCard({
   onRemove,
   onAdd,
   isCaptain,
-  participantId,
 }: {
   item: Item;
   rank: number | null;
   total: number;
   isCaptain: boolean;
   disabled: boolean;
-  participantId?: number;
   /** "Edited by captain at …" note shown on the heir's own list. */
   assistBadge?: string | null;
   /** Amber treatment used while the captain is assisting. */
@@ -200,11 +197,6 @@ function RankRowCard({
           <FlagToggles item={item} compact />
           <AskForAppraisalButton item={item} size="sm" variant="ghost" />
         </div>
-        {participantId && (
-          <div className="mt-1.5">
-            <InterestSelector item={item} participantId={participantId} compact />
-          </div>
-        )}
       </div>
 
       {rank !== null ? (
@@ -741,7 +733,6 @@ export default function RankPage({
                       disabled={disabled}
                       tinted={assisting}
                       isCaptain={isCaptain}
-                      participantId={assisting ? (targetId ?? undefined) : (me?.id ?? undefined)}
                       assistBadge={badgeByItem.get(item.id) ?? null}
                       onMoveTo={(r) => commit(arrayMove(order, idx, r - 1))}
                       onNudge={(d) =>
@@ -824,7 +815,6 @@ export default function RankPage({
                       disabled={disabled}
                       tinted={assisting}
                       isCaptain={isCaptain}
-                      participantId={assisting ? (targetId ?? undefined) : (me?.id ?? undefined)}
                       onAdd={() => commit([...order, item.id])}
                     />
                   ))}

@@ -29,7 +29,7 @@
  * returns 403.
  */
 import express from 'express';
-import { makeScopeCtx } from '@reindeer/core-api';
+import { makeScopeCtx } from '@reindeer-legacy/core-api';
 
 export function createMemorandumRouter({ memorandum, registry, participants, resolveScope }) {
   const r = express.Router();

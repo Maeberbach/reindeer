@@ -1,9 +1,9 @@
 {
-  "name": "@reindeer/core-api",
+  "name": "@reindeer-legacy/core-api",
   "version": "0.1.0",
   "type": "module",
   "main": "src/index.js",
-  "description": "Shared contracts for the Reindeer suite. Zero runtime dependencies.",
+  "description": "Shared contracts for the Legacy product line. Zero runtime dependencies.",
   "exports": {
     ".": "./src/index.js"
   }

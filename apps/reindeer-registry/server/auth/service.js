@@ -1,4 +1,4 @@
-import { normalizeEmail } from '@reindeer/core-data';
+import { normalizeEmail } from '@reindeer-legacy/core-data';
 
 /**
  * The auth service ties three repos together:
@@ -12,7 +12,7 @@ import { normalizeEmail } from '@reindeer/core-data';
  *
  * The mailer parameter is a function `({ to, subject, text }) => Promise`
  * — same shape the Registry uses for trustee delivery. Both `text` and
- * the `body` field name are accepted by the SmtpMailer.
+ * the legacy `body` field name are accepted by the SmtpMailer.
  * `linkBaseUrl` is the outward-facing origin, used to build the URL that
  * lands in the email.
  */
@@ -71,7 +71,7 @@ export class AuthService {
     if (this.mailer) {
       const result = await this.mailer({
         to: normalized,
-        subject: 'Your sign-in link for Reindeer Registry',
+        subject: 'Your sign-in link for Legacy Registry',
         text: `Click this link to sign in. It works once and expires in 20 minutes.\n\n${link}\n`,
       });
       // Surface the error instead of silently swallowing it.
@@ -134,13 +134,13 @@ export class AuthService {
    * Resolve a cookie token to a participant. Returns null if no valid
    * session. Callers should treat null as "unauthenticated" and, if
    * bootstrap mode is on, synthesize an anonymous owner identity for
-   * old routes.
+   * legacy routes.
    */
   resolveSession(rawToken) {
     const session = this.sessions.resolve(rawToken);
     if (!session) return null;
     const participant = this.participants.get(session.participant_id);
-    if (!participant || participant.status === 'disabled' || participant.status === 'revoked') return null;
+    if (!participant || participant.status === 'disabled') return null;
     return { session, participant };
   }
 

@@ -22,10 +22,10 @@
  * Environment:
  *   REINDEER_SMTP_HOST, REINDEER_SMTP_PORT, REINDEER_SMTP_USER, REINDEER_SMTP_PASS,
  *   REINDEER_SMTP_FROM, REINDEER_SMTP_SECURE — see mailer.js for details.
- *   If none are set, the ConsoleMailer writes emails to /tmp/reindeer-mail
+ *   If none are set, the ConsoleMailer writes emails to /tmp/legacy-mail
  *   and nothing is actually sent (safe for development).
  */
-import { mailerFromEnv } from '@reindeer/delivery';
+import { mailerFromEnv } from '@reindeer-legacy/delivery';
 import { HOLIDAY_LABELS } from '../routes/reminders.js';
 import { holidayDate, holidayTwoWeeksFromNow } from './holidayDates.js';
 
@@ -65,7 +65,7 @@ export function buildReminderEmail(displayName, holidayKey, holidayLabel, holida
     '',
     tip,
     '',
-    'You can change your reminder picks any time in the app under "Possessions with high emotional connections that can cause conflict" → Holiday reminders.',
+    'You can change your reminder picks any time in the app under "Things families find hardest to divide" → Holiday reminders.',
     '',
     'Nothing here is a will. It records your wishes so your family is not guessing.',
     '',
@@ -76,7 +76,7 @@ export function buildReminderEmail(displayName, holidayKey, holidayLabel, holida
     `<p>Hi ${name},</p>`,
     `<p><strong>${holidayLabel}</strong> is coming up on ${dateStr} — two weeks from today.</p>`,
     `<p>${tip}</p>`,
-    `<p>You can change your reminder picks any time in the app under "Possessions with high emotional connections that can cause conflict" &rarr; Holiday reminders.</p>`,
+    `<p>You can change your reminder picks any time in the app under "Things families find hardest to divide" &rarr; Holiday reminders.</p>`,
     `<p><em>Nothing here is a will. It records your wishes so your family is not guessing.</em></p>`,
     `<p>Reindeer: Registry</p>`,
   ];
@@ -161,9 +161,9 @@ export async function runHolidayReminders({ db, mailer, participantsRepo, remind
  */
 async function main() {
   const Database = (await import('better-sqlite3')).default;
-  const { ParticipantsRepo, ReminderPrefsRepo } = await import('@reindeer/core-data');
+  const { ParticipantsRepo, ReminderPrefsRepo } = await import('@reindeer-legacy/core-data');
 
-  const dbPath = process.env.REINDEER_DB_PATH || './data/reindeer-registry.db';
+  const dbPath = process.env.LEGACY_DB_PATH || './data/legacy-registry.db';
   const db = new Database(dbPath);
 
   // Ensure the reminder_prefs table exists.

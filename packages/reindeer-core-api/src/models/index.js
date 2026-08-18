@@ -1,5 +1,5 @@
 /**
- * Canonical domain models for the Reindeer suite.
+ * Canonical domain models for the Legacy product line.
  * Both Reindeer Registry and Reindeer: FairPlay depend on these definitions
  * so the two apps can never drift apart on what an "item" is.
  */
@@ -143,8 +143,8 @@ export const NON_BINDING_DISCLAIMER =
  */
 export const DEFAULT_ROOMS = Object.freeze([
   'Living Room', 'Kitchen', 'Dining Room', 'Family Room',
-  'Primary Bedroom', 'Bedroom 2', 'Bedroom 3', 'Bedroom 4', 'Bedroom 5', 'Bedroom 6',
-  'Office/Study', 'Garage', 'Safe', 'Safe Deposit Box',
+  'Primary Bedroom', 'Bedroom 2', 'Bedroom 3',
+  'Office/Study', 'Garage', 'Safe Deposit Box', 'Other',
 ]);
 
 /**
@@ -179,7 +179,7 @@ export const MORE_ROOMS = Object.freeze([
  * to Firearms. The other five are the owner's shorthand and FairPlay may
  * unpack them after import. Unpacking only ever changes the category — an heir
  * the owner named is never touched. See REGISTRY_CATEGORY_MAP in
- * @reindeer/exchange for the mapping.
+ * @reindeer-legacy/exchange for the mapping.
  *
  * Guns and Vehicles sit below "Everything else" rather than above it. They are
  * not household goods to be argued over so much as regulated and titled
@@ -252,20 +252,19 @@ export function makeItemRecord(input = {}) {
     // reason, and 'feeling' | 'money' | 'both' when the owner offered one.
     owner_high_value: input.owner_high_value ?? false,
     owner_high_value_reason: input.owner_high_value_reason ?? '',
-    // Owner-authored comment kept with the item for heritage value. Prints on
+    // Owner-authored comment kept with the item for legacy value. Prints on
     // paper as written; travels through export/import. Empty string is the
     // "no comment" state. Coupling with owner_high_value is asymmetric and
     // is applied in validateItemRecord, not here — see the spec at
     // docs/decisions/2026-08-06-important-comment.md.
     owner_important_comment: input.owner_important_comment ?? '',
     ownership_tag: input.ownership_tag ?? 'mine',
-    // Geosyncing: which authorized site the item was added from, and
-    // the GPS coordinates captured at add time. site_id is NULL when
-    // the item predates geosyncing or was added from an unknown location.
-    site_id: input.site_id ?? null,
-    site_name: input.site_name ?? '',
-    captured_lat: input.captured_lat ?? null,
-    captured_lon: input.captured_lon ?? null,
+    // Tentative high-value: helper or AI flag that queues for owner review
+    // before becoming a permanent owner_high_value mark. Source is 'helper'
+    // or 'ai'; reason is free text explaining why it was flagged.
+    tentative_high_value: input.tentative_high_value ?? false,
+    tentative_high_value_source: input.tentative_high_value_source ?? '',
+    tentative_high_value_reason: input.tentative_high_value_reason ?? '',
     ai_confidence: input.ai_confidence ?? null,
     review_state: input.review_state ?? REVIEW_STATE.DRAFT,
     print_state: input.print_state ?? PRINT_STATE.UNPRINTED,

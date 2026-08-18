@@ -1,12 +1,12 @@
 {
-  "name": "@reindeer/exchange",
+  "name": "@reindeer-legacy/exchange",
   "version": "0.1.0",
   "type": "module",
   "main": "src/index.js",
   "description": "ReindeerExchange v1 \u2014 the integration contract between Reindeer Registry and Reindeer: FairPlay.",
   "dependencies": {
-    "@reindeer/core-api": "*",
-    "@reindeer/core-data": "*"
+    "@reindeer-legacy/core-api": "*",
+    "@reindeer-legacy/core-data": "*"
   },
   "exports": {
     ".": "./src/index.js",

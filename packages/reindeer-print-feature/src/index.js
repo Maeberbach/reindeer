@@ -1,5 +1,5 @@
 import express from 'express';
-import { makeScopeCtx } from '@reindeer/core-api';
+import { makeScopeCtx } from '@reindeer-legacy/core-api';
 import { renderItemSheet, renderReport, PRINT_PROFILES } from './templates/index.js';
 import { renderTrusteePacket, renderTrusteeEmail } from './templates/trusteePacket.js';
 import { renderMemorandum } from './templates/memorandum.js';

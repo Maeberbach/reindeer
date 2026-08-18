@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { BellRing, Undo2, ClipboardCheck, CheckCircle2, ScrollText, Printer, ExternalLink, AlertTriangle, Download } from "lucide-react";
+import { BellRing, Undo2, ClipboardCheck, CheckCircle2, ScrollText, Printer, ExternalLink, AlertTriangle } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
 /* ------------------------------------------------------------------ */
@@ -292,25 +292,7 @@ function formatWhen(ms: number): string {
  * takes over. Same-origin so the session cookie authenticates the print
  * request — no participantId in the URL.
  */
-
-async function downloadSnapshot() {
-  const res = await fetch("/api/fiduciary/snapshot");
-  if (!res.ok) throw new Error("Could not fetch snapshot");
-  const data = await res.json();
-  const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `fair-play-snapshot-${ts}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
 export function RecordOfDecisionsCard() {
-  const { toast } = useToast();
   const record = useQuery<RecordOfDecisions>({
     queryKey: ["/api/fiduciary/record-of-decisions"],
     refetchInterval: 15000,
@@ -339,19 +321,6 @@ export function RecordOfDecisionsCard() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              className="min-h-[44px]"
-              data-testid="button-record-of-decisions-save-snapshot"
-              onClick={() =>
-                downloadSnapshot().catch((e: Error) =>
-                  toast({ title: "Could not save snapshot", description: e.message, variant: "destructive" })
-                )
-              }
-            >
-              <Download className="mr-1.5 h-4 w-4" />
-              Save to device
-            </Button>
             <Button
               variant="outline"
               className="min-h-[44px]"

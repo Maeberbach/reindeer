@@ -1,13 +1,13 @@
 import fs from 'node:fs';
 import express from 'express';
-import { makeScopeCtx } from '@reindeer/core-api';
+import { makeScopeCtx } from '@reindeer-legacy/core-api';
 
 /**
  * Two-Output Delivery Model routes.
  *
  * Mounted at `/api/two-outputs`. Purpose-built for the addendum flow and
  * inventory preview \u2014 the existing `/api/delivery/*` routes continue to
- * drive the .reindeer bundle path unchanged.
+ * drive the legacy .reindeer bundle path unchanged.
  *
  * Heirs and wills caretakers get their own thin CRUD here so the addendum
  * has a roster to point at. Item assignment is handled by the intake

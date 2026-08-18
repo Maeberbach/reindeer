@@ -28,17 +28,6 @@ export const FEATURE_FLAGS = {
   // When ON: each estate DB is encrypted with a key derived from
   // REINDEER_MASTER_KEY + estateId. Requires that env var to be set.
   encryption: false,
-
-  // Per-estate subscription gate.
-  // When true, write endpoints are blocked for estates whose
-  // subscription is expired or locked (HTTP 402 Payment Required).
-  // OFF for now — all access is unlimited during testing.
-  subscriptionGate: false,
-
-  // Heir visibility restrictions — when true, strip private fields
-  // (pricing, recipient, ownership tags) from participant-facing endpoints.
-  // Toggled by Reindeer Corp admin before client distribution.
-  heirVisibility: true,
 };
 
 /**
@@ -72,25 +61,4 @@ export function isEncryptionEnabled(): boolean {
 
 export function isMultiEstateEnabled(): boolean {
   return FEATURE_FLAGS.multiEstate === true;
-}
-
-/**
- * Returns true if the per-estate subscription gate is active.
- * When false, write access is unlimited (testing mode) and
- * requireSubscriptionForWrite is a no-op.
- */
-export function isSubscriptionGateEnabled(): boolean {
-  return FEATURE_FLAGS.subscriptionGate === true;
-}
-
-/**
- * Returns true when heir/participant visibility restrictions are active.
- * When true, FairPlay strips private fields (estimated_value, value_basis,
- * recipient_hint, owner_high_value) from participant-facing endpoints.
- * When false (testing mode), all fields are visible.
- * Can be overridden via env: REINDEER_FEATURE_HEIR_VISIBILITY=false
- */
-export function isHeirVisibilityEnabled(): boolean {
-  if (process.env.REINDEER_FEATURE_HEIR_VISIBILITY === 'false') return false;
-  return FEATURE_FLAGS.heirVisibility === true;
 }

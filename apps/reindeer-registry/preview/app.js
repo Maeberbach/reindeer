@@ -1221,7 +1221,7 @@ function renderAttestations() {
    This was the single largest source of friction in the app. A recipient was a
    free-text box on every item, so somebody recording eighty belongings typed
    "Kathy" eighty times, and every slip — "Kathy M", "kathy", "my daughter
-   Kathy" — became a separate heir by the time the file reached Reindeer: Fair
+   Kathy" — became a separate heir by the time the file reached Legacy: Fair
    Choice. Now the name is said once and tapped thereafter.
 
    Two ways in, because people work differently. Some want to declare the cast
@@ -1790,7 +1790,7 @@ let roomPending = [];   // captures taken in this room this sitting
  */
 function offlineQueue() {
   return (
-    window.ReindeerOfflineQueue ?? {
+    window.LegacyOfflineQueue ?? {
       available: async () => false,
       add: async () => {
         throw new Error('no-idb');

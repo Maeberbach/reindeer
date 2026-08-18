@@ -1,7 +1,7 @@
-export class ReindeerError extends Error {
+export class LegacyError extends Error {
   constructor(message, code, status = 400, details = null) {
     super(message);
-    this.name = 'ReindeerError';
+    this.name = 'LegacyError';
     this.code = code;
     this.status = status;
     this.details = details;
@@ -14,28 +14,28 @@ export class ReindeerError extends Error {
  * the details, which is what the item form wants.
  */
 export const ValidationError = (details) =>
-  new ReindeerError(
+  new LegacyError(
     typeof details === 'string' ? details : 'The item could not be saved as entered.',
     'VALIDATION', 400, details,
   );
 
 export const NotFoundError = (what) =>
-  new ReindeerError(`${what} was not found.`, 'NOT_FOUND', 404);
+  new LegacyError(`${what} was not found.`, 'NOT_FOUND', 404);
 
 export const ScopeViolationError = () =>
-  new ReindeerError('That record belongs to a different inventory.', 'SCOPE_VIOLATION', 403);
+  new LegacyError('That record belongs to a different inventory.', 'SCOPE_VIOLATION', 403);
 
 export const PermissionError = (action) =>
-  new ReindeerError(`You do not have permission to ${action}.`, 'PERMISSION', 403);
+  new LegacyError(`You do not have permission to ${action}.`, 'PERMISSION', 403);
 
 export const RoundLockedError = () =>
-  new ReindeerError(
+  new LegacyError(
     'The division has already started, so new items are queued for review instead of entering the current round.',
     'ROUND_LOCKED', 409,
   );
 
 export const ExchangeVersionError = (found) =>
-  new ReindeerError(
+  new LegacyError(
     `This file uses exchange format ${found}, which this version cannot read.`,
     'EXCHANGE_VERSION', 422,
   );

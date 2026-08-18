@@ -27,9 +27,9 @@
  * schema change and gets its own migration + version bump.
  */
 
-import { NON_BINDING_DISCLAIMER, ExchangeVersionError } from '@reindeer/core-api';
+import { NON_BINDING_DISCLAIMER, ExchangeVersionError } from '@reindeer-legacy/core-api';
 
-export const ENVELOPE_FORMAT = 'reindeer-exchange';
+export const ENVELOPE_FORMAT = 'legacy-exchange';
 export const ENVELOPE_TYPE_INVENTORY = 'inventory';
 export const ENVELOPE_TYPE_ADDENDUM = 'addendum';
 export const TYPED_ENVELOPE_VERSION = '1.0';
@@ -272,7 +272,7 @@ export function buildAddendumEnvelope({
  * Parse an inventory or addendum envelope from JSON or an already-parsed
  * object. Dispatches on the `envelope_type` field.
  *
- * Rejects the untyped envelope (format='reindeer-exchange',
+ * Rejects the legacy untyped envelope (format='legacy-exchange',
  * version='1.0' with no envelope_type) with a clear message \u2014 that
  * envelope is served by the existing parseEnvelope() in envelope.js.
  */
@@ -284,7 +284,7 @@ export function parseTypedEnvelope(json) {
   if (!env.envelope_type) {
     throw new Error(
       'parseTypedEnvelope: envelope is not a typed envelope (missing envelope_type). '
-      + 'Use parseEnvelope() from envelope.js for the v1 shape.',
+      + 'Use parseEnvelope() from envelope.js for the legacy v1 shape.',
     );
   }
   const major = String(env.envelope_version ?? '').split('.')[0];

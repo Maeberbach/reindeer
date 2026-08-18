@@ -1,5 +1,5 @@
 /**
- * Validation. Hand-rolled to keep @reindeer/core-api dependency-free —
+ * Validation. Hand-rolled to keep @reindeer-legacy/core-api dependency-free —
  * swap for zod later without changing call sites, since every validator
  * returns { ok, value, errors }.
  */
@@ -165,7 +165,7 @@ export function validateRecipientHint(hint) {
 
 /** JSON Schema published alongside the exchange format for outside consumers. */
 export const ITEM_JSON_SCHEMA = {
-  $id: 'https://reindeer.local/schema/item-record-v1.json',
+  $id: 'https://legacy.local/schema/item-record-v1.json',
   type: 'object',
   required: ['item_id', 'title', 'quantity'],
   properties: {

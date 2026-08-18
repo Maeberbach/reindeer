@@ -1,4 +1,4 @@
-import { parseHeirPermissions, type HeirCapability } from "@shared/schema";
+import { parseHeirPermissions, isHelperParticipant, canHelperDo, type HeirCapability } from "@shared/schema";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { useForm } from "react-hook-form";
@@ -10,7 +10,6 @@ import { useAppState, useUser, STATE_KEY, money } from "@/lib/app";
 import { AppShell, PageHeader, LoadingRows } from "@/components/shell";
 import { FlagToggles } from "@/components/classification-flags";
 import { AskForAppraisalButton } from "@/components/ask-for-appraisal";
-import { InterestSelector, InterestSummary } from "@/components/interest-selector";
 import { useSearch } from "wouter";
 import { RoomPicker, TaxonomyPicker, useTaxonomy, TAXONOMY_KEY } from "@/components/room-picker";
 import {
@@ -120,7 +119,9 @@ export default function InventoryPage() {
   const isCaptain = !!me?.id && me.id === data?.session?.captainParticipantId;
   // Every heir capability is its own toggle; the captain may always act.
   const perms = parseHeirPermissions(data?.session.heirPermissions);
-  const can = (c: HeirCapability) => isCaptain || !!perms[c];
+  const isHelper = isHelperParticipant(me);
+  const can = (c: HeirCapability) =>
+    isCaptain || (isHelper && canHelperDo(c)) || !!perms[c];
   const inPractice = (data?.session.practiceMode ?? "off") !== "off";
   const { data: taxonomy } = useTaxonomy();
   const enabledCategories = (taxonomy ?? [])
@@ -945,11 +946,6 @@ export default function InventoryPage() {
                       <FlagToggles item={i} compact />
                     </div>
                     <CategoryHistory itemId={i.id} />
-                    {userId && !inPractice && (
-                      <div className="mt-2">
-                        <InterestSelector item={i} participantId={userId} compact />
-                      </div>
-                    )}
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-1.5">
                     <Button
@@ -989,10 +985,7 @@ export default function InventoryPage() {
                       )
                     )}
                     {userId && !inPractice && (
-                      <>
-                        <AskForAppraisalButton item={i} />
-                        {isCaptain && <InterestSummary item={i} />}
-                      </>
+                      <AskForAppraisalButton item={i} />
                     )}
                     {can("changeCategory") && canCategorize && (
                       <Button

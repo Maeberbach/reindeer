@@ -1,7 +1,7 @@
 import {
   ItemRepository, validateItemRecord, validateRecipientHint,
   ValidationError, NotFoundError, EXPORT_STATE, PRINT_STATE,
-} from '@reindeer/core-api';
+} from '@reindeer-legacy/core-api';
 import { ulid } from '../db/index.js';
 
 const toRow = (i) => ({
@@ -16,10 +16,9 @@ const toRow = (i) => ({
   // validator has already trimmed and length-checked it before we get here.
   owner_important_comment: i.owner_important_comment ?? '',
   ownership_tag: i.ownership_tag ?? 'mine',
-  site_id: i.site_id ?? null,
-  site_name: i.site_name ?? '',
-  captured_lat: i.captured_lat ?? null,
-  captured_lon: i.captured_lon ?? null,
+  tentative_high_value: i.tentative_high_value ? 1 : 0,
+  tentative_high_value_source: i.tentative_high_value_source ?? '',
+  tentative_high_value_reason: i.tentative_high_value_reason ?? '',
 });
 
 const fromRow = (r) => r && ({
@@ -30,10 +29,9 @@ const fromRow = (r) => r && ({
   owner_high_value: !!r.owner_high_value,
   owner_high_value_reason: r.owner_high_value_reason ?? '',
   owner_important_comment: r.owner_important_comment ?? '',
-  site_id: r.site_id ?? null,
-  site_name: r.site_name ?? '',
-  captured_lat: r.captured_lat ?? null,
-  captured_lon: r.captured_lon ?? null,
+  tentative_high_value: !!r.tentative_high_value,
+  tentative_high_value_source: r.tentative_high_value_source ?? '',
+  tentative_high_value_reason: r.tentative_high_value_reason ?? '',
 });
 
 export class SqliteItemRepository extends ItemRepository {
@@ -54,14 +52,14 @@ export class SqliteItemRepository extends ItemRepository {
         description, story, quantity, condition, identifiers, value_estimate_cents, value_basis,
         high_value_flag, owner_high_value, owner_high_value_reason, owner_important_comment,
         ownership_tag,
-        ai_confidence, review_state, print_state, export_state, created_at, updated_at,
-        site_id, site_name, captured_lat, captured_lon)
+        tentative_high_value, tentative_high_value_source, tentative_high_value_reason,
+        ai_confidence, review_state, print_state, export_state, created_at, updated_at)
       VALUES (@item_id, @scope_id, @origin_app, @origin_item_id, @title, @category_id, @room_id,
         @description, @story, @quantity, @condition, @identifiers, @value_estimate_cents, @value_basis,
         @high_value_flag, @owner_high_value, @owner_high_value_reason, @owner_important_comment,
         @ownership_tag,
-        @ai_confidence, @review_state, @print_state, @export_state, @created_at, @updated_at,
-        @site_id, @site_name, @captured_lat, @captured_lon)
+        @tentative_high_value, @tentative_high_value_source, @tentative_high_value_reason,
+        @ai_confidence, @review_state, @print_state, @export_state, @created_at, @updated_at)
     `).run({ ...row, scope_id: ctx.scopeId });
 
     if (input.recipient_hint) await this.setRecipientHint(value.item_id, input.recipient_hint, ctx);
@@ -131,9 +129,10 @@ export class SqliteItemRepository extends ItemRepository {
         high_value_flag=@high_value_flag,
         ownership_tag=@ownership_tag,
         owner_high_value=@owner_high_value, owner_high_value_reason=@owner_high_value_reason,
-        site_id=@site_id, site_name=@site_name,
-        captured_lat=@captured_lat, captured_lon=@captured_lon,
         owner_important_comment=@owner_important_comment,
+        tentative_high_value=@tentative_high_value,
+        tentative_high_value_source=@tentative_high_value_source,
+        tentative_high_value_reason=@tentative_high_value_reason,
         ai_confidence=@ai_confidence, review_state=@review_state,
         print_state=@print_state, export_state=@export_state, updated_at=@updated_at
       WHERE item_id=@item_id AND scope_id=@scope_id
@@ -246,6 +245,7 @@ export class SqliteItemRepository extends ItemRepository {
     // Owner's own mark — kept as a separate filter so a FairPlay caller
     // asking for "high_value_only" never picks up an owner‑flagged item that
     // FairPlay's own estimator did not agree with, and vice versa.
+    if (query.tentative_high_value_only) where.push("i.tentative_high_value = 1");
     if (query.owner_high_value_only) where.push('i.owner_high_value = 1');
     if (query.recipient_name) {
       where.push('EXISTS (SELECT 1 FROM recipient_hints h WHERE h.item_id = i.item_id AND h.recipient_name = @recipient_name)');

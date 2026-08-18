@@ -12,7 +12,7 @@ import crypto from 'node:crypto';
  *   evict expired cookies on their own.
  */
 
-const COOKIE_NAME = 'reindeer_session';
+const COOKIE_NAME = 'legacy_session';
 
 function b64url(buf) {
   return Buffer.from(buf).toString('base64url');
@@ -48,7 +48,7 @@ export function decodeSessionCookie(raw, secret) {
 }
 
 /**
- * Parse a raw Cookie header. Only reads reindeer_session. Returns the raw
+ * Parse a raw Cookie header. Only reads legacy_session. Returns the raw
  * cookie value (still to be verified via decodeSessionCookie) or null.
  */
 export function readSessionCookie(req) {

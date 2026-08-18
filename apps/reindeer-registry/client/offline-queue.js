@@ -33,7 +33,7 @@
     });
   }
 
-  window.ReindeerOfflineQueue = {
+  window.LegacyOfflineQueue = {
     /** Can this device hold a recording back for later? */
     async available() {
       try {

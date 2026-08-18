@@ -19,4 +19,3 @@ export { MagicLinksRepo, MAGIC_LINK_TTL_MINUTES } from './repos/magicLinksRepo.j
 export { SessionsRepo, SESSION_TTL_MILLISECONDS } from './repos/sessionsRepo.js';
 export { MemorandumRepo } from './repos/memorandumRepo.js';
 export { ReminderPrefsRepo } from './repos/reminderPrefsRepo.js';
-export { SitesRegistry } from './sites.js';

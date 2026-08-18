@@ -1,13 +1,13 @@
 /**
- * Hand-written ambient types for `@reindeer/delivery`'s mailer module.
+ * Hand-written ambient types for `@reindeer-legacy/delivery`'s mailer module.
  *
  * The package is plain ESM JavaScript with no type declarations of its own.
  * This module only describes the surface server/auth/mailer.ts actually
- * imports, shaped from packages/reindeer-delivery/src/mailer.js.
+ * imports, shaped from packages/legacy-delivery/src/mailer.js.
  *
  * Keep this in sync with that file if the delivery package's mailer changes.
  */
-declare module "@reindeer/delivery" {
+declare module "@reindeer-legacy/delivery" {
   export interface MailAttachment {
     filename: string;
     content: Buffer | string;

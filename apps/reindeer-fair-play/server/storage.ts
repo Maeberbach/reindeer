@@ -22,7 +22,6 @@ import {
   placeholderHeirName,
   methodAgreements,
   itemMedia,
-  itemInterests,
 } from "@shared/schema";
 import type {
   Session,
@@ -59,7 +58,6 @@ import type {
   StageLine,
   StageProgress,
   ItemMedia,
-  ItemInterest,
 } from "@shared/schema";
 import { CONTESTED_CATEGORY_LABELS, CONTESTED_ROUND_KIND, LEGAL_CATEGORIES } from "@shared/legalCategories";
 import {
@@ -85,8 +83,6 @@ import {
   registrationOpen,
 } from "@shared/schema";
 import { randomUUID } from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
 import { FEATURE_FLAGS } from "./featureFlags";
@@ -103,16 +99,12 @@ import { and, eq, inArray } from "drizzle-orm";
  */
 export const DB_PATH = process.env.REINDEER_FAIR_PLAY_DB_PATH ?? "data.db";
 
-// Ensure the DB directory exists (needed when using a persistent disk mount)
-const _dbDir = path.dirname(DB_PATH);
-if (_dbDir && _dbDir !== ".") fs.mkdirSync(_dbDir, { recursive: true });
-
 /**
  * Estate identifier for encryption key derivation.
  * Each install is one estate; when multi-estate is enabled, each estate
  * will have its own ULID and DB file path.
  */
-export const ESTATE_ID = process.env.REINDEER_FAIR_PLAY_ESTATE_ID ?? "fair-play-estate";
+const ESTATE_ID = process.env.REINDEER_FAIR_PLAY_ESTATE_ID ?? "fair-play-estate";
 
 /**
  * Open the estate database, encrypted with SQLCipher when the encryption
@@ -377,18 +369,6 @@ export interface IStorage {
     actorId?: number | null,
   ): Promise<{ item: Item; autoAssigned: boolean }>;
   categorizationStatus(): Promise<CategorizationStatus>;
-
-  /* ---- item interests (desire layer) ---- */
-  /** Get all interest rows for a participant. */
-  listInterests(participantId: number): Promise<ItemInterest[]>;
-  /** Get all interest rows for the session (all participants). */
-  listAllInterests(): Promise<ItemInterest[]>;
-  /** Upsert a single heir's interest level for one item. */
-  setInterest(participantId: number, itemId: number, interest: "want" | "interested" | "dont_care"): Promise<ItemInterest>;
-  /** Count how many heirs marked 'want' for an item. Returns the count. */
-  countWantsForItem(itemId: number): Promise<number>;
-  /** Get all items with 2+ 'want' interests — auto-flag candidates. */
-  itemsWithMultipleWants(): Promise<{ itemId: number; wantCount: number }[]>;
 }
 
 /** What `setItemCategory` reports back to the route layer. */
@@ -1558,7 +1538,7 @@ export class DatabaseStorage implements IStorage {
     const categoryRevert = reverts.find((r) => r.flaggedBySource === "category");
 
     const s = await this.getSession();
-    const threshold = s.appraisalThresholdUsd ?? 3000;
+    const threshold = s.appraisalThresholdUsd ?? 2000;
     const softFloor = threshold * 0.85;
 
     let inserted = 0;
@@ -1621,7 +1601,7 @@ export class DatabaseStorage implements IStorage {
         .all();
       if (rows.some((r) => r.revertedAt == null)) continue;
 
-      const threshold = s.appraisalThresholdUsd ?? 3000;
+      const threshold = s.appraisalThresholdUsd ?? 2000;
       const softFloor = threshold * 0.85;
 
       // Rule A first.
@@ -2578,31 +2558,6 @@ export class DatabaseStorage implements IStorage {
     db.delete(taxonomy).where(eq(taxonomy.id, id)).run();
   }
 
-  /** Rename a taxonomy label and cascade the new name to all items using it. */
-  async renameTaxonomy(id: number, newLabel: string): Promise<Taxonomy> {
-    const row = db.select().from(taxonomy).where(eq(taxonomy.id, id)).get();
-    if (!row) throw new Error("Room or category not found");
-    const trimmed = newLabel.trim();
-    if (!trimmed) throw new Error("A label is required");
-    // Check for duplicate
-    const dup = db.select().from(taxonomy)
-      .where(and(eq(taxonomy.kind, row.kind), eq(taxonomy.label, trimmed)))
-      .get();
-    if (dup && dup.id !== id) throw new Error(`A ${row.kind} named "${trimmed}" already exists.`);
-    // Update the taxonomy row
-    db.update(taxonomy).set({ label: trimmed, isCustom: true }).where(eq(taxonomy.id, id)).run();
-    // Cascade to items
-    const all = db.select().from(items).all();
-    for (const item of all) {
-      if (row.kind === "room" && item.room === row.label) {
-        db.update(items).set({ room: trimmed }).where(eq(items.id, item.id)).run();
-      } else if (row.kind === "category" && item.category === row.label) {
-        db.update(items).set({ category: trimmed }).where(eq(items.id, item.id)).run();
-      }
-    }
-    return db.select().from(taxonomy).where(eq(taxonomy.id, id)).get()!;
-  }
-
   /**
    * Merge 2+ rooms (or categories) into one hyphen-joined label. Every item
    * carrying a source label is reassigned and the sources are removed — all in
@@ -2690,14 +2645,14 @@ export class DatabaseStorage implements IStorage {
       };
       // Older blobs stored `awards` as an item -> award map and carried no
       // award history. Normalise so the summary always has an array to read.
-      const oldMap =
+      const legacyMap =
         raw.awards && !Array.isArray(raw.awards)
           ? (raw.awards as Record<string, { participantId: number; round: number }>)
           : undefined;
       const counters = raw.contestedLossCounters ?? {};
       const roster: PracticeHeir[] = Array.isArray(raw.heirs)
         ? (raw.heirs as PracticeHeir[])
-        : // blob: rebuild the roster from the stored priority order.
+        : // Legacy blob: rebuild the roster from the stored priority order.
           (raw.priorityOrder ?? []).map((id, idx) => ({
             id,
             name:
@@ -2712,7 +2667,7 @@ export class DatabaseStorage implements IStorage {
         heirs: roster,
         priorityOrder: raw.priorityOrder ?? [],
         contestedLossCounters: raw.contestedLossCounters ?? {},
-        awardsByItem: raw.awardsByItem ?? oldMap ?? {},
+        awardsByItem: raw.awardsByItem ?? legacyMap ?? {},
         awards: Array.isArray(raw.awards) ? (raw.awards as PracticeState["awards"]) : [],
         finalCounters: raw.finalCounters ?? raw.contestedLossCounters ?? {},
         rankings: raw.rankings ?? {},
@@ -4333,72 +4288,6 @@ export class DatabaseStorage implements IStorage {
       .set({ status: "resolved", resolvedBy: participantId })
       .where(eq(duplicateGroups.id, groupId))
       .run();
-  }
-
-  /* ---- item interests (desire layer) ---- */
-  async listInterests(participantId: number): Promise<ItemInterest[]> {
-    return db.select().from(itemInterests)
-      .where(eq(itemInterests.participantId, participantId))
-      .all();
-  }
-
-  async listAllInterests(): Promise<ItemInterest[]> {
-    return db.select().from(itemInterests).all();
-  }
-
-  async setInterest(
-    participantId: number,
-    itemId: number,
-    interest: "want" | "interested" | "dont_care",
-  ): Promise<ItemInterest> {
-    const session = await this.getSession();
-    const now = Date.now();
-    db.insert(itemInterests)
-      .values({
-        sessionId: session.id,
-        participantId,
-        itemId,
-        interest,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .onConflictDoUpdate({
-        target: [itemInterests.sessionId, itemInterests.participantId, itemInterests.itemId],
-        set: { interest, updatedAt: now },
-      })
-      .run();
-    const row = db.select().from(itemInterests)
-      .where(and(
-        eq(itemInterests.participantId, participantId),
-        eq(itemInterests.itemId, itemId),
-      ))
-      .get();
-    return row!;
-  }
-
-  async countWantsForItem(itemId: number): Promise<number> {
-    const rows = db.select().from(itemInterests)
-      .where(and(
-        eq(itemInterests.itemId, itemId),
-        eq(itemInterests.interest, "want"),
-      ))
-      .all();
-    return rows.length;
-  }
-
-  async itemsWithMultipleWants(): Promise<{ itemId: number; wantCount: number }[]> {
-    const allInterests = db.select().from(itemInterests)
-      .where(eq(itemInterests.interest, "want"))
-      .all();
-    const counts = new Map<number, number>();
-    for (const row of allInterests) {
-      counts.set(row.itemId, (counts.get(row.itemId) ?? 0) + 1);
-    }
-    const result: { itemId: number; wantCount: number }[] = [];
-    for (const [itemId, wantCount] of Array.from(counts.entries())) {
-      if (wantCount >= 2) result.push({ itemId, wantCount });
-    }
-    return result;
   }
 }
 

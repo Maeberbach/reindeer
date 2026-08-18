@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   pause_count INTEGER NOT NULL DEFAULT 0,
   total_paused_ms INTEGER NOT NULL DEFAULT 0,
   /* v15c3 appraisal threshold (used by AI auto-flag; family-configurable) */
-  appraisal_threshold_usd INTEGER NOT NULL DEFAULT 3000
+  appraisal_threshold_usd INTEGER NOT NULL DEFAULT 2000
 );
 
 /* ------------------------------------------------------------------ */
@@ -190,9 +190,6 @@ CREATE TABLE IF NOT EXISTS items (
   origin_app TEXT,
   origin_item_id TEXT,
   import_batch_id TEXT,
-  /* multi-site: which site this item belongs to. Null = primary/home. */
-  site_id TEXT,
-  site_name TEXT NOT NULL DEFAULT '',
   quantity INTEGER NOT NULL DEFAULT 1,
   condition_note TEXT NOT NULL DEFAULT '',
   identifiers TEXT NOT NULL DEFAULT '{}',
@@ -208,14 +205,8 @@ CREATE TABLE IF NOT EXISTS items (
   owner_assigned_evidence TEXT NOT NULL DEFAULT '',
   /* commit 4 memorandum-locked items */
   locked_by_memorandum INTEGER NOT NULL DEFAULT 0,
-  memorandum_owner_name TEXT NOT NULL DEFAULT '',
-  /* owner's Important flag from Registry — carried as metadata, does NOT
-     auto-trigger appraisal. Appraisal is decided by AI value estimation
-     (>= 85% of captain's threshold) or captain manual flag. */
-  owner_high_value INTEGER NOT NULL DEFAULT 0,
-  owner_high_value_reason TEXT NOT NULL DEFAULT ''
+  memorandum_owner_name TEXT NOT NULL DEFAULT ''
 );
-CREATE INDEX IF NOT EXISTS idx_items_site ON items (session_id, site_id);
 
 /* ------------------------------------------------------------------ */
 /* groupings + opt-ins                                                 */
@@ -536,9 +527,6 @@ CREATE TABLE IF NOT EXISTS staged_items (
   reviewed_by_participant_id INTEGER,
   /* v13 owner's Important comment through staging */
   owner_important_comment TEXT NOT NULL DEFAULT '',
-  /* multi-site provenance through staging */
-  site_id TEXT,
-  site_name TEXT NOT NULL DEFAULT '',
   /* v15 owner-assignment detector fields */
   detected_owner_assignment_name TEXT NOT NULL DEFAULT '',
   detected_owner_assignment_quote TEXT NOT NULL DEFAULT '',
@@ -547,9 +535,7 @@ CREATE TABLE IF NOT EXISTS staged_items (
   detected_owner_assignment_review_reason TEXT NOT NULL DEFAULT '',
   /* commit 4 memorandum-locked items */
   locked_by_memorandum INTEGER NOT NULL DEFAULT 0,
-  memorandum_owner_name TEXT NOT NULL DEFAULT '',
-  owner_high_value INTEGER NOT NULL DEFAULT 0,
-  owner_high_value_reason TEXT NOT NULL DEFAULT ''
+  memorandum_owner_name TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_staged_items_batch ON staged_items (import_batch_row_id);
 CREATE INDEX IF NOT EXISTS idx_staged_items_state ON staged_items (session_id, state);
@@ -690,47 +676,5 @@ CREATE UNIQUE INDEX IF NOT EXISTS method_agreements_unique_heir
   ON method_agreements (session_id, participant_id, captain_participant_id);
 CREATE INDEX IF NOT EXISTS method_agreements_session
   ON method_agreements (session_id, agreed_at);
-
-/* ------------------------------------------------------------------ */
-/* item_interests — per-heir, per-item interest level                  */
-/* ------------------------------------------------------------------ */
-CREATE TABLE IF NOT EXISTS item_interests (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  session_id INTEGER NOT NULL,
-  participant_id INTEGER NOT NULL,
-  item_id INTEGER NOT NULL,
-  interest TEXT NOT NULL,
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-CREATE UNIQUE INDEX IF NOT EXISTS item_interests_unique
-  ON item_interests (session_id, participant_id, item_id);
-CREATE INDEX IF NOT EXISTS item_interests_item
-  ON item_interests (session_id, item_id);
-
-/* ------------------------------------------------------------------ */
-/* estate_subscriptions — per-estate subscription / license state      */
-/* ------------------------------------------------------------------ */
-/*
- * One row per estate, keyed by scope_id. Drives the subscription gate
- * (FEATURE_FLAGS.subscriptionGate). While the gate is off this table is
- * informational only. When on, requireSubscriptionForWrite reads it and
- * returns 402 for estates whose status is expired/locked/cancelled or
- * whose subscription_expires_at / license_expires_at has lapsed.
- * Mirrors apps/reindeer-discovery estate_subscriptions.
- */
-CREATE TABLE IF NOT EXISTS estate_subscriptions (
-  scope_id                TEXT PRIMARY KEY,
-  status                  TEXT NOT NULL DEFAULT 'active',
-  subscription_expires_at TEXT,
-  stripe_customer_id      TEXT,
-  stripe_subscription_id  TEXT,
-  license_key             TEXT,
-  license_expires_at      TEXT,
-  trustee_account_id      TEXT,
-  license_pool_slots      INTEGER NOT NULL DEFAULT 0,
-  created_at              TEXT NOT NULL,
-  updated_at              TEXT NOT NULL
-);
 `);
 }
