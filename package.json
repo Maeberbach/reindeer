@@ -8,7 +8,8 @@
     "packages/*",
     "apps/reindeer-registry",
     "apps/reindeer-fair-play",
-    "apps/reindeer-discovery"
+    "apps/reindeer-discovery",
+    "apps/reindeer-corp-admin"
   ],
   "scripts": {
     "test:roundtrip": "node scripts/roundtrip-test.mjs",

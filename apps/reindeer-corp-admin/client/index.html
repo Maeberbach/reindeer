@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reindeer Corporate Admin</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
+    --border: #30363d; --border2: #484f58;
+    --text: #e6edf3; --text2: #8b949e; --text3: #6e7681;
+    --green: #3fb950; --green-bg: rgba(63,185,80,0.1);
+    --red: #f85149; --red-bg: rgba(248,81,73,0.1);
+    --yellow: #d29922; --blue: #58a6ff; --purple: #bc8cff;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px;
+  }
+  .header { text-align: center; margin-bottom: 24px; }
+  .header h1 { font-size: 24px; font-weight: 600; margin-bottom: 4px; }
+  .header p { color: var(--text2); font-size: 13px; }
+  .header .logo { display: inline-block; font-size: 28px; margin-bottom: 8px; }
+  .conn-bar {
+    max-width: 1100px; margin: 0 auto 20px; display: flex; gap: 12px; align-items: center;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px;
+  }
+  .conn-bar .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .dot-green { background: var(--green); } .dot-red { background: var(--red); } .dot-gray { background: var(--border2); }
+  .conn-bar .label { font-size: 13px; color: var(--text2); }
+  .conn-bar .spacer { flex: 1; }
+  .conn-bar button {
+    background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 16px; font-size: 13px; cursor: pointer; font-weight: 500;
+  }
+  .conn-bar button:hover { background: var(--border); }
+
+  .grid { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .card h2 { font-size: 16px; }
+  .card .subtitle { font-size: 12px; color: var(--text2); margin-top: -8px; }
+  .card .url { font-size: 10px; color: var(--text3); word-break: break-all; font-family: monospace; }
+
+  .card-status { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .card-status .val { font-weight: 500; }
+
+  .stats { display: flex; gap: 10px; }
+  .stat {
+    flex: 1; background: var(--surface2); border-radius: 8px; padding: 10px; text-align: center;
+  }
+  .stat .num { font-size: 22px; font-weight: 600; }
+  .stat .lbl { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+  .section { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+
+  .flag {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 10px; background: var(--surface2); border-radius: 6px; font-size: 13px;
+  }
+  .flag .name { color: var(--text); }
+  .toggle {
+    width: 38px; height: 20px; border-radius: 10px; cursor: pointer; position: relative;
+    transition: background 0.2s; border: none; flex-shrink: 0;
+  }
+  .toggle.on { background: var(--green); } .toggle.off { background: var(--border2); }
+  .toggle::after {
+    content: ''; position: absolute; top: 3px; width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; transition: left 0.2s;
+  }
+  .toggle.on::after { left: 21px; } .toggle.off::after { left: 3px; }
+
+  .badge {
+    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500;
+  }
+  .badge-green { background: var(--green-bg); color: var(--green); }
+  .badge-gray { background: var(--surface2); color: var(--text2); }
+  .badge-red { background: var(--red-bg); color: var(--red); }
+
+  .btn {
+    padding: 8px; border-radius: 6px; border: 1px solid var(--border); font-size: 13px;
+    font-weight: 500; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-danger { background: rgba(248,81,73,0.1); color: var(--red); border-color: rgba(248,81,73,0.3); }
+  .btn-danger:hover { background: rgba(248,81,73,0.2); }
+  .btn-sec { background: var(--surface2); color: var(--text2); }
+  .btn-sec:hover { background: var(--border); }
+
+  .msg { font-size: 12px; padding: 6px 10px; border-radius: 6px; }
+  .msg.ok { background: var(--green-bg); color: var(--green); }
+  .msg.err { background: var(--red-bg); color: var(--red); }
+  .msg.hidden { display: none; }
+
+  .loading { text-align: center; padding: 30px; color: var(--text2); font-size: 13px; }
+  .info-row { font-size: 12px; color: var(--text2); padding: 4px 10px; background: var(--surface2); border-radius: 6px; }
+  .info-row .val { color: var(--text); font-weight: 500; }
+
+  .login-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg);
+    display: flex; align-items: center; justify-content: center; z-index: 100;
+  }
+  .login-box {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 32px; max-width: 400px; width: 90%; text-align: center;
+  }
+  .login-box h1 { font-size: 22px; margin-bottom: 4px; }
+  .login-box p { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+  .login-box input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; color: var(--text); font-size: 14px; margin-bottom: 12px;
+  }
+  .login-box input:focus { outline: none; border-color: var(--blue); }
+  .login-box button {
+    width: 100%; background: var(--blue); color: #fff; border: none; border-radius: 8px;
+    padding: 10px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .login-box button:hover { filter: brightness(1.1); }
+  .login-error { color: var(--red); font-size: 13px; margin-top: 8px; display: none; }
+  .login-note { font-size: 11px; color: var(--text3); margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<!-- Login overlay -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <div class="logo" style="font-size:32px;">🦌</div>
+    <h1>Reindeer Corporate Admin</h1>
+    <p>Enter your admin key to access the dashboard</p>
+    <input type="password" id="loginKey" placeholder="REINDEER_ADMIN_KEY" onkeypress="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()">Connect</button>
+    <div class="login-error" id="loginError">Invalid key or server not reachable.</div>
+    <div class="login-note">The key is verified server-side and never stored in the browser.</div>
+  </div>
+</div>
+
+<!-- Main dashboard -->
+<div id="dashboard" style="display:none;">
+  <div class="header">
+    <div class="logo">🦌</div>
+    <h1>Reindeer Corporate Admin</h1>
+    <p>Feature management, license control, and estate operations across all apps</p>
+  </div>
+
+  <div class="conn-bar">
+    <div class="dot dot-gray" id="connDot"></div>
+    <span class="label" id="connLabel">Loading...</span>
+    <div class="spacer"></div>
+    <button onclick="loadAll()">Refresh</button>
+  </div>
+
+  <div class="grid" id="grid">
+    <div class="card" id="card-registry">
+      <h2>Reindeer Registry</h2>
+      <div class="subtitle">Estate inventory & item capture</div>
+      <div class="url">https://reindeer-registry.onrender.com</div>
+      <div class="card-status"><div class="dot dot-gray" id="dot-registry"></div><span class="val" id="conn-registry">Not loaded</span></div>
+      <div id="content-registry" class="loading">Loading...</div>
+    </div>
+    <div class="card" id="card-fairplay">
+      <h2>Reindeer: FairPlay</h2>
+      <div class="subtitle">Estate distribution & fair division</div>
+      <div class="url">https://reindeer-fair-play.onrender.com</div>
+      <div class="card-status"><div class="dot dot-gray" id="dot-fairplay"></div><span class="val" id="conn-fairplay">Not loaded</span></div>
+      <div id="content-fairplay" class="loading">Loading...</div>
+    </div>
+    <div class="card" id="card-discovery">
+      <h2>Reindeer: Discovery</h2>
+      <div class="subtitle">Heir interest & early discovery</div>
+      <div class="url">https://reindeer-discovery.onrender.com</div>
+      <div class="card-status"><div class="dot dot-gray" id="dot-discovery"></div><span class="val" id="conn-discovery">Not loaded</span></div>
+      <div id="content-discovery" class="loading">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const APPS = ['registry', 'fairplay', 'discovery'];
+let appData = {};
+
+/* ── Login ───────────────────────────────── */
+async function doLogin() {
+  const key = document.getElementById('loginKey').value.trim();
+  if (!key) return;
+  const err = document.getElementById('loginError');
+  err.style.display = 'none';
+  try {
+    // Try loading all apps — if at least one connects, we're good
+    await loadAll(key);
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+  } catch (e) {
+    err.textContent = e.message || 'Failed to connect';
+    err.style.display = 'block';
+  }
+}
+
+/* ── API helper ───────────────────────────── */
+async function api(method, app, path, body) {
+  const url = `/api/proxy/${app}${path}`;
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || data.message || `HTTP ${res.status}`);
+  return data;
+}
+
+/* ── Load all apps ────────────────────────── */
+async function loadAll(key) {
+  if (key) {
+    // Set a temporary key via query param for login
+    // Actually the key is server-side, so we just try to load
+  }
+  let connected = 0;
+  for (const appKey of APPS) {
+    try {
+      await loadApp(appKey);
+      connected++;
+    } catch (e) {
+      console.error(`${appKey}:`, e);
+      showAppError(appKey, e.message);
+    }
+  }
+  const dot = document.getElementById('connDot');
+  const label = document.getElementById('connLabel');
+  if (connected === 3) { dot.className = 'dot dot-green'; label.textContent = 'All 3 apps connected'; }
+  else if (connected > 0) { dot.className = 'dot dot-green'; label.textContent = `${connected}/3 apps connected`; }
+  else { dot.className = 'dot dot-red'; label.textContent = 'No apps reachable — check server config'; }
+}
+
+function showAppError(appKey, msg) {
+  const el = document.getElementById('content-' + appKey);
+  if (el) el.innerHTML = `<div class="loading" style="color:var(--red);">Error: ${msg}</div>`;
+  const dot = document.getElementById('dot-' + appKey);
+  if (dot) dot.className = 'dot dot-red';
+  const conn = document.getElementById('conn-' + appKey);
+  if (conn) conn.textContent = 'Failed';
+}
+
+/* ── Load a single app's dashboard ────────── */
+async function loadApp(appKey) {
+  const el = document.getElementById('content-' + appKey);
+  el.innerHTML = '<div class="loading">Loading...</div>';
+  const status = await api('GET', appKey, '/api/admin/status');
+  appData[appKey] = status;
+
+  let html = '';
+
+  // Stats
+  const counts = status.counts || {};
+  html += '<div class="stats">';
+  const statEntries = Object.entries(counts).slice(0, 4);
+  for (const [k, v] of statEntries) {
+    html += `<div class="stat"><div class="num">${v ?? '?'}</div><div class="lbl">${k}</div></div>`;
+  }
+  html += '</div>';
+
+  // Support key status
+  const supportOn = status.estate?.support_enabled ?? status.support_enabled;
+  html += `<div class="info-row">Support Key: <span class="val">${supportOn ? 'Configured' : 'Not configured'}</span></div>`;
+
+  // Session phase (Discovery)
+  if (status.estate?.session_phase) {
+    html += `<div class="info-row">Session Phase: <span class="val">${status.estate.session_phase}</span></div>`;
+  }
+
+  // Vision / max_frames (Registry)
+  if (status.vision) {
+    html += `<div class="info-row">Vision: <span class="val">${status.vision}</span></div>`;
+  }
+  if (status.max_frames) {
+    html += `<div class="info-row">Max Frames/Room: <span class="val">${status.max_frames}</span></div>`;
+  }
+
+  // Subscription
+  if (status.subscription) {
+    html += `<div class="info-row">Subscription: <span class="val">${status.subscription.status || 'N/A'}</span> | Gate: <span class="val">${status.subscription.gate_enabled ? 'ON' : 'OFF'}</span></div>`;
+  }
+
+  // Feature flags
+  const flags = status.feature_flags || {};
+  if (Object.keys(flags).length > 0) {
+    html += '<div class="section">Feature Toggles</div>';
+    for (const [flag, val] of Object.entries(flags)) {
+      const boolVal = !!val;
+      html += `<div class="flag"><span class="name">${flag}</span><button class="toggle ${boolVal ? 'on' : 'off'}" onclick="toggleFlag('${appKey}','${flag}',${!boolVal})"></button></div>`;
+    }
+  }
+
+  // Estate operations
+  html += '<div class="section">Estate Operations</div>';
+  html += `<button class="btn btn-danger" onclick="resetEstate('${appKey}')">Reset Estate Data</button>`;
+  html += `<div class="msg hidden" id="msg-${appKey}"></div>`;
+
+  el.innerHTML = html;
+  document.getElementById('dot-' + appKey).className = 'dot dot-green';
+  document.getElementById('conn-' + appKey).textContent = 'Connected';
+}
+
+/* ── Toggle a feature flag ────────────────── */
+async function toggleFlag(appKey, flag, value) {
+  const msgEl = document.getElementById('msg-' + appKey);
+  try {
+    // Different apps have different flag-setting APIs
+    if (appKey === 'discovery') {
+      await api('POST', appKey, '/api/admin/feature-flags', { flag, value });
+    } else {
+      const body = {}; body[flag] = value;
+      await api('POST', appKey, '/api/admin/feature-flags', body);
+    }
+    await loadApp(appKey);
+  } catch (e) {
+    msgEl.className = 'msg err';
+    msgEl.textContent = e.message;
+    msgEl.classList.remove('hidden');
+  }
+}
+
+/* ── Reset estate data ────────────────────── */
+async function resetEstate(appKey) {
+  const name = appKey.charAt(0).toUpperCase() + appKey.slice(1);
+  if (!confirm(`Reset ${name}? This will DELETE ALL estate data. This cannot be undone.`)) return;
+  if (!confirm('Are you absolutely sure? All items, photos, and participant data will be permanently deleted.')) return;
+  const msgEl = document.getElementById('msg-' + appKey);
+  try {
+    const result = await api('POST', appKey, '/api/admin/reset');
+    msgEl.className = 'msg ok';
+    msgEl.textContent = result.message || 'Estate reset successfully';
+    msgEl.classList.remove('hidden');
+    await loadApp(appKey);
+  } catch (e) {
+    msgEl.className = 'msg err';
+    msgEl.textContent = e.message;
+    msgEl.classList.remove('hidden');
+  }
+}
+
+/* ── Init: check if server is configured ──── */
+(async function init() {
+  try {
+    const resp = await fetch('/api/status');
+    const data = await resp.json();
+    if (!data.adminKeyConfigured) {
+      const err = document.getElementById('loginError');
+      err.textContent = 'Admin key not configured on server. Set REINDEER_ADMIN_KEY env var.';
+      err.style.display = 'block';
+    }
+  } catch (e) {
+    console.error('init error:', e);
+  }
+})();
+</script>
+</body>
+</html>
