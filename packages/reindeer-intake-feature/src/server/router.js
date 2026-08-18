@@ -268,7 +268,7 @@ export function createIntakeRouter(deps) {
   // video; only crops are ever stored.
   r.post('/intake/detect', express.json({ limit: '60mb' }), wrap(async (req, res) => {
     const ctx = ctxOf(req);
-    const maxFrames = deps.maxFrames ?? 4;
+    const maxFrames = typeof deps.maxFrames === 'function' ? deps.maxFrames() : (deps.maxFrames ?? 4);
     const images = (req.body.images ?? []).slice(0, maxFrames).map((img, i) => ({
       media_id: img.media_id ?? `m${i}`,
       frame_index: img.frame_index ?? i,

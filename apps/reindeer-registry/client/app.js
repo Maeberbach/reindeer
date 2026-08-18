@@ -1066,7 +1066,7 @@ $('#capPhoto').onchange = async (e) => {
     + 'You do not have to wait — carry on and type the name yourself if you prefer.');
 
   const giveUp = new AbortController();
-  const timer = setTimeout(() => giveUp.abort(), 75000);
+  const timer = setTimeout(() => giveUp.abort(), 150000);
   try {
     const { detections, vision_mode } = await api('/api/intake/detect', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -1504,7 +1504,15 @@ $('#capVoiceRedo')?.addEventListener('click', () => {
 // walkthrough needed no new endpoint — the detect route already accepts frames
 // and already groups the same object seen from several angles.
 let batchFiles = [];
-const MAX_FRAMES = 10;
+// Default 4 photos per room. The server can override this up to 8 via the
+// admin settings endpoint — fetch it on startup and keep the value in sync.
+let MAX_FRAMES = 4;
+(async () => {
+  try {
+    const r = await fetch(`${API}/settings/max-frames`);
+    if (r.ok) { const j = await r.json(); MAX_FRAMES = j.max_frames ?? 4; }
+  } catch { /* server unreachable — use default */ }
+})();
 
 function showThumbs() {
   const thumbs = $('#batchThumbs'); thumbs.innerHTML = '';
@@ -1671,10 +1679,14 @@ $('#batchGo').onclick = async () => {
   $('#batchGo').disabled = true;
   toast('Looking through the photos…');
   try {
+    const giveUp = new AbortController();
+    const timer = setTimeout(() => giveUp.abort(), 150000);
     const { detections, vision_mode } = await api('/api/intake/detect', {
       method: 'POST', headers: { 'content-type': 'application/json' },
+      signal: giveUp.signal,
       body: JSON.stringify({ images: batchFiles.map((f, i) => ({ data_url: f._dataUrl, frame_index: i, media_id: `m${i}` })) }),
     });
+    clearTimeout(timer);
     // The aim of this lane is a complete list, so keeping everything is the
     // easy path and rejecting is the exception. No value is shown here: bulk
     // intake records what a thing is, and what it is worth is decided later.
@@ -3570,6 +3582,9 @@ function renderRoomState() {
     : '<p class="roomstat-todo">Nothing recorded in here yet.</p>';
 
   $('#roomCaptured').hidden = roomPending.length === 0;
+  // Show "Take more of the room" when photos have been taken and the room isn't finished
+  const takeMore = $('#roomTakeMore');
+  if (takeMore) takeMore.hidden = roomPending.length === 0 || room.finished;
   $('#roomCaptured').innerHTML = roomPending.map((p) => `
     <div class="capt">
       <p class="capt-line">${p.saved ? '✓ Saved' : '⏳ Held on this device'} — ${escapeHtml(p.label)}</p>
@@ -3667,13 +3682,17 @@ async function offerNaming(key) {
   roomDupCount = 0;
   roomSkippedDuplicates = null;
   try {
+    const giveUp = new AbortController();
+    const timer = setTimeout(() => giveUp.abort(), 150000);
     const { detections, vision_mode } = await api('/api/intake/detect', {
       method: 'POST', headers: { 'content-type': 'application/json' },
+      signal: giveUp.signal,
       body: JSON.stringify({
         images: entry.frames.map((dataUrl, i) => ({ data_url: dataUrl, frame_index: i, media_id: `${key}-${i}` })),
         room_hint: room.name,
       }),
     });
+    clearTimeout(timer);
     batchFiles = entry.frames.map((dataUrl, i) => ({ _dataUrl: dataUrl, _frame: i }));
     entry.named = true;
     showNamingResults(detections, vision_mode);
@@ -3703,13 +3722,17 @@ async function autoDetectRoomPhotos(key) {
   autoDetectInFlight = true;
   renderRoomState();
   try {
+    const giveUp = new AbortController();
+    const timer = setTimeout(() => giveUp.abort(), 150000);
     const { detections, vision_mode } = await api('/api/intake/detect', {
       method: 'POST', headers: { 'content-type': 'application/json' },
+      signal: giveUp.signal,
       body: JSON.stringify({
         images: entry.frames.map((dataUrl, i) => ({ data_url: dataUrl, frame_index: i, media_id: `${key}-${i}` })),
         room_hint: room.name,
       }),
     });
+    clearTimeout(timer);
     batchFiles = entry.frames.map((dataUrl, i) => ({ _dataUrl: dataUrl, _frame: i }));
     entry.named = true;
     showNamingResults(detections, vision_mode);
@@ -4173,6 +4196,10 @@ $('#roomVideo').onchange = async (e) => {
   e.target.value = '';
   if (file) await captureRoomMedia(file, 'video');
 };
+
+// "Take more of the room" — re-opens the photo picker so the owner can add
+// another batch without leaving the room screen.
+$('#roomTakeMore')?.addEventListener('click', () => $('#roomPhotos').click());
 
 $('#roomPhotos').onchange = async (e) => {
   const files = [...e.target.files];
