@@ -1356,7 +1356,13 @@ async function saveItem() {
     if (promiseMode) { promiseKept += 1; return go('memo'); }
     if (quickTestMode) { quickTestMode = false; return go('whosdoing'); }
     if (recipientPracticeMode) { recipientPracticeMode = false; return go('walk'); }
-    if (guidedIntroMode) { guidedIntroMode = false; updateHomeTileAfterFirstItem(); return go('home'); }
+    if (guidedIntroMode) {
+      guidedIntroMode = false;
+      updateHomeTileAfterFirstItem();
+      go('walk');
+      setTimeout(() => toast('First item saved. Now pick a room to start in — take wide photos and AI will identify what is there.'), 500);
+      return;
+    }
     // Normal mode: offer to take another photo instead of going home
     $('#capNav').hidden = true;
     $('#capAnother').hidden = false;
@@ -3832,8 +3838,8 @@ function renderRoomGiftAsk(added, again = false) {
     <p class="reassure">That part is done. They are written down and they will print.</p>`}
     <div class="ask">
       <p class="askq">${again
-        ? 'Anything else in here meant for someone in particular?'
-        : 'Did you see anything in here that is meant for someone in particular?'}</p>
+        ? 'Anything else in here that stands out — to assign to someone, or flag as important?'
+        : 'Is there anything in here that stands out — something to assign to someone, or flag as important?'}</p>
       <button class="primary wide" id="giftYes">Yes — let me point ${again ? 'more' : 'them'} out</button>
       <button class="ghost wide" id="giftNo">${again ? 'No — that is everything' : 'No — on to the next room'}</button>
     </div>`;
@@ -3852,7 +3858,7 @@ function renderGiftPicker(added) {
   const picked = new Set();
   $('#batchResults').innerHTML = `
     <h2>Which ones?</h2>
-    <p class="reassure">Tap as many as you like. They can all go to the same person.</p>
+    <p class="reassure">Tap the ones that stand out. Assign them to someone, or just flag them as important.</p>
     <div class="picks">
       ${added.map((a) => `
         <button class="pick" data-pick-id="${a.item_id}" aria-pressed="false">
@@ -3868,6 +3874,7 @@ function renderGiftPicker(added) {
       <button class="primary wide" id="giftSave">Save this</button>
       <p class="reassure">This is a wish, not a legal instruction. You can change it any time.</p>
     </div>
+    <button class="ghost wide" id="giftFlagImportant">Flag as important instead</button>
     <button class="ghost wide" id="giftCancel">Never mind</button>`;
 
   const box = $('#giftWhoBox');
@@ -3895,6 +3902,22 @@ function renderGiftPicker(added) {
     };
   });
 
+  $('#giftFlagImportant').onclick = async () => {
+    if (picked.size === 0) return toast('Tap the ones to flag first.', true);
+    const ids = [...picked];
+    try {
+      for (const id of ids) {
+        await api(`/api/items/${id}`, {
+          method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ owner_high_value: true }),
+        });
+      }
+      toast(`${ids.length === 1 ? 'That one is' : `Those ${ids.length} are`} flagged as important.`);
+      const left = added.filter((a) => !picked.has(a.item_id));
+      if (!left.length) return leaveNaming();
+      renderRoomGiftAsk(left, true);
+    } catch (e) { toast(e.message, true); }
+  };
   $('#giftCancel').onclick = () => renderRoomGiftAsk(added, true);
   $('#giftSave').onclick = async () => {
     const name = $('#giftName').value.trim();
