@@ -4,6 +4,7 @@ import {
   MEDIA_KIND, MEDIA_ACCEPT, RECORDING_ROLE, mediaKindFor, DEFAULT_CATEGORIES,
 } from '@reindeer/core-api';
 import { screenHighValue } from '../vision/index.js';
+import { titleSimilarity } from '../duplicates.js';
 
 /**
  * Mountable intake router. Both app shells mount this at /api — the only
@@ -292,11 +293,36 @@ export function createIntakeRouter(deps) {
   r.post('/intake/commit', express.json({ limit: '60mb' }), wrap(async (req, res) => {
     const ctx = ctxOf(req);
     const created = [];
+    const skippedDuplicates = [];
+
+    // Fetch existing items in this scope for pre-commit duplicate checking.
+    // This prevents the same room photos from adding items that are already on
+    // the list — e.g. if the owner returns to a room for close-ups and the AI
+    // re-identifies something already recorded from the wide shot.
+    const existingItems = ctx.scopeId
+      ? itemRepo.list(ctx).map((it) => ({ item_id: it.item_id, title: it.title, room_id: it.room_id }))
+      : [];
+    const DUPLICATE_THRESHOLD = 0.72;
+
     for (const d of req.body.detections ?? []) {
+      // Pre-commit duplicate check: compare AI label against existing items
+      // in the same room (or same scope if no room). Skip if above threshold.
+      const roomId = d.room_hint ? registry.resolveRoom(d.room_hint, ctx)?.room_id : null;
+      const isDuplicate = existingItems.some((existing) => {
+        // Only check items in the same room, or items with no room assigned
+        if (roomId && existing.room_id && existing.room_id !== roomId) return false;
+        return titleSimilarity(d.label, existing.title) >= DUPLICATE_THRESHOLD;
+      });
+
+      if (isDuplicate) {
+        skippedDuplicates.push({ label: d.label, reason: 'duplicate' });
+        continue;
+      }
+
       const item = await itemRepo.create({
         title: d.label,
         category_id: d.category_hint ? registry.resolveCategory(d.category_hint, ctx)?.category_id : null,
-        room_id: d.room_hint ? registry.resolveRoom(d.room_hint, ctx)?.room_id : null,
+        room_id: roomId,
         quantity: d.quantity ?? 1,
         identifiers: d.identifiers ?? {},
         // Bulk intake records what a thing IS, never what it is worth. An
@@ -326,13 +352,13 @@ export function createIntakeRouter(deps) {
         }, ctx);
       }
       created.push(item.item_id);
+      // Add to existing list so subsequent detections in the same batch
+      // don't create duplicates of each other.
+      existingItems.push({ item_id: item.item_id, title: d.label, room_id: roomId });
     }
-    // Count possible duplicates, but record nothing. Saving must never hand the
-    // owner a mandatory review — the goal is to get things documented. The
-    // review is offered on request via /intake/duplicates/scan, and the
-    // captain can also do it later in Reindeer: FairPlay.
+    // Count possible duplicates among what was actually committed.
     const possibleDuplicates = created.length ? await duplicates.previewBatch(created, ctx) : 0;
-    res.status(201).json({ created, possible_duplicates: possibleDuplicates });
+    res.status(201).json({ created, possible_duplicates: possibleDuplicates, skipped_duplicates: skippedDuplicates });
   }));
 
   // ---- review + duplicates ------------------------------------------------

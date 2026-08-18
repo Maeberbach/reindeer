@@ -183,6 +183,7 @@ let history = [];
  */
 let inRoomNaming = false;
 let roomDupCount = 0;
+let roomSkippedDuplicates = null;
 
 function offerDuplicateCheck(count) {
   if (inRoomNaming) {
@@ -3406,6 +3407,14 @@ function renderRoomState() {
       ${p.frames?.length ? `<button class="ghost wide" data-name-these="${p.key}">Write down what is in it${p.frames.length ? ` (${p.frames.length} pictures)` : ''}</button>` : ''}
       ${p.saved ? '' : '<p class="capt-note">It will be sent when you next have internet.</p>'}
     </div>`).join('');
+  // When items are already named in this room, show a hint to take close-ups
+  if (named > 0 && roomPending.length === 0) {
+    $('#roomCaptured').hidden = false;
+    $('#roomCaptured').innerHTML += `
+      <div class="capt" style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
+        <p class="capt-note" style="margin:0">Want better detail? Take close-ups of individual things — AI will name them and skip anything already on your list.</p>
+      </div>`;
+  }
   $$('#roomCaptured [data-name-these]').forEach((b) => {
     b.onclick = () => offerNaming(b.dataset.nameThese);
   });
@@ -3485,6 +3494,7 @@ async function offerNaming(key) {
   toast('Looking through the recording…');
   inRoomNaming = true;
   roomDupCount = 0;
+  roomSkippedDuplicates = null;
   try {
     const { detections, vision_mode } = await api('/api/intake/detect', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -3497,6 +3507,37 @@ async function offerNaming(key) {
     showNamingResults(detections, vision_mode);
   } catch (e) {
     toast(e.message, true);
+  }
+}
+
+/**
+ * Auto-detect: runs AI identification automatically after room photos are captured,
+ * without the owner needing to click "Write down what is in it." The photos are
+ * already saved; this is the naming pass, started for them.
+ */
+async function autoDetectRoomPhotos(key) {
+  const entry = roomPending.find((p) => p.key === key);
+  if (!entry?.frames?.length) return;
+  if (!(await serverReachable())) {
+    toast('Photos kept. AI naming will happen when you have internet.');
+    return;
+  }
+  toast('Looking through your photos…');
+  inRoomNaming = true;
+  roomDupCount = 0;
+  try {
+    const { detections, vision_mode } = await api('/api/intake/detect', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        images: entry.frames.map((dataUrl, i) => ({ data_url: dataUrl, frame_index: i, media_id: `${key}-${i}` })),
+        room_hint: room.name,
+      }),
+    });
+    batchFiles = entry.frames.map((dataUrl, i) => ({ _dataUrl: dataUrl, _frame: i }));
+    showNamingResults(detections, vision_mode);
+  } catch (e) {
+    toast('Photos are saved. AI naming did not work just now — try again later.', true);
+    inRoomNaming = false;
   }
 }
 
@@ -3549,6 +3590,18 @@ async function showNamingResults(detections, mode) {
     $('#namingBack').onclick = () => leaveNaming();
     return;
   }
+  // If some items were skipped as duplicates, mention them before the gift ask
+  if (roomSkippedDuplicates?.length) {
+    const skippedList = roomSkippedDuplicates.map((s) => escapeHtml(s.label)).join(', ');
+    $('#batchResults').innerHTML += `
+      <div class="note" style="margin-top:1rem;padding:12px 16px;border:1px solid var(--border);border-radius:8px;background:var(--muted)">
+        <p style="margin:0;font-size:13px;color:var(--muted)">
+          <b>Skipped ${roomSkippedDuplicates.length} duplicate${roomSkippedDuplicates.length === 1 ? '' : 's'}:</b> ${skippedList}
+          — already on your list.
+        </p>
+      </div>`;
+    roomSkippedDuplicates = null;
+  }
   renderRoomGiftAsk(added);
 }
 
@@ -3567,19 +3620,32 @@ async function commitEverything(detections) {
     const crop = src ? await cropTo(src._dataUrl, d.bbox) : null;
     payload.push({ ...d, crop_data_url: crop, room_hint: room?.name ?? d.room_hint ?? d.room ?? null });
   }
-  const { created, possible_duplicates } = await api('/api/intake/commit', {
+  const { created, possible_duplicates, skipped_duplicates } = await api('/api/intake/commit', {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ detections: payload }),
   });
   // Mentioned once on the way out, as information. Never a task.
   if (possible_duplicates > 0) roomDupCount += possible_duplicates;
+  // Track skipped duplicates for display in the results
+  if (skipped_duplicates?.length) roomSkippedDuplicates = skipped_duplicates;
   await Promise.all(created.map((id) => api(`/api/items/${id}/keep`, { method: 'POST' }).catch(() => {})));
   refreshCount();
-  return created.map((id, i) => ({
-    item_id: id,
-    label: detections[i]?.label ?? 'Item',
-    thumb: payload[i]?.crop_data_url || batchFiles[detections[i]?.frame_index ?? 0]?._dataUrl || '',
-  }));
+  // Map created items back to their detections, filtering out skipped ones
+  let createdIdx = 0;
+  return created.map((id) => {
+    // Find the next non-skipped detection
+    while (createdIdx < detections.length && skipped_duplicates?.some((s) => s.label === detections[createdIdx]?.label)) {
+      createdIdx++;
+    }
+    const d = detections[createdIdx] ?? {};
+    const i = createdIdx;
+    createdIdx++;
+    return {
+      item_id: id,
+      label: d.label ?? 'Item',
+      thumb: payload[i]?.crop_data_url || batchFiles[d.frame_index ?? 0]?._dataUrl || '',
+    };
+  });
 }
 
 /** The one question. Asked about the room, once, and never repeated. */
@@ -3926,7 +3992,13 @@ $('#roomPhotos').onchange = async (e) => {
   }
   renderRoomState();
   await refreshQueueBadge();
-  toast('Photos kept. You can name what is in them now, or later.');
+  // Auto-trigger AI detection — the owner took photos to get things written down,
+  // not to click another button. If offline or AI fails, the photos are still saved.
+  if (entry.frames.length > 0) {
+    autoDetectRoomPhotos(key);
+  } else {
+    toast('Photos kept. They will be named when you have internet.');
+  }
 };
 
 // "Add one thing carefully" hands over to the guided capture, pre-filled with

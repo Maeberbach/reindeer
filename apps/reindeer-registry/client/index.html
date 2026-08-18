@@ -610,15 +610,15 @@
   -->
   <section class="screen" data-screen="room" hidden>
     <p class="roomname" id="roomTitle"></p>
-    <p class="lede" id="roomLede">Take several photos around the room. Getting it recorded is what matters.</p>
+    <p class="lede" id="roomLede">Take wide photos of the room, then come back with close-ups if you like. AI identifies what it sees and skips duplicates.</p>
 
     <div class="roomstats" id="roomStats"></div>
 
     <div class="roomactions">
       <label class="tile primary filetile">
         <span class="ico">📷</span>
-        <span class="lbl">Take photos of this room</span>
-        <span class="hint">Several pictures. This works on every phone, tablet and computer.</span>
+        <span class="lbl">Take wide photos of the room</span>
+        <span class="hint">Several pictures from different angles. AI identifies what it sees.</span>
         <input type="file" id="roomPhotos" accept="image/*" multiple hidden>
       </label>
 
@@ -634,7 +634,7 @@
         <input type="file" id="roomVideo" accept="video/*" capture="environment" hidden>
       </label>
 
-      <button class="tile" id="roomOneItem"><span class="ico">💎</span><span class="lbl">Add one thing carefully</span><span class="hint">For something you want named, with a story or a person</span></button>
+      <button class="tile" id="roomOneItem"><span class="ico">🔍</span><span class="lbl">Add a close-up</span><span class="hint">Focus on one thing — AI names it, you add the story</span></button>
     </div>
 
     <div id="roomCaptured" class="captured" hidden></div>
