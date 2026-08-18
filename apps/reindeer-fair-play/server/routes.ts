@@ -479,10 +479,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   // Resolves req.actor from the signed session cookie for every /api route.
   // Mounted FIRST so the auth router's own requireAuth/requireCaptain guards (and
   // GET /me) see req.actor too. Never reads body/query/header identity.
-  // Admin backdoor — must run BEFORE attachActor so the admin identity
-  // is set before any session/role check. No-op when REINDEER_ADMIN_KEY is unset.
-  app.use("/api", adminBackdoor);
+  // Admin backdoor — runs AFTER attachActor so it can override the null
+  // actor set when there's no session cookie. No-op when REINDEER_ADMIN_KEY is unset.
   app.use("/api", attachActor);
+  app.use("/api", adminBackdoor);
 
   // Mounted BEFORE the deny-by-default gate below: signing in, requesting a
   // link, and reading /api/auth/me must all be reachable without already
