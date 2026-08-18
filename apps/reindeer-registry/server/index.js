@@ -417,13 +417,6 @@ app.get('/api/admin/feature-flags', (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-app.get('/api/admin/feature-flags', (req, res, next) => {
-  try {
-    if (!isBackdoorAdmin(req)) return res.status(403).json({ error: 'Backdoor admin only.' });
-    res.json({ feature_flags: { ...REGISTRY_FLAGS } });
-  } catch (e) { next(e); }
-});
-
 // POST /api/admin/feature-flags — toggle feature flags at runtime (backdoor only).
 app.post('/api/admin/feature-flags', (req, res, next) => {
   try {
@@ -441,17 +434,6 @@ app.post('/api/admin/feature-flags', (req, res, next) => {
 
 // POST /api/admin/reset — corporate admin only. Wipes all estate data.
 // Returns only success/failure — never returns estate content.
-app.post('/api/admin/reset', (req, res, next) => {
-  try {
-    if (!isBackdoorAdmin(req)) return res.status(403).json({ error: 'Backdoor admin only.' });
-    const tables = ['items', 'item_photos', 'item_closeups', 'item_tags', 'audit_log'];
-    for (const table of tables) {
-      try { db.prepare(`DELETE FROM ${table}`).run(); } catch {}
-    }
-    res.json({ ok: true, message: 'Estate reset to fresh state.' });
-  } catch (e) { next(e); }
-});
-
 app.post('/api/admin/reset', (req, res, next) => {
   try {
     if (!isBackdoorAdmin(req)) return res.status(403).json({ error: 'Backdoor admin only.' });
