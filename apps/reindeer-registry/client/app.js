@@ -1361,8 +1361,7 @@ async function saveItem() {
     if (guidedIntroMode) {
       guidedIntroMode = false;
       updateHomeTileAfterFirstItem();
-      go('walk');
-      setTimeout(() => toast('First item saved. Now pick a room to start in — take wide photos and AI will identify what is there.'), 500);
+      go('guidedmeaning');
       return;
     }
     if (roomImportantFlow) {
