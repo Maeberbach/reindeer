@@ -1,3 +1,4 @@
+console.log('APP.JS LOADED'); var _bootDiag = document.getElementById('diagOutput'); if (_bootDiag) _bootDiag.textContent = 'app.js loaded, running...';
 /* Reindeer: Registry client.
    Guided, one-decision-per-screen capture. Cropping happens here on a canvas
    so the server needs no image library and raw source photos are never kept. */

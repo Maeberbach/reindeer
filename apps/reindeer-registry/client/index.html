@@ -1386,6 +1386,20 @@
 </div>
 <div id="toast" class="toast" hidden></div>
 <script src="offline-queue.js"></script>
+<script>
+var d = document.createElement('div');
+d.id = 'diagOutput';
+d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#00c;color:#fff;padding:10px;font-family:monospace;font-size:12px;z-index:99999;white-space:pre-wrap;max-height:300px;overflow-y:auto';
+d.textContent = 'diag ready';
+document.body.appendChild(d);
+window.addEventListener('error', function(e) {
+  d.textContent += '\nERROR: ' + (e.message || 'unknown') + ' at ' + (e.filename || '?') + ':' + (e.lineno || '?') + ':' + (e.colno || '?');
+  if (e.error && e.error.stack) d.textContent += '\nSTACK: ' + e.error.stack.substring(0, 500);
+});
+window.addEventListener('unhandledrejection', function(e) {
+  d.textContent += '\nREJECTION: ' + (e.reason && e.reason.message ? e.reason.message : String(e.reason));
+});
+</script>
 <script src="app.js"></script>
 <script>
 /*
@@ -1410,12 +1424,5 @@ if ('serviceWorker' in navigator) {
   <span class="fh-lbl">Home</span>
 </button>
 
-<script>
-var d = document.createElement('div');
-d.id = 'diagOutput';
-d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#00c;color:#fff;padding:10px;font-family:monospace;font-size:12px;z-index:99999;white-space:pre-wrap;max-height:200px;overflow-y:auto';
-d.textContent = 'waiting for boot...';
-document.body.appendChild(d);
-</script>
 </body>
 </html>
