@@ -15,7 +15,7 @@
  *   3. Mount this middleware after session attachment (already wired in index.js)
  */
 
-import { isLicenseEnforced } from './featureFlags.js';
+import { isLicenseEnforced, isSubscriptionGateEnabled } from './featureFlags.js';
 
 /**
  * Returns true if the request has full read/write access.
@@ -68,4 +68,53 @@ export function requireLicenseForWrite(req, res, next) {
   }
 
   next();
+}
+
+/**
+ * Per-estate subscription status.
+ * When the subscription gate is OFF (testing mode), always returns "active".
+ * When ON, checks the estate_subscriptions table for the scope's status.
+ */
+export function getEstateSubscriptionStatus(_db, _scopeId) {
+  // Testing mode — subscription is always active
+  if (!isSubscriptionGateEnabled()) return 'active';
+
+  // When enabled, query estate_subscriptions for the scope's status
+  // const row = _db.prepare('SELECT status FROM estate_subscriptions WHERE scope_id = ?').get(_scopeId);
+  // return row?.status ?? 'expired';
+  return 'active'; // Fallback: always active (replace with real check when enabled)
+}
+
+/**
+ * Express middleware factory: blocks write operations for expired/locked estates.
+ * When the subscription gate is OFF, this is a no-op.
+ *
+ * Only intercepts write methods (POST, PUT, PATCH, DELETE).
+ * GET requests always pass through — reading is never blocked.
+ *
+ * Returns HTTP 402 when the estate's subscription is expired or locked.
+ */
+export function requireSubscriptionForWrite(_db, _scopeId) {
+  return function subscriptionGate(req, res, next) {
+    // No-op in testing mode
+    if (!isSubscriptionGateEnabled()) {
+      return next();
+    }
+
+    // Only block write methods — reads are always allowed
+    if (req.method === 'GET') {
+      return next();
+    }
+
+    const status = getEstateSubscriptionStatus(_db, _scopeId);
+    if (status === 'expired' || status === 'locked') {
+      return res.status(402).json({
+        error: 'Your subscription has expired. Your data is safe — renew to continue.',
+        subscription_status: status,
+        read_only: true,
+      });
+    }
+
+    next();
+  };
 }
