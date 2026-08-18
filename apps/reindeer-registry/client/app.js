@@ -3406,7 +3406,8 @@ function renderRoomState() {
   $('#roomCaptured').innerHTML = roomPending.map((p) => `
     <div class="capt">
       <p class="capt-line">${p.saved ? '✓ Saved' : '⏳ Held on this device'} — ${escapeHtml(p.label)}</p>
-      ${p.frames?.length && !p.named ? `<button class="ghost wide" data-name-these="${p.key}">Write down what is in it${p.frames.length ? ` (${p.frames.length} pictures)` : ''}</button>` : ''}
+      ${autoDetectInFlight && !p.named ? '<p class="capt-note" style="margin:0">⏳ AI is looking through these photos… this can take a minute.</p>' : ''}
+      ${p.frames?.length && !p.named && !autoDetectInFlight ? `<button class="ghost wide" data-name-these="${p.key}">Write down what is in it${p.frames.length ? ` (${p.frames.length} pictures)` : ''}</button>` : ''}
       ${p.named ? '<p class="capt-note" style="margin:0">✓ AI has named the items in these photos.</p>' : ''}
       ${p.saved ? '' : '<p class="capt-note">It will be sent when you next have internet.</p>'}
     </div>`).join('');
@@ -3533,6 +3534,7 @@ async function autoDetectRoomPhotos(key) {
   roomDupCount = 0;
   roomSkippedDuplicates = null;
   autoDetectInFlight = true;
+  renderRoomState();
   try {
     const { detections, vision_mode } = await api('/api/intake/detect', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -3550,6 +3552,7 @@ async function autoDetectRoomPhotos(key) {
     showRoomNextAsk();
   } finally {
     autoDetectInFlight = false;
+    renderRoomState();
   }
 }
 
