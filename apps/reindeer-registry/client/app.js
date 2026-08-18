@@ -183,6 +183,7 @@ let history = [];
  */
 let inRoomNaming = false;
 let roomDupCount = 0;
+let autoDetectInFlight = false;
 let roomSkippedDuplicates = null;
 
 function offerDuplicateCheck(count) {
@@ -3373,6 +3374,7 @@ function renderWalk() {
 /* --------------------------------------------------------- inside one room */
 
 async function openRoom(roomId, name) {
+  const ask = $('#roomNextAsk'); if (ask) ask.hidden = true;
   room = { room_id: roomId, name };
   roomPending = [];
   go('room');
@@ -3518,16 +3520,19 @@ async function offerNaming(key) {
  * already saved; this is the naming pass, started for them.
  */
 async function autoDetectRoomPhotos(key) {
+  if (autoDetectInFlight) return; // don't overlap two detection runs
   const entry = roomPending.find((p) => p.key === key);
   if (!entry?.frames?.length) return;
   if (!(await serverReachable())) {
     toast('Photos kept. AI naming will happen when you have internet.');
+    showRoomNextAsk();
     return;
   }
   toast('Looking through your photos…');
   inRoomNaming = true;
   roomDupCount = 0;
   roomSkippedDuplicates = null;
+  autoDetectInFlight = true;
   try {
     const { detections, vision_mode } = await api('/api/intake/detect', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -3542,6 +3547,9 @@ async function autoDetectRoomPhotos(key) {
   } catch (e) {
     toast('Photos are saved. AI naming did not work just now — try again later.', true);
     inRoomNaming = false;
+    showRoomNextAsk();
+  } finally {
+    autoDetectInFlight = false;
   }
 }
 
@@ -3575,7 +3583,7 @@ async function showNamingResults(detections, mode) {
       <p class="reassure">The recording itself is saved with your inventory either way.
         A shorter walk through one room, pausing on each thing, usually reads better.</p>
       <button class="ghost wide" id="namingBack">Back to the room</button>`;
-    $('#namingBack').onclick = () => leaveNaming();
+    $('#namingBack').onclick = () => { leaveNaming(); showRoomNextAsk(); };
     return;
   }
 
@@ -3591,7 +3599,7 @@ async function showNamingResults(detections, mode) {
       <h2>Those could not be saved</h2>
       <p class="reassure">${escapeHtml(e.message)} The recording is still safe.</p>
       <button class="ghost wide" id="namingBack">Back to the room</button>`;
-    $('#namingBack').onclick = () => leaveNaming();
+    $('#namingBack').onclick = () => { leaveNaming(); showRoomNextAsk(); };
     return;
   }
   // If some items were skipped as duplicates, mention them before the gift ask
@@ -3646,6 +3654,34 @@ async function commitEverything(detections) {
   });
 }
 
+/** After photos are taken but AI didn't run (or found nothing), offer the owner
+ *  the two paths Mark wants: add assigned items, or move to the next room. */
+function showRoomNextAsk() {
+  const ask = $('#roomNextAsk');
+  if (!ask) return;
+  ask.hidden = false;
+  const assignBtn = $('#roomNextAssign');
+  const nextRoomBtn = $('#roomNextRoom');
+  if (assignBtn) assignBtn.onclick = () => {
+    ask.hidden = true;
+    // Enter the gift-designation flow — same path as the "Items already
+    // designated" tile, but pre-filled with this room.
+    promiseMode = true;
+    resetCapture();
+    go('capture');
+    if (room?.name) {
+      cap.room = room.name;
+      const chip = $$('#roomChips .chip').find((c) => c.dataset.room === room.name);
+      if (chip) chip.classList.add('sel');
+    }
+    renderCapture();
+  };
+  if (nextRoomBtn) nextRoomBtn.onclick = () => {
+    ask.hidden = true;
+    setRoomFinished('done');
+  };
+}
+
 /** The one question. Asked about the room, once, and never repeated. */
 function renderRoomGiftAsk(added, again = false) {
   const n = added.length;
@@ -3660,7 +3696,7 @@ function renderRoomGiftAsk(added, again = false) {
       <button class="primary wide" id="giftYes">Yes — let me point ${again ? 'more' : 'them'} out</button>
       <button class="ghost wide" id="giftNo">${again ? 'No — that is everything' : 'No — on to the next room'}</button>
     </div>`;
-  $('#giftNo').onclick = () => leaveNaming();
+  $('#giftNo').onclick = async () => { await leaveNaming(); setRoomFinished('done'); };
   $('#giftYes').onclick = () => renderGiftPicker(added);
 }
 
@@ -3767,6 +3803,7 @@ async function leaveNaming() {
 /* ------------------------------------------------------- finishing a room */
 
 async function setRoomFinished(state) {
+  const ask = $('#roomNextAsk'); if (ask) ask.hidden = true;
   inRoomNaming = false;
   const word = state === 'skipped' ? 'Nothing to record here' : 'Finished';
   try {
@@ -3794,6 +3831,7 @@ async function setRoomFinished(state) {
  * left, and an explicit promise that nothing needs finishing today.
  */
 function pauseWalk() {
+  const ask = $('#roomNextAsk'); if (ask) ask.hidden = true;
   const left = walk?.unfinished?.length ?? 0;
   go('home');
   renderResume();
