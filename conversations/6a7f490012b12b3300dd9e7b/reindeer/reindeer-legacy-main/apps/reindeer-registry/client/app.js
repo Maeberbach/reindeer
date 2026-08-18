@@ -3285,6 +3285,7 @@ $('#adminBackBtn').onclick = () => go('home');
 (async function boot() {
   try {
   registry = await api('/api/registry');
+  resetCapture();
   renderRoomChips();
   renderCatChips();
   $('#filterRoom').innerHTML = '<option value="">All rooms</option>' +
@@ -3297,8 +3298,6 @@ $('#adminBackBtn').onclick = () => go('home');
   mountPeopleScreen();
   $('#capRecipient').addEventListener('input', checkNewPerson);
   await loadPeople();
-
-  resetCapture();
 
   /*
    * Where to land.
