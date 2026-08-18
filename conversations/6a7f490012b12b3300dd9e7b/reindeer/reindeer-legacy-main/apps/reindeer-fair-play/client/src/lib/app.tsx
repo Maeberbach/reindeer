@@ -4,6 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, queryClient as globalQueryClient } from "@/lib/queryClient";
 import {
   parseHeirPermissions,
+  isHelperParticipant,
+  canHelperDo,
   isCaptainHeirParticipant,
   isPureCaptainParticipant,
   countdownTone,
