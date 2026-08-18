@@ -460,14 +460,14 @@ function resetCapture() {
     .forEach((s) => { $(s).value = ''; });
   $('#capValueBasis').value = 'unknown';
   $('#capPreview').hidden = true; $('#aiNote').hidden = true; $('#capRoomOther').hidden = true;
-  $('#capPhotoLabel').hidden = false;
-  $('#capRetake').hidden = true;
-  $('#capPhotoHint').hidden = false;
-  $('#capDetails').hidden = true;
-  $('#capNav').hidden = true;
+  ($('#capPhotoLabel') || {}).hidden = false;
+  ($('#capRetake') || {}).hidden = true;
+  ($('#capPhotoHint') || {}).hidden = false;
+  ($('#capDetails') || {}).hidden = true;
+  ($('#capNav') || {}).hidden = true;
   $('#capPhoto').value = '';
-  $('#capAnother').hidden = true;
-  $('#capNav').hidden = false;
+  ($('#capAnother') || {}).hidden = true;
+  ($('#capNav') || {}).hidden = false;
   $$('#roomChips .chip, #catChips .chip').forEach((c) => c.setAttribute('aria-pressed', 'false'));
   $('#capImportant').checked = false;
   $('#capImportantChips').hidden = true;
@@ -483,11 +483,11 @@ function resetCapture() {
 
 // Show the details section after a photo is taken
 function showCapDetails() {
-  $('#capPhotoLabel').hidden = true;
-  $('#capRetake').hidden = false;
-  $('#capPhotoHint').hidden = true;
-  $('#capDetails').hidden = false;
-  $('#capNav').hidden = false;
+  ($('#capPhotoLabel') || {}).hidden = true;
+  ($('#capRetake') || {}).hidden = false;
+  ($('#capPhotoHint') || {}).hidden = true;
+  ($('#capDetails') || {}).hidden = false;
+  ($('#capNav') || {}).hidden = false;
   // Show "Save & take another" when a room is locked — lets the owner rapid-fire
   // through items in the same room without going through the post-save screen.
   const anotherBtn = $('#stepNextAnother');
@@ -679,7 +679,7 @@ function wireSiteControls() {
   };
 
   skipBtn.onclick = () => {
-    $('#capOffsiteWarning').hidden = true;
+    ($('#capOffsiteWarning') || {}).hidden = true;
     // Item will be saved with site_id = null and coordinates captured
   };
 
@@ -703,7 +703,7 @@ function wireSiteControls() {
         cap.siteName = site.name;
         cap.offsite = false;
         form.hidden = true;
-        $('#capOffsiteWarning').hidden = true;
+        ($('#capOffsiteWarning') || {}).hidden = true;
         syncSiteUI();
       } catch (e) {
         alert('Could not save the site: ' + e.message);
@@ -870,8 +870,8 @@ function wireHomeSiteControls() {
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify(body),
         });
-        $('#homeSiteName').value = '';
-        if ($('#homeSiteAddress')) $('#homeSiteAddress').value = '';
+        ($('#homeSiteName') || {}).value = '';
+        if ($('#homeSiteAddress')) ($('#homeSiteAddress') || {}).value = '';
         gpsCoords = null;
         if (gpsBtn) gpsBtn.textContent = '📍 Use my current location (GPS)';
         if (gpsResult) gpsResult.hidden = true;
@@ -903,21 +903,21 @@ function reasonFromCap(c) {
 }
 
 // Retake photo — clears the current photo and goes back to camera
-$('#capRetake').onclick = () => {
+$('#capRetake')?.addEventListener('click', () => {
   cap.file = null;
   cap.dataUrl = null;
   resetCapture();
-};
+});
 
 // "Take another photo" — reset and stay on capture screen for the next item
-$('#capAnotherTake').onclick = () => {
+$('#capAnotherTake')?.addEventListener('click', () => {
   resetCapture();
-};
+});
 
 // "Save & take another" — save the current item, then immediately reset for
 // the next photo. The room stays locked so the owner can rapid-fire through
 // items in the same room without re-selecting it each time.
-$('#stepNextAnother').onclick = async () => {
+$('#stepNextAnother')?.addEventListener('click', async () => {
   if (!cap.dataUrl) return toast('Please take a photo first.', true);
   // Collect fields same as stepNext
   cap.title = $('#capTitle').value.trim();
@@ -984,21 +984,21 @@ $('#stepNextAnother').onclick = async () => {
     // resetCapture preserves cap.room, but the form needs to start fresh
     // with just the camera button visible
     $('#capPreview').hidden = true;
-    $('#capRetake').hidden = true;
-    $('#capPhotoLabel').hidden = false;
-    $('#capPhotoHint').hidden = false;
+    ($('#capRetake') || {}).hidden = true;
+    ($('#capPhotoLabel') || {}).hidden = false;
+    ($('#capPhotoHint') || {}).hidden = false;
     $('#capPhoto').value = '';
-    $('#capDetails').hidden = true;
-    $('#capNav').hidden = true;
-    $('#capAnother').hidden = true;
+    ($('#capDetails') || {}).hidden = true;
+    ($('#capNav') || {}).hidden = true;
+    ($('#capAnother') || {}).hidden = true;
     $('#aiNote').hidden = true;
   } catch (e) { toast(e.message, true); }
-};
+});
 
 // "All done" — go back to where we came from
-$('#capAnotherDone').onclick = () => {
+$('#capAnotherDone')?.addEventListener('click', () => {
   go('home');
-};
+});
 
 // Cancel button
 $('#stepBack').onclick = () => go(promiseMode ? 'memo' : 'home');
@@ -1256,7 +1256,7 @@ function showAcceptBar(label, categoryHint) {
   const labelText = label
     ? `AI suggests: <strong>${escapeHtml(label)}</strong>${categoryHint ? ` (${escapeHtml(categoryHint)})` : ''}`
     : 'Type a name for this item, or just save the photo.';
-  $('#capAcceptLabel').innerHTML = labelText;
+  ($('#capAcceptLabel') || {}).innerHTML = labelText;
   const input = $('#capAcceptName');
   if (input && label) input.value = label;
   if (input) input.placeholder = label ? 'Change the name if this is not right' : 'What is this?';
@@ -1387,8 +1387,8 @@ async function saveItem() {
       return;
     }
     // Normal mode: offer to take another photo instead of going home
-    $('#capNav').hidden = true;
-    $('#capAnother').hidden = false;
+    ($('#capNav') || {}).hidden = true;
+    ($('#capAnother') || {}).hidden = false;
   } catch (e) { toast(e.message, true); }
 }
 
@@ -2188,7 +2188,7 @@ This package was prepared on ${new Date().toLocaleDateString('en-US', { dateStyl
 
   // Show the data access code + safe keeping instructions after actions complete
   if (done.length) {
-    $('#finalInstructions').hidden = false;
+    ($('#finalInstructions') || {}).hidden = false;
   }
 }
 
@@ -3245,7 +3245,7 @@ async function loadFeatureFlags() {
   }
 }
 
-$('#generateLicenseBtn').onclick = async () => {
+$('#generateLicenseBtn')?.addEventListener('click', async () => {
   const btn = $('#generateLicenseBtn');
   btn.disabled = true;
   btn.textContent = 'Generating...';
@@ -3277,9 +3277,9 @@ $('#generateLicenseBtn').onclick = async () => {
   }
   btn.disabled = false;
   btn.textContent = 'Generate license key';
-};
+});
 
-$('#adminBackBtn').onclick = () => go('home');
+$('#adminBackBtn')?.addEventListener('click', () => go('home'));
 
 // ------------------------------------------------------------------- boot
 (async function boot() {
@@ -5195,7 +5195,7 @@ async function removeMemoEntry() {
 /* ---------------------------- wiring ----------------------------- */
 
 $('#memoAddBtn').onclick = () => go('memoentry');
-$('#memoPhotoBtn').onclick = () => { promiseMode = true; promiseKept = 0; resetCapture(); go('capture'); };
+$('#memoPhotoBtn')?.addEventListener('click', () => {
 $('#signVersionsBtn')?.addEventListener('click', () => go('giftversions'));
 $('#memoEntrySave').onclick = saveMemoEntry;
 $('#memoEntryCancel').onclick = () => go('memo', { back: true });
