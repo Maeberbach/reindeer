@@ -3331,8 +3331,10 @@ $('#adminBackBtn')?.addEventListener('click', () => go('home'));
     // simpler page or straight home if they already have items.
     landing = items.length === 0 ? 'helperwelcome' : 'home';
   } else {
-    // Owners and co-owners get the full welcome flow.
-    landing = items.length === 0 ? 'welcome' : 'home';
+    // First-time owners see the "how it works" screen (take a practice
+    // photo, see how AI identification works). Returning owners go
+    // straight to the home screen — no need to re-explain the app.
+    landing = items.length === 0 ? 'guidedphoto' : 'home';
   }
   go(landing);
   } catch (e) {
