@@ -285,7 +285,8 @@ function go(name, opts = {}) {
     admin: 'Estate license keys',
   }[name] ?? 'Reindeer: Registry';
   window.scrollTo(0, 0);
-  if (name === 'walk') loadWalk();
+  if (name === 'walk') { loadWalk(); applyVideoFlag(); }
+  if (name === 'batch') { const bi = $('#batchIntake'); if (bi) bi.hidden = false; applyVideoFlag(); }
   if (name === 'promise') renderPromise();
   // Landing on the menu ends the gifting walk, so "Add one item" is never
   // silently shortened by a mode the owner has already left behind.
@@ -295,9 +296,12 @@ function go(name, opts = {}) {
     updateHomeTile();
     // Render site tiles (second home, vacation, storage)
     renderSites();
+    // Apply video capture feature flag
+    applyVideoFlag();
   }
-  if (name === 'batch') { const bi = $('#batchIntake'); if (bi) bi.hidden = false; }
+
   if (name === 'list') loadList();
+  if (name === 'admin') loadFeatureFlags();
   if (name === 'signing') {
     api('/api/household-link').then((hl) => {
       const me = (hl?.participants || []).find((p) => p.is_me);
@@ -2983,6 +2987,23 @@ async function showAdminTile() {
   if (adminTile) adminTile.hidden = !isOwner;
 }
 
+// Video capture feature flag — fetched once on load, applied to all video tiles/lanes.
+// When OFF (default), video tiles are hidden. When ON (admin-toggled), owners can
+// record room walkthroughs and AI analyzes extracted frames.
+let videoCaptureEnabled = false;
+
+async function applyVideoFlag() {
+  try {
+    const data = await api('/api/admin/feature-flags');
+    videoCaptureEnabled = data?.effective?.videoCapture === true;
+  } catch {
+    // If the call fails (e.g. not owner), leave video hidden
+    videoCaptureEnabled = false;
+  }
+  document.querySelectorAll('[data-video-tile]').forEach((el) => { el.hidden = !videoCaptureEnabled; });
+  document.querySelectorAll('[data-video-lane]').forEach((el) => { el.hidden = !videoCaptureEnabled; });
+}
+
 async function loadLicenseList() {
   const box = $('#licenseList');
   box.innerHTML = '<p style="color:var(--muted)">Loading...</p>';
@@ -3008,6 +3029,50 @@ async function loadLicenseList() {
     box.innerHTML = '<h3 style="margin:0 0 12px;font-size:1rem">Current keys</h3>' + rows;
   } catch (e) {
     box.innerHTML = '<p style="color:var(--destructive)">Could not load keys: ' + escapeHtml(e.message) + '</p>';
+  }
+}
+
+async function loadFeatureFlags() {
+  const box = $('#flagList');
+  if (!box) return;
+  box.innerHTML = '<p style="color:var(--muted)">Loading...</p>';
+  try {
+    const data = await api('/api/admin/feature-flags');
+    const flags = data.flags || {};
+    const toggleable = [
+      { key: 'videoCapture', label: 'Video capture', hint: 'Let owners record room walkthroughs. AI analyzes frames to identify items.' },
+      { key: 'heirVisibility', label: 'Heir visibility restrictions', hint: 'Hide private data (pricing, recipient, ownership) from heirs in Discovery and FairPlay.' },
+    ];
+    box.innerHTML = toggleable.map((f) => {
+      const on = flags[f.key] === true;
+      return '<div style="border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:12px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center">'
+        + '<div><b>' + escapeHtml(f.label) + '</b><br><span style="font-size:12px;color:var(--muted)">' + escapeHtml(f.hint) + '</span></div>'
+        + '<button class="' + (on ? 'primary' : 'ghost') + '" data-flag-toggle="' + f.key + '" style="min-width:80px">' + (on ? 'ON' : 'OFF') + '</button>'
+        + '</div></div>';
+    }).join('');
+    $$('#flagList [data-flag-toggle]').forEach((btn) => {
+      btn.onclick = async () => {
+        const flag = btn.dataset.flagToggle;
+        const current = flags[flag] === true;
+        try {
+          btn.disabled = true;
+          const res = await api('/api/admin/feature-flags', {
+            method: 'POST', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ flag, value: !current }),
+          });
+          toast(res.message || (flag + ' is now ' + (!current ? 'ON' : 'OFF')));
+          await loadFeatureFlags();
+          await applyVideoFlag();
+        } catch (e) {
+          toast(e.message, true);
+        } finally {
+          btn.disabled = false;
+        }
+      };
+    });
+  } catch (e) {
+    box.innerHTML = '<p style="color:var(--muted)">Could not load feature flags.</p>';
   }
 }
 
