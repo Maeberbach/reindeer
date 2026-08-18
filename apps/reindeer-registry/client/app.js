@@ -428,6 +428,7 @@ $('#onboardAssistant')?.addEventListener('click', () => go('helperinvite'));
 // capture flow; after the item saves, the owner lands on guidedmeaning
 // (not home) so they see the "tell its story" prompt before landing.
 let guidedIntroMode = false;
+let roomImportantFlow = false;  // when set, post-save asks about assignment then returns to room
 $('#guidedTakePhoto')?.addEventListener('click', () => {
   guidedIntroMode = true;
   resetCapture();
@@ -1361,6 +1362,27 @@ async function saveItem() {
       updateHomeTileAfterFirstItem();
       go('walk');
       setTimeout(() => toast('First item saved. Now pick a room to start in — take wide photos and AI will identify what is there.'), 500);
+      return;
+    }
+    if (roomImportantFlow) {
+      roomImportantFlow = false;
+      const savedItem = item;
+      const savedRoom = room?.name;
+      go('batch');
+      const intake = $('#batchIntake'); if (intake) intake.hidden = true;
+      $('#batchResults').innerHTML = `
+        <h2>Saved as important</h2>
+        <p class="reassure">${escapeHtml(cap.title || 'That item')} is on your list, flagged as important.</p>
+        <div class="ask">
+          <p class="askq">Should this be assigned to someone?</p>
+          <button class="primary wide" id="assignYes">Yes — assign it</button>
+          <button class="ghost wide" id="assignNo">No — just flag it as important</button>
+        </div>`;
+      $('#assignNo').onclick = async () => {
+        await leaveNaming();
+        renderRoomImportantAsk(savedRoom);
+      };
+      $('#assignYes').onclick = () => renderAssignForm(savedItem, savedRoom);
       return;
     }
     // Normal mode: offer to take another photo instead of going home
@@ -3851,20 +3873,89 @@ function renderRoomGiftAsk(added, again = false) {
     </div>`;
   $('#giftNo').onclick = async () => { await leaveNaming(); setRoomFinished('done'); };
   $('#giftYes').onclick = () => {
-    // Go to the capture screen with this room pre-filled and important pre-set.
-    // The owner takes a close-up photo of the item that caught their eye.
-    // That photo triggers AI identification, and the important block (reason
-    // chips, additional close-up, voice memo) is already open.
     leaveNaming();
     resetCapture();
     if (room?.name) cap.room = room.name;
     cap.preSetImportant = true;
+    roomImportantFlow = true;
     go('capture');
-    // Show a toast guiding the owner to take the close-up
     toast('Take a close-up of the item that caught your eye. AI will help identify it.');
   };
 }
 
+
+/** Assignment form for an important item from the room flow. */
+function renderAssignForm(savedItem, savedRoom) {
+  $('#batchResults').innerHTML = `
+    <h2>Who is this for?</h2>
+    <div class="chips" id="assignChips"></div>
+    <input type="text" id="assignName" class="bigin" placeholder="A name">
+    <input type="text" id="assignRel" class="bigin" placeholder="Relationship, for example: daughter">
+    <button class="primary wide" id="assignSave">Save this</button>
+    <p class="reassure">This is a wish, not a legal instruction. You can change it any time.</p>
+    <button class="ghost wide" id="assignCancel">Never mind — just flag as important</button>`;
+  const chips = $('#assignChips');
+  if (chips) {
+    chips.innerHTML = people.filter((p) => !p.archived).map((p) =>
+      `<button class="chip" data-pick="${escapeHtml(p.name)}" data-rel="${escapeHtml(p.relationship ?? '')}" aria-pressed="false">${escapeHtml(p.name)}${p.relationship ? ` <span class="chiprel">${escapeHtml(p.relationship)}</span>` : ''}</button>`).join('');
+    $$('#assignChips .chip').forEach((c) => {
+      c.onclick = () => {
+        $$('#assignChips .chip').forEach((o) => o.setAttribute('aria-pressed', 'false'));
+        c.setAttribute('aria-pressed', 'true');
+        $('#assignName').value = c.dataset.pick;
+        $('#assignRel').value = c.dataset.rel || '';
+      };
+    });
+  }
+  $('#assignCancel').onclick = async () => {
+    await leaveNaming();
+    renderRoomImportantAsk(savedRoom);
+  };
+  $('#assignSave').onclick = async () => {
+    const name = $('#assignName').value.trim();
+    if (!name) return toast('Please put in a name, or press Never mind.', true);
+    const rel = $('#assignRel').value.trim();
+    $('#assignSave').disabled = true;
+    try {
+      await api(`/api/items/${savedItem.item_id}`, {
+        method: 'PATCH', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ recipient_hint: { recipient_name: name, relationship: rel, owner_note: '' } }),
+      });
+      try { await addPerson(name, rel, 'from_item'); } catch {}
+      toast(`That is for ${name}.`);
+      await leaveNaming();
+      renderRoomImportantAsk(savedRoom);
+    } catch (e) {
+      $('#assignSave').disabled = false;
+      toast(e.message, true);
+    }
+  };
+}
+
+/** After saving an important item, ask if there is anything else important,
+ *  or finish the room. */
+function renderRoomImportantAsk(savedRoom) {
+  go('batch');
+  const intake = $('#batchIntake'); if (intake) intake.hidden = true;
+  $('#batchResults').innerHTML = `
+    <h2>Anything else in the ${escapeHtml(savedRoom ?? 'room')} that caught your eye?</h2>
+    <div class="ask">
+      <button class="primary wide" id="impYes">Yes — take another close-up</button>
+      <button class="ghost wide" id="impNo">No — this room is done</button>
+    </div>`;
+  $('#impYes').onclick = () => {
+    resetCapture();
+    if (room?.name) cap.room = room.name;
+    cap.preSetImportant = true;
+    roomImportantFlow = true;
+    go('capture');
+    toast('Take a close-up of the next item.');
+  };
+  $('#impNo').onclick = async () => {
+    await leaveNaming();
+    setRoomFinished('done');
+  };
+}
 
 /**
  * Coming back out of the naming pass. This is where the duplicate tally is
