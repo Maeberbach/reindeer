@@ -169,7 +169,14 @@ function go(name, opts = {}) {
   if (name === 'promise') renderPromise();
   // Landing on the menu ends the gifting walk, so "Add one item" is never
   // silently shortened by a mode the owner has already left behind.
-  if (name === 'home') { promiseMode = false; renderResume(); refreshQueueBadge(); renderCounters(); renderPartnerCard(); }
+  if (name === 'home') {
+    promiseMode = false; renderResume(); refreshQueueBadge(); renderCounters(); renderPartnerCard();
+    // Helpers cannot designate items — hide the tiles that lead to gift assignment.
+    // They CAN flag items as important (tentative) and capture items, just not assign them.
+    const isHelper = myRole === 'assistant';
+    document.querySelectorAll('[data-go="promise"]').forEach((el) => { el.hidden = isHelper; });
+    document.querySelectorAll('[data-go="memo"]').forEach((el) => { el.hidden = isHelper; });
+  }
   if (name === 'batch') { const bi = $('#batchIntake'); if (bi) bi.hidden = false; }
   if (name === 'list') loadList();
   if (name === 'signing') loadExecution();
@@ -178,7 +185,14 @@ function go(name, opts = {}) {
   if (name === 'handoff') { verifyRecord(); refreshFinishScreen(); }
   // The gifts family. Each mount refreshes its data so the roster/preview
   // reflect any items added or reassigned since the owner was last here.
-  if (name === 'gifts') loadGifts();
+  if (name === 'gifts') {
+    if (myRole === 'assistant') {
+      // Helpers cannot access the designated gifts page — redirect to walk
+      toast('Designating gifts is for the owner. You can still capture items and flag them for review.', true);
+      return go('walk');
+    }
+    loadGifts();
+  }
   if (name === 'giftperson' && !opts.editing) resetGiftPerson();
   if (name === 'giftsign') loadGiftSign();
   if (name === 'giftversions') loadGiftVersions();
@@ -254,7 +268,10 @@ function resetCapture() {
           // must actively tick the box, and reason chips only apply once the
           // box is on. See docs/decisions/2026-08-06-important-flag.md.
           important: false, importantFeeling: false, importantMoney: false };
-  STEP_LABELS = (promiseMode ? PROMISE_STEPS : CORE_STEPS).slice();
+  // Helpers skip the "For whom" step — they cannot designate items to people.
+  // They can still flag items as important (tentative), which is the next thing they do.
+  const helperSteps = (promiseMode ? PROMISE_STEPS : CORE_STEPS).filter((s) => s !== 'For whom');
+  STEP_LABELS = (myRole === 'assistant' ? helperSteps : (promiseMode ? PROMISE_STEPS : CORE_STEPS)).slice();
   step = 0;
   ['#capTitle', '#capMaker', '#capMarks', '#capStory', '#capValue', '#capRecipient', '#capRelationship', '#capOwnerNote', '#capRoomOther']
     .forEach((s) => { $(s).value = ''; });
@@ -656,9 +673,10 @@ async function saveItem() {
         tentative_high_value_reason: myRole === 'assistant' && cap.important ? reasonFromCap(cap) : (aiTentative ? aiTentativeReason : ''),
         ai_confidence: cap.ai?.confidence ?? null,
         identifiers: buildIdentifiers(),
-        recipient_hint: cap.recipient
-          ? { recipient_name: cap.recipient, relationship: cap.relationship, owner_note: cap.note }
-          : null,
+        // Helpers cannot assign items to people — recipient_hint is owner/co-owner only.
+        recipient_hint: (myRole === 'assistant' || !cap.recipient)
+          ? null
+          : { recipient_name: cap.recipient, relationship: cap.relationship, owner_note: cap.note },
       }),
     });
     if (cap.dataUrl) await uploadPhoto(item.item_id, cap.dataUrl);
@@ -675,13 +693,13 @@ async function saveItem() {
     }
     // A name typed here joins the roster, so the next item is one tap. The
     // save must not fail because the address book did, hence the catch.
-    if (cap.recipient) {
+    if (cap.recipient && myRole !== 'assistant') {
       try { await addPerson(cap.recipient, cap.relationship, 'from_item'); } catch { /* not worth stopping for */ }
     }
     // Auto-populate the addendum roster from capture. If the owner ticked
     // "Add this to my special gifts", find-or-create an heir with this
     // name and link the item to it. Never a blocker for the save itself.
-    if (cap.makeGift && cap.recipient) {
+    if (cap.makeGift && cap.recipient && myRole !== 'assistant') {
       try { await assignItemToNamedRecipient(item.item_id, cap.recipient, cap.relationship); }
       catch (e) { console.warn('gift assignment skipped:', e.message); }
     }

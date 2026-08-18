@@ -97,6 +97,12 @@ export function createIntakeRouter(deps) {
   r.post('/items', wrap(async (req, res) => {
     const ctx = ctxOf(req);
     const body = { ...req.body };
+    // Helpers cannot designate items — strip any recipient hint from the
+    // request body. They CAN flag items as important (tentative), but
+    // assigning items to specific people is owner/co-owner only.
+    if (req.participant?.role === 'assistant' && body.recipient_hint) {
+      delete body.recipient_hint;
+    }
     if (body.room_name) body.room_id = registry.resolveRoom(body.room_name, ctx)?.room_id;
     if (body.category_name) body.category_id = registry.resolveCategory(body.category_name, ctx)?.category_id;
     // The registry documents; it does not value. high_value_flag stays false
@@ -137,6 +143,9 @@ export function createIntakeRouter(deps) {
   // ---- addendum-side assignment (Two-Output Delivery Model) ---------------
   // Assign or unassign an heir. Body: { heir_id: string | null }.
   r.patch('/items/:id/assign', wrap(async (req, res) => {
+    if (req.participant?.role === 'assistant') {
+      return res.status(403).json({ error: 'Helpers cannot assign items to people. Only the owner or co-owner can do that.' });
+    }
     const ctx = ctxOf(req);
     const heirId = req.body?.heir_id ?? null;
     res.json(await itemRepo.assignHeir(req.params.id, heirId, ctx));
