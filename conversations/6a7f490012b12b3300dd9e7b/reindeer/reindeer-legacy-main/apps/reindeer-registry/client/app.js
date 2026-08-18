@@ -21,13 +21,146 @@ const api = async (url, opts = {}) => {
 const toast = (msg, bad = false) => {
   const t = $('#toast');
   t.textContent = msg; t.className = `toast${bad ? ' bad' : ''}`; t.hidden = false;
-  clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, 3200);
+  clearTimeout(t._h); t._h = setTimeout(() => { t.hidden = true; }, bad ? 8000 : 3200);
 };
+
+// --- Open the owner's own email app ---------------------------------------
+// Instead of server-side SMTP (which requires storing passwords and gets
+// wiped on restart), all emails go through the owner's device email app.
+// For invites/links: mailto: opens their email client with the content
+// pre-filled. For the delivery bundle: navigator.share() lets them send the
+// .reindeer file as an attachment through their email app.
+
+/**
+ * Show an email-sending modal so the user can choose how to send.
+ *
+ * mailto: links only work if a desktop email client is configured. Many
+ * people use Gmail in the browser and have no local client, so clicking
+ * a mailto: link does nothing. This modal offers three paths that work
+ * regardless of browser or OS configuration:
+ *   1. Open in Gmail — builds a compose URL that works in any browser
+ *   2. Open in email app — the classic mailto: link for those who do
+ *      have Outlook, Apple Mail, etc.
+ *   3. Copy link — copies the invite link to the clipboard so the user
+ *      can paste it into any messaging app themselves.
+ */
+function openEmailApp({ to, subject = '', body = '' }) {
+  const recipients = Array.isArray(to) ? to.join(',') : (to || '');
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1`
+    + (recipients ? `&to=${encodeURIComponent(recipients)}` : '')
+    + (subject ? `&su=${encodeURIComponent(subject)}` : '')
+    + (body ? `&body=${encodeURIComponent(body)}` : '');
+  const mailtoUrl = `mailto:${recipients}`
+    + (subject || body
+        ? '?' + [
+            subject ? `subject=${encodeURIComponent(subject)}` : '',
+            body ? `body=${encodeURIComponent(body)}` : '',
+          ].filter(Boolean).join('&')
+        : '');
+
+  // Build the modal
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.className = 'email-modal-overlay';
+
+  const modal = document.createElement('div');
+  modal.style.cssText = 'background:var(--card,#fff);border-radius:12px;padding:1.5rem;max-width:420px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.2);font-family:inherit';
+  modal.className = 'email-modal';
+
+  // Extract the invite link from the body for the copy-link button
+  const linkMatch = body.match(/https?:\/\/[^\s]+/);
+  const inviteLink = linkMatch ? linkMatch[0] : '';
+
+  modal.innerHTML = `
+    <h3 style="margin:0 0 0.75rem;font-size:1.1rem">Send the invitation</h3>
+    <p style="margin:0 0 1.25rem;color:var(--muted,#666);font-size:0.875rem;line-height:1.4">
+      Choose how you want to send it to ${escapeHtml(recipients || 'them')}:
+    </p>
+    <div style="display:flex;flex-direction:column;gap:0.625rem">
+      <button class="primary wide" id="emGmail" style="cursor:pointer">
+        Open in Gmail
+      </button>
+      <button class="wide" id="emMailto" style="cursor:pointer;padding:0.625rem 1rem;border:1px solid var(--border,#ccc);border-radius:8px;background:transparent;font-family:inherit;font-size:0.9375rem">
+        Open in email app (Outlook, Apple Mail…)
+      </button>
+      ${inviteLink ? `
+      <button class="wide" id="emCopy" style="cursor:pointer;padding:0.625rem 1rem;border:1px solid var(--border,#ccc);border-radius:8px;background:transparent;font-family:inherit;font-size:0.9375rem">
+        Copy the link instead
+      </button>` : ''}
+    </div>
+    <p style="margin:1rem 0 0;font-size:0.75rem;color:var(--muted,#999);text-align:center">
+      The link expires in 20 minutes.
+    </p>
+  `;
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+  modal.querySelector('#emGmail').onclick = () => {
+    window.open(gmailUrl, '_blank');
+    close();
+    toast('Opening Gmail compose…');
+  };
+
+  modal.querySelector('#emMailto').onclick = () => {
+    window.location.href = mailtoUrl;
+    close();
+    toast('Choose how to send…');
+  };
+
+  if (inviteLink) {
+    modal.querySelector('#emCopy').onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(inviteLink);
+        close();
+        toast('Link copied! Paste it into a message or email.');
+      } catch {
+        close();
+        toast('Could not copy automatically. The link is: ' + inviteLink, true);
+      }
+    };
+  }
+}
+
+/**
+ * Share a file (the .reindeer bundle) through the owner's email app.
+ * Uses navigator.share() on mobile (opens the share sheet — user picks
+ * their email app, file gets attached). Falls back to mailto: with a
+ * download link on desktop or browsers without the Share API.
+ */
+async function shareWithEmailApp({ to, subject, body, fileBlob, fileName, downloadUrl }) {
+  // Try navigator.share() with the file — mobile opens the share sheet
+  if (navigator.canShare && fileBlob && navigator.canShare({ files: [new File([fileBlob], fileName, { type: 'application/octet-stream' })] })) {
+    try {
+      await navigator.share({
+        title: subject,
+        text: body,
+        files: [new File([fileBlob], fileName, { type: 'application/octet-stream' })],
+      });
+      return { ok: true, method: 'share' };
+    } catch (e) {
+      if (e.name === 'AbortError') return { ok: false, cancelled: true };
+      // Fall through to mailto fallback
+    }
+  }
+
+  // Fallback: mailto: with download link in the body
+  const fullBody = downloadUrl
+    ? `${body}\n\nDownload the package here:\n${downloadUrl}\n\nThis link expires in 14 days.`
+    : body;
+  openEmailApp({ to, subject, body: fullBody });
+  return { ok: true, method: 'mailto' };
+}
+
 const money = (c) => (c == null ? '' : `$${(c / 100).toLocaleString('en-US')}`);
 
 let registry = { rooms: [], categories: [] };
-let history = [];
 let myRole = 'owner';  // global: tracks current user role (owner/partner/assistant)
+let history = [];
 
 // ------------------------------------------------------- duplicates (offered)
 /**
@@ -51,6 +184,8 @@ let myRole = 'owner';  // global: tracks current user role (owner/partner/assist
  */
 let inRoomNaming = false;
 let roomDupCount = 0;
+let autoDetectInFlight = false;
+let roomSkippedDuplicates = null;
 
 function offerDuplicateCheck(count) {
   if (inRoomNaming) {
@@ -115,22 +250,9 @@ async function runDuplicateCheck() {
  * distribution instead. Its markup is kept and marked data-retired so the next
  * person can see it was a decision.
  */
-const CORE_STEPS = ['Photo', 'Name', 'For whom', 'Save'];
-const DETAIL_STEPS = ['Room', 'Maker', 'Story', 'Kind'];
-const FULL_STEPS = ['Photo', 'Name', 'For whom', ...DETAIL_STEPS, 'Save'];
-
-/*
- * The gifting walk is shorter than the ordinary one, and deliberately so.
- *
- * When an owner already knows a thing is meant for a particular person, the
- * person is the whole point and the object's name is not: the photograph
- * identifies it, and a trustee reading the sheet is looking at the picture. So
- * this path asks for a photograph and a name of a PERSON, and never asks the
- * owner to caption their own belongings. Whatever the camera recognised fills
- * the title line by itself; if it recognised nothing, the line says so plainly
- * and points at the photograph.
- */
-const PROMISE_STEPS = ['Photo', 'For whom', 'Save'];
+// The capture flow is now a single page: photo at top, all details below.
+// No multi-step navigation — everything is visible at once after the photo.
+// Promise mode (for specific gifts) just means the "who" field is required.
 const NO_TITLE = 'Unnamed item — see photograph';
 
 /** What goes on the title line when the owner was never asked for one. */
@@ -138,21 +260,21 @@ const effectiveTitle = () =>
   cap.title || $('#capTitle')?.value.trim() || cap.ai?.label || NO_TITLE;
 
 /** The sequence in play right now. Starts short; the owner may lengthen it. */
-let STEP_LABELS = CORE_STEPS.slice();
+// Step navigation removed — capture is now a single page.
 
 function go(name, opts = {}) {
   if (!opts.back) history.push(currentScreen());
   $$('.screen').forEach((s) => { s.hidden = s.dataset.screen !== name; });
-  $('#backBtn').hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'guidedpartner' || name === 'guidedphoto' || name === 'guidedmeaning';
-  $('#homeBtn').hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'guidedpartner' || name === 'guidedphoto' || name === 'guidedmeaning';
+  $('#backBtn').hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'helperwelcome' || name === 'howto' || name === 'guidedmeaning';
+  $('#homeBtn').hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'helperwelcome' || name === 'howto' || name === 'guidedmeaning';
   // Floating home button — visible on every screen except home/welcome/recipientwelcome
   const fh = $('#floatingHome');
-  if (fh) fh.hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'guidedpartner' || name === 'guidedphoto' || name === 'guidedmeaning';
+  if (fh) fh.hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'helperwelcome' || name === 'howto' || name === 'guidedmeaning';
   $('#appTitle').textContent = {
-    welcome: 'Reindeer: Registry', recipientwelcome: 'Welcome', whattoexpect: 'What to expect', quietgift: 'The quiet gift', guidedpartner: 'Add someone', guidedphoto: 'Take a photo', guidedmeaning: 'Tell its story', whosdoing: "Who's doing this?", helptype: "Who's helping?", home: 'Reindeer: Registry', capture: 'Add an item', batch: 'Add several',
+    welcome: 'Reindeer: Registry', recipientwelcome: 'Welcome', helperwelcome: 'Welcome', howto: 'How to use', guidedpartner: 'Add someone', guidedphoto: 'Take a photo', guidedmeaning: 'Tell its story', whosdoing: "Who's doing this?", helptype: "Who's helping?", home: 'Reindeer: Registry', capture: 'Add an item', batch: 'Add several',
     list: 'My items', detail: 'Item', print: 'Print', handoff: 'Finishing up', confirmsend: 'Confirm',
     signing: 'Making it official', people: 'My people',
-    walk: 'Room by room', room: 'This room', promise: 'What you already know',
+    walk: 'Room by room', room: 'This room', promise: 'Items already designated to a specific person',
     // The addendum \u2014 named recipients + memorandum + signed versions.
     gifts: 'Special gifts by name', giftperson: 'One person',
     giftsign: 'Confirm your choices', giftversions: 'Signed versions',
@@ -162,45 +284,96 @@ function go(name, opts = {}) {
     // Slice 4 \u2014 couple mode.
     householdlink: 'Send invite', helperinvite: 'Invite a helper',
     // Ship B \u2014 contested categories.
-    contested: 'Things families find hardest to divide', reminders: 'Holiday reminders',
+    contested: 'Things families fight over', reminders: 'Holiday reminders',
+    admin: 'Estate license keys',
   }[name] ?? 'Reindeer: Registry';
   window.scrollTo(0, 0);
-  if (name === 'walk') loadWalk();
+  if (name === 'walk') { loadWalk(); applyVideoFlag(); }
+  if (name === 'batch') { const bi = $('#batchIntake'); if (bi) bi.hidden = false; applyVideoFlag(); }
   if (name === 'promise') renderPromise();
   // Landing on the menu ends the gifting walk, so "Add one item" is never
   // silently shortened by a mode the owner has already left behind.
   if (name === 'home') {
-    promiseMode = false; renderResume(); refreshQueueBadge(); renderCounters(); renderPartnerCard();
-    // Helpers cannot designate items — hide the tiles that lead to gift assignment.
-    // They CAN flag items as important (tentative) and capture items, just not assign them.
-    const isHelper = myRole === 'assistant';
-    document.querySelectorAll('[data-go="promise"]').forEach((el) => { el.hidden = isHelper; });
-    document.querySelectorAll('[data-go="memo"]').forEach((el) => { el.hidden = isHelper; });
+    promiseMode = false; renderResume(); refreshQueueBadge(); renderCounters(); renderPartnerCard(); showAdminTile();
+    // Update the quick-start tile based on whether items exist
+    updateHomeTile();
+    // Render site tiles (second home, vacation, storage)
+    renderSites();
+    // Apply video capture feature flag
+    applyVideoFlag();
   }
-  if (name === 'batch') { const bi = $('#batchIntake'); if (bi) bi.hidden = false; }
+
   if (name === 'list') loadList();
-  if (name === 'signing') loadExecution();
+  if (name === 'admin') loadFeatureFlags();
+  if (name === 'signing') {
+    api('/api/household-link').then((hl) => {
+      const me = (hl?.participants || []).find((p) => p.is_me);
+      if (me?.role === 'assistant') {
+        toast('Only the owners can sign the memorandum.', true);
+        go('home');
+      } else { loadExecution(); }
+    }).catch(() => loadExecution());
+  }
   if (name === 'people') loadPeople();
-  if (name === 'capture') renderPersonChips();
-  if (name === 'handoff') { verifyRecord(); refreshFinishScreen(); }
+  if (name === 'capture') {
+    // Trigger geosyncing when entering capture — detect the device's
+    // location and warn if the owner is adding items to a site they're
+    // not physically at. Owners can override; helpers are blocked from
+    // adding to a site they're not at.
+    if (currentSite && currentSite.site_id !== activeSiteId) {
+      activeSiteId = currentSite.site_id;
+    }
+    // Trigger geosyncing when entering capture
+    if (!cap.geoChecked) {
+      loadSites().then(() => detectLocation());
+    }
+    // Always update the site UI — breadcrumb shows even before geo check
+    syncSiteUI();
+  }
+  if (name === 'handoff') {
+    api('/api/household-link').then((hl) => {
+      const me = (hl?.participants || []).find((p) => p.is_me);
+      if (me?.role === 'assistant') {
+        toast('Only the owners can send the final list.', true);
+        go('home');
+      } else { verifyRecord(); refreshFinishScreen(); }
+    }).catch(() => { verifyRecord(); refreshFinishScreen(); });
+  }
+  if (name === 'admin') loadAdminLicenses();
   // The gifts family. Each mount refreshes its data so the roster/preview
   // reflect any items added or reassigned since the owner was last here.
-  if (name === 'gifts') {
-    if (myRole === 'assistant') {
-      // Helpers cannot access the designated gifts page — redirect to walk
-      toast('Designating gifts is for the owner. You can still capture items and flag them for review.', true);
-      return go('walk');
-    }
-    loadGifts();
-  }
+  if (name === 'gifts') loadGifts();
   if (name === 'giftperson' && !opts.editing) resetGiftPerson();
   if (name === 'giftsign') loadGiftSign();
   if (name === 'giftversions') loadGiftVersions();
   // Slice B \u2014 the new memorandum writer. Each mount re-reads
   // /api/memorandum so entries, conflicts, and the version chip are
   // never stale relative to what the partner just did.
-  if (name === 'memo') loadMemo();
-  if (name === 'memoentry' && !opts.editing) resetMemoEntry();
+  if (name === 'memo') {
+    // Only owners and co-owners can see the designated-items list.
+    // Helpers are redirected home — they can't designate gifts.
+    api('/api/household-link').then((hl) => {
+      const me = (hl?.participants || []).find((p) => p.is_me);
+      if (me?.role === 'assistant') {
+        toast('Only the owners can designate specific gifts to people.', true);
+        go('home');
+      } else {
+        loadMemo();
+      }
+    }).catch(() => loadMemo());
+  }
+  if (name === 'memoentry') {
+    // Only owners and co-owners can add/edit designated gifts.
+    api('/api/household-link').then((hl) => {
+      const me = (hl?.participants || []).find((p) => p.is_me);
+      if (me?.role === 'assistant') {
+        toast('Only the owners can designate specific gifts to people.', true);
+        go('home');
+      } else {
+        if (!opts.editing) resetMemoEntry();
+      }
+    }).catch(() => { if (!opts.editing) resetMemoEntry(); });
+  }
   // Slice 4 \u2014 household-link screen. Refreshes its data on every mount
   // so link state stays fresh without an app-wide state store.
   if (name === 'householdlink') loadHouseholdLink();
@@ -220,6 +393,11 @@ document.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-go]');
   if (!btn) return;
   if (btn.dataset.go === 'capture') resetCapture();
+  // The main "rooms in your house" tile resets to primary/home site.
+  // Site tiles set activeSiteId themselves before calling go('walk').
+  if (btn.dataset.go === 'walk' && !btn.dataset.siteId) {
+    activeSiteId = null;
+  }
   go(btn.dataset.go);
 });
 
@@ -230,10 +408,11 @@ let recipientPracticeMode = false;
 const qtb = $('#quickTestBtn');
 if (qtb) qtb.onclick = () => { quickTestMode = true; resetCapture(); go('capture'); };
 
-// Quick start on the home screen — same as the welcome shortcut but for
-// returning users. Goes straight to capture without the onboarding fork.
+// "Photograph your first item" on the home screen — opens the capture
+// flow in guided intro mode so after the photo saves, the owner sees the
+// "tell its story" prompt before landing back on home.
 const hqs = $('#homeQuickStart');
-if (hqs) hqs.onclick = () => { resetCapture(); go('capture'); };
+if (hqs) hqs.onclick = () => { guidedIntroMode = true; resetCapture(); go('capture'); };
 
 // Recipient welcome — invited partner does one practice item, then lands on
 // the room walkthrough page to start helping with the real inventory.
@@ -250,6 +429,7 @@ $('#onboardAssistant')?.addEventListener('click', () => go('helperinvite'));
 // capture flow; after the item saves, the owner lands on guidedmeaning
 // (not home) so they see the "tell its story" prompt before landing.
 let guidedIntroMode = false;
+let roomImportantFlow = false;  // when set, post-save asks about assignment then returns to room
 $('#guidedTakePhoto')?.addEventListener('click', () => {
   guidedIntroMode = true;
   resetCapture();
@@ -259,39 +439,85 @@ $('#guidedToHome')?.addEventListener('click', () => { guidedIntroMode = false; g
 
 // ------------------------------------------------------------ guided capture
 let cap = null;
-let step = 0;
+
 
 function resetCapture() {
+  // Inherit the active site so items captured during a site walk
+  // are tagged to that site automatically.
+  const activeSite = sitesList.find((s) => s.site_id === activeSiteId);
+  // Keep the room from the previous capture so "Take another photo" stays
+  // in the same room without re-asking. The owner is photographing items
+  // one after another in a single room — making them re-pick the room each
+  // time is a step that earns nothing.
+  const keepRoom = cap?.room || '';
   cap = { file: null, dataUrl: null, title: '', maker: '', marks: '', story: '', valueCents: null, valueBasis: 'unknown',
-          room: '', category: '', recipient: '', relationship: '', note: '', ai: null,
-          // Owner-set "this matters" mark. Both are OFF by default — the owner
-          // must actively tick the box, and reason chips only apply once the
-          // box is on. See docs/decisions/2026-08-06-important-flag.md.
-          important: false, importantFeeling: false, importantMoney: false };
-  // Helpers skip the "For whom" step — they cannot designate items to people.
-  // They can still flag items as important (tentative), which is the next thing they do.
-  const helperSteps = (promiseMode ? PROMISE_STEPS : CORE_STEPS).filter((s) => s !== 'For whom');
-  STEP_LABELS = (myRole === 'assistant' ? helperSteps : (promiseMode ? PROMISE_STEPS : CORE_STEPS)).slice();
-  step = 0;
+          room: keepRoom, category: '', recipient: '', relationship: '', note: '', ai: null,
+          important: false, importantFeeling: false, importantMoney: false,
+          siteId: activeSiteId || null, siteName: activeSite ? activeSite.name : '',
+          capturedLat: null, capturedLon: null,
+          geoChecked: false, offsite: false };
   ['#capTitle', '#capMaker', '#capMarks', '#capStory', '#capValue', '#capRecipient', '#capRelationship', '#capOwnerNote', '#capRoomOther']
     .forEach((s) => { $(s).value = ''; });
   $('#capValueBasis').value = 'unknown';
   $('#capPreview').hidden = true; $('#aiNote').hidden = true; $('#capRoomOther').hidden = true;
+  $('#capPhotoLabel').hidden = false;
+  $('#capRetake').hidden = true;
+  $('#capPhotoHint').hidden = false;
+  $('#capDetails').hidden = true;
+  $('#capNav').hidden = true;
+  $('#capPhoto').value = '';
+  $('#capAnother').hidden = true;
+  $('#capNav').hidden = false;
   $$('#roomChips .chip, #catChips .chip').forEach((c) => c.setAttribute('aria-pressed', 'false'));
-  // Reset the Important control on the review step.
   $('#capImportant').checked = false;
   $('#capImportantChips').hidden = true;
   $$('#capImportantChips .chip').forEach((c) => c.setAttribute('aria-pressed', 'false'));
-  renderStep();
+  $('#capCloseupBlock').hidden = true;
+  $('#capVoiceBlock').hidden = true;
+  // Reset close-up and voice
+  if ($('#capCloseupPreview')) { $('#capCloseupPreview').hidden = true; }
+  if ($('#capCloseupRetake')) { $('#capCloseupRetake').hidden = true; }
+  if ($('#capVoicePlayer')) { $('#capVoicePlayer').hidden = true; }
+  if ($('#capVoiceRedo')) { $('#capVoiceRedo').hidden = true; }
+}
+
+// Show the details section after a photo is taken
+function showCapDetails() {
+  $('#capPhotoLabel').hidden = true;
+  $('#capRetake').hidden = false;
+  $('#capPhotoHint').hidden = true;
+  $('#capDetails').hidden = false;
+  $('#capNav').hidden = false;
+  // Show "Save & take another" when a room is locked — lets the owner rapid-fire
+  // through items in the same room without going through the post-save screen.
+  const anotherBtn = $('#stepNextAnother');
+  if (anotherBtn) anotherBtn.hidden = !cap.room;
+  // Populate person and room chips now that the detail area is visible
+  renderPersonChips();
+  renderRoomChips();
+  renderCatChips();
+  // If arriving from Special collections, sync the Important checkbox and
+  // reveal the close-up / voice blocks the important flag unlocks.
+  if (cap.preSetImportant) {
+    const box = $('#capImportant');
+    const chipsWrap = $('#capImportantChips');
+    if (box) { box.checked = true; box.dispatchEvent(new Event('change')); }
+    // Re-apply the feeling reason we pre-set
+    if (cap.importantFeeling) {
+      const feelingChip = $$('#capImportantChips .chip').find((c) => c.dataset.reason === 'feeling');
+      if (feelingChip) { feelingChip.setAttribute('aria-pressed', 'true'); }
+    }
+    if (chipsWrap) chipsWrap.hidden = false;
+    if ($('#capCloseupBlock')) $('#capCloseupBlock').hidden = false;
+    if ($('#capVoiceBlock')) $('#capVoiceBlock').hidden = false;
+    cap.preSetImportant = false; // one-shot
+  }
+  if (typeof updateGiftBlockVisibility === 'function') updateGiftBlockVisibility();
 }
 
 /*
- * The owner-set Important flag lives on the review step. Wired here rather
- * than at the top of the module because #capImportant only exists inside the
- * capture screen. The reason chips reveal only when the box is ticked; toggling
- * the box back off clears the chips so an unflagged item never carries a
- * reason. Whether the resulting reason serializes to 'feeling', 'money',
- * 'both', or '' is decided at save time in reasonFromCap().
+ * The owner-set Important flag. The reason chips reveal only when the
+ * box is ticked. Wire it once on load.
  */
 function wireImportantControl() {
   const box = $('#capImportant');
@@ -300,6 +526,8 @@ function wireImportantControl() {
   box.onchange = () => {
     cap.important = box.checked;
     chipsWrap.hidden = !box.checked;
+    $('#capCloseupBlock').hidden = !box.checked;
+    $('#capVoiceBlock').hidden = !box.checked;
     if (!box.checked) {
       cap.importantFeeling = false;
       cap.importantMoney = false;
@@ -317,10 +545,355 @@ function wireImportantControl() {
 }
 wireImportantControl();
 
-// Serializes the owner's chip selection to the four allowed backend values.
-// Kept as one small function so the rule lives in exactly one place: reason is
-// only meaningful on a flagged item, and both-off is not "unflagged", it is
-// "flagged with no stated reason".
+/*
+ * Geosyncing: detect the device location when the capture flow starts and
+ * match it to a registered site. If no site matches, show an offsite
+ * warning so the owner can register the location or proceed.
+ *
+ * The owner can always add or delete items from any location — geosyncing
+ * is about TAGGING where items were added, not restricting access.
+ */
+
+let sitesList = [];
+let currentSite = null;
+
+async function loadSites() {
+  try {
+    sitesList = await api('/api/sites');
+    return sitesList;
+  } catch (e) {
+    console.warn('Could not load sites:', e.message);
+    return [];
+  }
+}
+
+function detectLocation() {
+  if (!navigator.geolocation) {
+    console.info('Geolocation not available — skipping site detection');
+    cap.geoChecked = true;
+    syncSiteUI();
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      cap.capturedLat = pos.coords.latitude;
+      cap.capturedLon = pos.coords.longitude;
+      cap.geoChecked = true;
+      await matchSite();
+      syncSiteUI();
+    },
+    (err) => {
+      console.info('Geolocation denied or unavailable:', err.message);
+      cap.geoChecked = true;
+      syncSiteUI();
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+  );
+}
+
+async function matchSite() {
+  if (cap.capturedLat == null || cap.capturedLon == null) return;
+  try {
+    const res = await api('/api/sites/match', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ lat: cap.capturedLat, lon: cap.capturedLon }),
+    });
+    if (res.matched && res.site) {
+      currentSite = res.site;
+      cap.siteId = res.site.site_id;
+      cap.siteName = res.site.name;
+      cap.offsite = false;
+    } else {
+      currentSite = null;
+      cap.siteId = null;
+      cap.siteName = '';
+      cap.offsite = true;
+    }
+  } catch (e) {
+    console.warn('Site match failed:', e.message);
+    cap.offsite = false; // don't block on API failure
+  }
+}
+
+function syncSiteUI() {
+  const section = $('#capSiteSection');
+  const display = $('#capSiteDisplay');
+  const warning = $('#capOffsiteWarning');
+  if (!section || !display) return;
+  // Update the site breadcrumb at the top of the capture screen
+  const crumb = $('#capSiteBreadcrumb');
+  if (crumb) {
+    const site = sitesList.find((s) => s.site_id === (cap.siteId || activeSiteId));
+    if (site && !site.is_primary) {
+      crumb.hidden = false;
+      crumb.textContent = `Adding to ${site.name}`;
+    } else {
+      crumb.hidden = true;
+    }
+  }
+
+  // Show the site section
+  section.hidden = false;
+
+  if (currentSite) {
+    display.innerHTML = `<span class="site-badge">${escapeHtml(currentSite.name)}</span>`;
+    // Warn if the owner is physically at a different site than the
+    // one they're adding items to. Owners can override; the warning
+    // is advisory. Helpers are blocked from adding to a site they're
+    // not at (handled in the save flow).
+    if (activeSiteId && currentSite.site_id !== activeSiteId) {
+      const activeSite = sitesList.find((s) => s.site_id === activeSiteId);
+      const activeName = activeSite ? activeSite.name : 'the selected site';
+      warning.hidden = false;
+      const warnEl = warning.querySelector('.offsite-msg');
+      if (warnEl) {
+        warnEl.innerHTML = `You appear to be at <b>${escapeHtml(currentSite.name)}</b>, but you're adding items to <b>${escapeHtml(activeName)}</b>. Items should be captured at the location where they are.`;
+      }
+    } else {
+      warning.hidden = true;
+    }
+  } else if (cap.offsite) {
+    display.innerHTML = '<span class="site-badge site-unknown">Unknown location</span>';
+    warning.hidden = false;
+    const warnEl = warning.querySelector('.offsite-msg');
+    if (warnEl) {
+      warnEl.textContent = 'You are not at a registered location. You can still add items, but they will be tagged with your GPS coordinates. Register this location to group items by site.';
+    }
+  } else {
+    // Geo not available or denied — don't block, just tag as unknown
+    display.innerHTML = '<span class="site-badge site-unknown">Location not detected</span>';
+    warning.hidden = true;
+  }
+}
+
+// Wire the offsite warning buttons
+function wireSiteControls() {
+  const addBtn = $('#capAddSiteBtn');
+  const skipBtn = $('#capSkipGeoBtn');
+  const form = $('#capAddSiteForm');
+  const saveBtn = $('#capSiteSaveBtn');
+  if (!addBtn) return;
+
+  addBtn.onclick = () => {
+    form.hidden = !form.hidden;
+  };
+
+  skipBtn.onclick = () => {
+    $('#capOffsiteWarning').hidden = true;
+    // Item will be saved with site_id = null and coordinates captured
+  };
+
+  if (saveBtn) {
+    saveBtn.onclick = async () => {
+      const name = $('#capSiteName').value.trim();
+      const kind = $('#capSiteKind').value;
+      if (!name) return;
+      try {
+        const site = await api('/api/sites', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            name, kind,
+            lat: cap.capturedLat, lon: cap.capturedLon,
+            radius_m: 150,
+          }),
+        });
+        sitesList.push(site);
+        currentSite = site;
+        cap.siteId = site.site_id;
+        cap.siteName = site.name;
+        cap.offsite = false;
+        form.hidden = true;
+        $('#capOffsiteWarning').hidden = true;
+        syncSiteUI();
+      } catch (e) {
+        alert('Could not save the site: ' + e.message);
+      }
+    };
+  }
+}
+wireSiteControls();
+
+/*
+ * Home screen site tiles.
+ *
+ * Sites are a branching layer above rooms. The primary "Home" site is the
+ * default and doesn't need a separate tile unless other sites exist. When
+ * additional sites are added, each gets a tile that opens the walk screen
+ * scoped to that site's rooms.
+ *
+ * Tapping "Add another site" creates a new site with its own room set —
+ * the default rooms are seeded into it so the owner starts with the usual
+ * living room, kitchen, bedroom, etc.
+ */
+
+let activeSiteId = null; // null = primary/home site
+
+async function renderSites() {
+  const section = $('#homeSitesSection');
+  const tilesEl = $('#homeSitesTiles');
+  if (!section || !tilesEl) return;
+
+  let sites = [];
+  try { sites = await api('/api/sites'); } catch { return; }
+
+  // Show the section only if there are non-primary sites
+  const extraSites = sites.filter((s) => !s.is_primary);
+  section.hidden = extraSites.length === 0;
+
+  if (extraSites.length === 0) return;
+
+  tilesEl.innerHTML = extraSites.map((s) => {
+    const ico = s.kind === 'vacation' ? '🏖️' : s.kind === 'storage' ? '📦' : s.kind === 'second_home' ? '🏡' : '📍';
+    return `<div class="site-tile-wrap" data-site-id="${s.site_id}">
+      <button class="tile" data-site-id="${s.site_id}">
+        <span class="ico">${ico}</span>
+        <span class="lbl">${escapeHtml(s.name)}</span>
+        <span class="hint">Tap to walk through its rooms</span>
+      </button>
+      <button class="site-tile-del" data-site-id="${s.site_id}" data-site-name="${escapeHtml(s.name)}" title="Remove this site">&times;</button>
+    </div>`;
+  }).join('');
+
+  $$('#homeSitesTiles [data-site-id]').forEach((b) => {
+    if (b.classList.contains('site-tile-del')) {
+      b.onclick = async (e) => {
+        e.stopPropagation();
+        const siteId = b.dataset.siteId;
+        const siteName = b.dataset.siteName;
+        // Count items at this site so the owner knows what they're dealing with
+        let itemCount = 0;
+        try {
+          const { items } = await api('/api/items');
+          itemCount = items.filter((i) => i.site_id === siteId).length;
+        } catch {}
+        // Build a richer confirmation that offers retag + add-site options
+        const msg = itemCount > 0
+          ? `"${siteName}" has ${itemCount} item${itemCount === 1 ? '' : 's'} recorded at it.\n\n` +
+            'Choose what to do with those items:\n\n' +
+            'OK — Move them to Home, then remove this site\n' +
+            'Cancel — Keep this site for now\n\n' +
+            'To add a different site instead, cancel and use the "Add a site" button.'
+          : `Remove "${siteName}" from your estate?\n\nNo items are recorded at this site.\n\n` +
+            'OK — Remove it\n' +
+            'Cancel — Keep it';
+        if (!confirm(msg)) return;
+        try {
+          if (itemCount > 0) {
+            // Retag items to primary (home) site before deleting
+            await api(`/api/sites/${siteId}/retag`, {
+              method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({}),
+            });
+          }
+          await api(`/api/sites/${siteId}`, {
+            method: 'DELETE',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({}),
+          });
+          sitesList = sitesList.filter((s) => s.site_id !== siteId);
+          if (activeSiteId === siteId) activeSiteId = null;
+          await renderSites();
+          toast(itemCount > 0
+            ? `Moved ${itemCount} item${itemCount === 1 ? '' : 's'} to Home and removed "${siteName}".`
+            : `Removed "${siteName}".`);
+        } catch (err) {
+          toast('Could not remove the site: ' + (err.message || 'unknown error'), true);
+        }
+      };
+    } else {
+      b.onclick = () => {
+        activeSiteId = b.dataset.siteId;
+        go('walk');
+      };
+    }
+  });
+}
+
+function wireHomeSiteControls() {
+  const addBtn = $('#homeAddSite');
+  const form = $('#homeAddSiteForm');
+  const saveBtn = $('#homeSiteSaveBtn');
+  if (!addBtn) return;
+  let gpsCoords = null;
+
+  addBtn.onclick = () => {
+    form.hidden = !form.hidden;
+    if (!form.hidden) $('#homeSiteName')?.focus();
+  };
+
+  // GPS button — detect current location for the new site
+  const gpsBtn = $('#homeSiteGpsBtn');
+  const gpsResult = $('#homeSiteGpsResult');
+  if (gpsBtn) {
+    gpsBtn.onclick = () => {
+      if (!navigator.geolocation) {
+        toast('GPS is not available on this device.', true);
+        return;
+      }
+      gpsBtn.textContent = '📍 Detecting your location…';
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          gpsCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+          if (gpsResult) {
+            gpsResult.hidden = false;
+            gpsResult.textContent = `Location captured: ${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`;
+          }
+          gpsBtn.textContent = '📍 Location captured ✓';
+        },
+        (err) => {
+          gpsBtn.textContent = '📍 Use my current location (GPS)';
+          toast('Could not get your location: ' + err.message, true);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+      );
+    };
+  }
+
+  if (saveBtn) {
+    saveBtn.onclick = async () => {
+      const name = $('#homeSiteName').value.trim();
+      const kind = $('#homeSiteKind').value;
+      const address = $('#homeSiteAddress')?.value.trim() || '';
+      if (!name) return;
+      try {
+        // If GPS was captured, use it. If an address was typed but no GPS,
+        // we still save (address is informational for now — geocoding is
+        // a future enhancement). If neither, just save the name.
+        const body = { name, kind };
+        if (gpsCoords) {
+          body.lat = gpsCoords.lat;
+          body.lon = gpsCoords.lon;
+          body.radius_m = 150;
+        }
+        if (address) body.address = address;
+        await api('/api/sites', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        $('#homeSiteName').value = '';
+        if ($('#homeSiteAddress')) $('#homeSiteAddress').value = '';
+        gpsCoords = null;
+        if (gpsBtn) gpsBtn.textContent = '📍 Use my current location (GPS)';
+        if (gpsResult) gpsResult.hidden = true;
+        form.hidden = true;
+        await renderSites();
+        toast(`Added "${name}" as a new site.`);
+      } catch (e) {
+        toast('Could not add the site: ' + e.message, true);
+      }
+    };
+  }
+}
+wireHomeSiteControls();
+
+// Print-by-room tile — opens the printable inventory anytime for review
+// or sharing to Discovery. The full sign-and-send flow is only on the
+// all-done (walk finished) page.
+$('#homePrintTile')?.addEventListener('click', () => {
+  window.open(`${API}/api/print/report`, '_blank');
+  toast('Opening your printable list, organized by room.');
+});
+
 function reasonFromCap(c) {
   if (!c.important) return '';
   if (c.importantFeeling && c.importantMoney) return 'both';
@@ -329,75 +902,139 @@ function reasonFromCap(c) {
   return '';
 }
 
-function renderStep() {
-  const here = STEP_LABELS[step];
-  $$('.step').forEach((s) => { s.hidden = s.dataset.stepname !== here; });
-  $('#stepDots').innerHTML = STEP_LABELS.map((_, i) => `<span class="dot${i <= step ? ' on' : ''}"></span>`).join('');
-  $('#whereAmI').textContent = `Step ${step + 1} of ${STEP_LABELS.length} — ${STEP_LABELS[step]}`;
-  $('#stepBack').textContent = step === 0 ? 'Cancel' : 'Back';
-  $('#stepNext').textContent = step === STEP_LABELS.length - 1 ? 'Save item' : 'Next';
-  if (step === STEP_LABELS.length - 1) renderSummary();
-  // The recipient step is where the roster earns its keep.
-  if (STEP_LABELS[step] === 'For whom') {
-    renderPersonChips();
-    // The "Add to my special gifts" block only shows once a name is
-    // entered/picked. Re-run visibility on every step render so back
-    // navigation and edits keep the block correct.
-    if (typeof updateGiftBlockVisibility === 'function') updateGiftBlockVisibility();
-  }
-}
+// Retake photo — clears the current photo and goes back to camera
+$('#capRetake').onclick = () => {
+  cap.file = null;
+  cap.dataUrl = null;
+  resetCapture();
+};
 
-/**
- * Lengthen the walk to include the optional questions.
- *
- * Anything already answered is kept — the owner is being offered more to say,
- * never asked to repeat themselves — and they land on the first of the extra
- * questions rather than back at the beginning.
- */
-function addMoreDetail() {
-  STEP_LABELS = FULL_STEPS.slice();
-  step = STEP_LABELS.indexOf(DETAIL_STEPS[0]);
-  renderStep();
-}
+// "Take another photo" — reset and stay on capture screen for the next item
+$('#capAnotherTake').onclick = () => {
+  resetCapture();
+};
 
-$('#capMoreDetail').onclick = addMoreDetail;
-$('#stepBack').onclick = () => { if (step === 0) return go(promiseMode ? 'promise' : 'home'); step--; renderStep(); };
-$('#stepNext').onclick = async () => {
-  const here = STEP_LABELS[step];
-  if (here === 'Photo' && !cap.dataUrl) return toast('Please take a photo first.', true);
-  if (here === 'Name') {
-    cap.title = $('#capTitle').value.trim();
-    if (!cap.title) return toast('Please give the item a short name.', true);
-  }
-  if (here === 'Maker') {
-    cap.maker = $('#capMaker').value.trim();
-    cap.marks = $('#capMarks').value.trim();
-  }
-  if (here === 'Story') cap.story = $('#capStory').value.trim();
-  if (here === 'Room' && $('#capRoomOther').value.trim()) {
+// "Save & take another" — save the current item, then immediately reset for
+// the next photo. The room stays locked so the owner can rapid-fire through
+// items in the same room without re-selecting it each time.
+$('#stepNextAnother').onclick = async () => {
+  if (!cap.dataUrl) return toast('Please take a photo first.', true);
+  // Collect fields same as stepNext
+  cap.title = $('#capTitle').value.trim();
+  cap.story = $('#capStory').value.trim();
+  cap.maker = $('#capMaker')?.value.trim() || '';
+  cap.marks = $('#capMarks')?.value.trim() || '';
+  cap.recipient = $('#capRecipient').value.trim();
+  cap.relationship = $('#capRelationship').value.trim();
+  cap.note = $('#capOwnerNote')?.value.trim() || '';
+  if ($('#capRoomOther')?.value.trim()) {
     cap.room = $('#capRoomOther').value.trim();
-    // Keep it as a choice for next time rather than making them retype it.
     rememberTypedRoom(cap.room);
   }
-  if (here === 'For whom') {
-    // Only in promise mode is a name insisted upon, because a promise without a
-    // person is not a promise. Everywhere else blank stays perfectly valid: an
-    // owner must never be nudged into naming someone they have not chosen, or
-    // the printed record stops being evidence of their wishes.
-    if (promiseMode && !$('#capRecipient').value.trim()) {
-      return toast('This one is for someone in particular — please put in their name. '
-        + 'If you are not sure, press Back and add it as an ordinary item instead.', true);
-    }
-    cap.recipient = $('#capRecipient').value.trim();
-    cap.relationship = $('#capRelationship').value.trim();
-    cap.note = $('#capOwnerNote').value.trim();
-    // The gift block \u2014 only meaningful when a name is present. Persisting
-    // the toggle here lets the save handler pick it up after the item POST.
-    const makeGiftEl = $('#capMakeGift');
-    cap.makeGift = !!(cap.recipient && makeGiftEl && makeGiftEl.checked);
+  const valStr = $('#capValue')?.value.trim() || '';
+  if (valStr) {
+    const v = parseFloat(valStr.replace(/[^0-9.]/g, ''));
+    if (!isNaN(v)) { cap.valueCents = Math.round(v * 100); cap.valueBasis = $('#capValueBasis')?.value || 'unknown'; }
   }
-  if (step === STEP_LABELS.length - 1) return saveItem();
-  step++; renderStep();
+  const makeGiftEl = $('#capMakeGift');
+  cap.makeGift = !!(cap.recipient && makeGiftEl && makeGiftEl.checked);
+  if (promiseMode && !cap.recipient) {
+    return toast('This one is for someone in particular — please put in their name.', true);
+  }
+  // Save the item (without the post-save "take another" screen)
+  try {
+    const item = await api('/api/items', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        title: effectiveTitle(), story: cap.story,
+        room_name: cap.room || null, category_name: cap.category || null,
+        review_state: 'kept',
+        value_basis: cap.valueCents != null ? cap.valueBasis : 'unknown',
+        value_estimate_cents: cap.valueCents,
+        owner_high_value: cap.important === true,
+        owner_high_value_reason: reasonFromCap(cap),
+        ai_confidence: cap.ai?.confidence ?? null,
+        site_id: cap.siteId || null, site_name: cap.siteName || '',
+        captured_lat: cap.capturedLat, captured_lon: cap.capturedLon,
+        identifiers: buildIdentifiers(),
+        recipient_hint: cap.recipient
+          ? { recipient_name: cap.recipient, relationship: cap.relationship, owner_note: cap.note }
+          : null,
+      }),
+    });
+    if (cap.dataUrl) await uploadPhoto(item.item_id, cap.dataUrl);
+    if (cap.closeupDataUrl) {
+      try { await uploadCloseupPhoto(item.item_id, cap.closeupDataUrl); } catch (e) { console.warn('close-up skipped:', e.message); }
+    }
+    if (cap.voiceBlob) {
+      try { await uploadVoiceMemo(item.item_id, cap.voiceBlob); } catch (e) { console.warn('voice skipped:', e.message); }
+    }
+    if (cap.recipient) {
+      try { await addPerson(cap.recipient, cap.relationship, 'from_item'); } catch { }
+    }
+    if (cap.makeGift && cap.recipient) {
+      try { await assignItemToNamedRecipient(item.item_id, cap.recipient, cap.relationship); }
+      catch (e) { console.warn('gift assignment skipped:', e.message); }
+    }
+    toast('Saved. Take the next one.');
+    refreshCount();
+    // Reset the capture form but KEEP the room
+    const keepRoom = cap.room;
+    resetCapture();
+    // resetCapture preserves cap.room, but the form needs to start fresh
+    // with just the camera button visible
+    $('#capPreview').hidden = true;
+    $('#capRetake').hidden = true;
+    $('#capPhotoLabel').hidden = false;
+    $('#capPhotoHint').hidden = false;
+    $('#capPhoto').value = '';
+    $('#capDetails').hidden = true;
+    $('#capNav').hidden = true;
+    $('#capAnother').hidden = true;
+    $('#aiNote').hidden = true;
+  } catch (e) { toast(e.message, true); }
+};
+
+// "All done" — go back to where we came from
+$('#capAnotherDone').onclick = () => {
+  go('home');
+};
+
+// Cancel button
+$('#stepBack').onclick = () => go(promiseMode ? 'memo' : 'home');
+
+// Save button — collects all fields from the single page and saves
+$('#stepNext').onclick = async () => {
+  if (!cap.dataUrl) return toast('Please take a photo first.', true);
+
+  // Collect all fields from the page
+  cap.title = $('#capTitle').value.trim();
+  cap.story = $('#capStory').value.trim();
+  cap.maker = $('#capMaker').value.trim();
+  cap.marks = $('#capMarks').value.trim();
+  cap.recipient = $('#capRecipient').value.trim();
+  cap.relationship = $('#capRelationship').value.trim();
+  cap.note = $('#capOwnerNote').value.trim();
+  if ($('#capRoomOther').value.trim()) {
+    cap.room = $('#capRoomOther').value.trim();
+    rememberTypedRoom(cap.room);
+  }
+  // Value
+  const valStr = $('#capValue').value.trim();
+  if (valStr) {
+    const v = parseFloat(valStr.replace(/[^0-9.]/g, ''));
+    if (!isNaN(v)) { cap.valueCents = Math.round(v * 100); cap.valueBasis = $('#capValueBasis').value; }
+  }
+  // Gift block
+  const makeGiftEl = $('#capMakeGift');
+  cap.makeGift = !!(cap.recipient && makeGiftEl && makeGiftEl.checked);
+
+  // Promise mode requires a name
+  if (promiseMode && !cap.recipient) {
+    return toast('This one is for someone in particular — please put in their name.', true);
+  }
+
+  return saveItem();
 };
 
 $('#capPhoto').onchange = async (e) => {
@@ -406,6 +1043,9 @@ $('#capPhoto').onchange = async (e) => {
   cap.file = f;
   cap.dataUrl = await downscale(f, 1600);
   $('#capPreview').src = cap.dataUrl; $('#capPreview').hidden = false;
+
+  // Show the details section so the owner can type while AI thinks
+  showCapDetails();
 
   // Recognition can take most of a minute. Saying so, on the screen and not in
   // a toast that vanishes, is the difference between waiting and concluding the
@@ -442,6 +1082,9 @@ $('#capPhoto').onchange = async (e) => {
         + 'so please type what this is. Nothing has been guessed for you.');
       return;
     }
+    // In guided intro mode, even without AI detection, show the accept bar
+    // so the owner can type a name and save in one go.
+    if (guidedIntroMode) showAcceptBar('', null);
     const best = detections.sort((a, b) => b.confidence - a.confidence)[0];
     if (best) {
       cap.ai = best;
@@ -451,6 +1094,9 @@ $('#capPhoto').onchange = async (e) => {
       if (box && !box.value.trim()) box.value = best.label;
       setNote(`This looks like: ${escapeHtml(best.label)}${best.category_hint ? ` (${escapeHtml(best.category_hint)})` : ''}. Change it if that is not right.`);
       if (best.category_hint) cap.category = best.category_hint;
+      // In guided intro mode, show the accept bar so the owner can confirm
+      // the AI label and save in one tap without scrolling through details.
+      if (guidedIntroMode) showAcceptBar(best.label, best.category_hint);
     } else {
       setNote('<b>Photo saved.</b> Nothing was recognised in it, so please type what this is.');
     }
@@ -584,21 +1230,6 @@ const BASIS_WORDS = {
   insurance: 'your insurance listing',
 };
 
-function renderSummary() {
-  const onFullPath = STEP_LABELS.length === FULL_STEPS.length;
-  const row = (k, v) => `<div><b>${k}:</b> ${v || '<span style="color:#8a857c">not given</span>'}</div>`;
-  $('#capSummary').innerHTML = `
-    ${cap.dataUrl ? `<img src="${cap.dataUrl}" class="preview" alt="">` : ''}
-    ${row('Name', escapeHtml(effectiveTitle()))}${row('Intended for', cap.recipient)}
-    ${cap.recipient ? '<div style="color:#55504a;font-size:16px">Recorded as a wish, not a legal instruction.</div>' : ''}
-    ${onFullPath ? `${row('Room', cap.room)}${row('Maker or artist', cap.maker)}${row('Marks', cap.marks)}
-         ${row('Story', cap.story)}${row('Kind', cap.category)}` : ''}`;
-
-  // Offered, never pressed. The button disappears once taken so the summary
-  // does not keep asking for something the owner has already been given.
-  $('#capMoreDetail').hidden = onFullPath;
-  $('#capMoreDetailNote').hidden = onFullPath;
-}
 
 /**
  * Identifiers are things a person can point to on the object: a maker's name,
@@ -612,48 +1243,65 @@ function buildIdentifiers() {
   return out;
 }
 
+// ---- Guided intro: AI accept bar ----
+// When the owner taps "Add your first item" and takes a photo, the AI
+// identifies it. Instead of silently filling a form field, show a
+// prominent bar: "AI suggests: [label]" with an Accept button that
+// saves the item immediately and returns home. The full details form
+// is still below for anyone who wants to add more.
+function showAcceptBar(label, categoryHint) {
+  let bar = $('#capAcceptBar');
+  if (!bar) return; // element doesn't exist (shouldn't happen)
+  bar.hidden = false;
+  const labelText = label
+    ? `AI suggests: <strong>${escapeHtml(label)}</strong>${categoryHint ? ` (${escapeHtml(categoryHint)})` : ''}`
+    : 'Type a name for this item, or just save the photo.';
+  $('#capAcceptLabel').innerHTML = labelText;
+  const input = $('#capAcceptName');
+  if (input && label) input.value = label;
+  if (input) input.placeholder = label ? 'Change the name if this is not right' : 'What is this?';
+  // Focus the accept input so the owner can edit right away
+  if (input) setTimeout(() => input.focus(), 100);
+}
+
+// Accept & Save button — saves the item with the AI label (or edited name)
+// and returns home. Quick path for the "Add your first item" flow.
+$('#capAcceptBtn')?.addEventListener('click', async () => {
+  const acceptInput = $('#capAcceptName');
+  if (acceptInput && acceptInput.value.trim()) {
+    cap.title = acceptInput.value.trim();
+    // Also sync the main title field so saveItem picks it up
+    const mainTitle = $('#capTitle');
+    if (mainTitle && !mainTitle.value.trim()) mainTitle.value = cap.title;
+  }
+  // Collect minimal fields and save
+  cap.story = '';
+  cap.recipient = '';
+  cap.relationship = '';
+  cap.note = '';
+  return saveItem();
+});
+
+// "Edit details" button — hides the accept bar and reveals the full form
+$('#capEditDetailsBtn')?.addEventListener('click', () => {
+  const bar = $('#capAcceptBar');
+  if (bar) bar.hidden = true;
+  // Sync any typed name to the main title field
+  const acceptInput = $('#capAcceptName');
+  if (acceptInput && acceptInput.value.trim()) {
+    const mainTitle = $('#capTitle');
+    if (mainTitle && !mainTitle.value.trim()) mainTitle.value = acceptInput.value.trim();
+  }
+});
+
 async function saveItem() {
   try {
-    // AI tentative flag evaluation: Registry doesn't value items, but the
-    // vision model can still flag things worth the owner's second look.
-    // Triggers: rarity (appraisal_suggested or maker identified),
-    //           category-based (jewelry, art, firearms, etc.),
-    //           low confidence (AI unsure what it's seeing).
-    let aiTentative = false;
-    let aiTentativeReason = '';
-    if (cap.ai && !cap.important) {
-      // Rarity: the vision model itself suggests this may be significant
-      if (cap.ai.appraisal_suggested) {
-        aiTentative = true;
-        aiTentativeReason = 'AI flagged: may warrant professional appraisal';
-      }
-      // Maker identified: a legible brand/signature/mark is visible
-      if (cap.ai.maker_identified && !aiTentative) {
-        aiTentative = true;
-        aiTentativeReason = 'AI flagged: brand or maker mark visible';
-      }
-      // Category-based: certain categories are worth a second look
-      const cat = (cap.ai.category_hint || cap.category || '').toLowerCase();
-      const flaggedCats = ['jewelry', 'jewellery', 'art', 'painting', 'sculpture',
-        'antique', 'collectible', 'firearm', 'firearms', 'gun', 'coins', 'coin',
-        'silver', 'gold', 'watch', 'watches', 'instrument', 'rug', 'tapestry'];
-      if (flaggedCats.some((c) => cat.includes(c)) && !aiTentative) {
-        aiTentative = true;
-        aiTentativeReason = 'AI flagged: ' + cat + ' — worth a closer look';
-      }
-      // Low confidence: AI is unsure what it's seeing
-      if (cap.ai.confidence != null && cap.ai.confidence < 0.45 && !aiTentative) {
-        aiTentative = true;
-        aiTentativeReason = 'AI flagged: low confidence identification';
-      }
-    }
-
     const item = await api('/api/items', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         title: effectiveTitle(), story: cap.story,
         room_name: cap.room || null, category_name: cap.category || null,
-        review_state: ((myRole === 'assistant' && cap.important) || aiTentative) ? 'draft' : 'kept',
+        review_state: 'kept',
         // The value on an estate record is the OWNER'S, never the camera's.
         // This app previously saved the vision model's guess as though the
         // owner had stated it — a fabricated brand and dollar figure stamped
@@ -664,19 +1312,17 @@ async function saveItem() {
         // Owner-set Important mark. The API validates the reason enum and
         // coerces it back to '' if the box was left off, so a stale form
         // cannot attach a reason to an unflagged item.
-        // Helpers (assistants) cannot set a permanent Important flag —
-        // their flag is tentative and queued for owner review.
-        owner_high_value: myRole === 'assistant' ? false : (cap.important === true),
-        owner_high_value_reason: myRole === 'assistant' ? '' : reasonFromCap(cap),
-        tentative_high_value: (myRole === 'assistant' && cap.important === true) || aiTentative,
-        tentative_high_value_source: myRole === 'assistant' && cap.important ? 'helper' : (aiTentative ? 'ai' : ''),
-        tentative_high_value_reason: myRole === 'assistant' && cap.important ? reasonFromCap(cap) : (aiTentative ? aiTentativeReason : ''),
+        owner_high_value: cap.important === true,
+        owner_high_value_reason: reasonFromCap(cap),
         ai_confidence: cap.ai?.confidence ?? null,
+        site_id: cap.siteId || null,
+        site_name: cap.siteName || '',
+        captured_lat: cap.capturedLat,
+        captured_lon: cap.capturedLon,
         identifiers: buildIdentifiers(),
-        // Helpers cannot assign items to people — recipient_hint is owner/co-owner only.
-        recipient_hint: (myRole === 'assistant' || !cap.recipient)
-          ? null
-          : { recipient_name: cap.recipient, relationship: cap.relationship, owner_note: cap.note },
+        recipient_hint: cap.recipient
+          ? { recipient_name: cap.recipient, relationship: cap.relationship, owner_note: cap.note }
+          : null,
       }),
     });
     if (cap.dataUrl) await uploadPhoto(item.item_id, cap.dataUrl);
@@ -693,13 +1339,13 @@ async function saveItem() {
     }
     // A name typed here joins the roster, so the next item is one tap. The
     // save must not fail because the address book did, hence the catch.
-    if (cap.recipient && myRole !== 'assistant') {
+    if (cap.recipient) {
       try { await addPerson(cap.recipient, cap.relationship, 'from_item'); } catch { /* not worth stopping for */ }
     }
     // Auto-populate the addendum roster from capture. If the owner ticked
     // "Add this to my special gifts", find-or-create an heir with this
     // name and link the item to it. Never a blocker for the save itself.
-    if (cap.makeGift && cap.recipient && myRole !== 'assistant') {
+    if (cap.makeGift && cap.recipient) {
       try { await assignItemToNamedRecipient(item.item_id, cap.recipient, cap.relationship); }
       catch (e) { console.warn('gift assignment skipped:', e.message); }
     }
@@ -709,11 +1355,40 @@ async function saveItem() {
     // In promise mode the owner is in the middle of emptying a list they already
     // carry in their head. Dropping them back on the menu after each one breaks
     // that thread; asking "anything else you already know?" keeps it.
-    if (promiseMode) { promiseKept += 1; return go('promise'); }
+    if (promiseMode) { promiseKept += 1; return go('memo'); }
     if (quickTestMode) { quickTestMode = false; return go('whosdoing'); }
     if (recipientPracticeMode) { recipientPracticeMode = false; return go('walk'); }
-    if (guidedIntroMode) { return go('guidedmeaning'); }
-    go('home');
+    if (guidedIntroMode) {
+      guidedIntroMode = false;
+      updateHomeTileAfterFirstItem();
+      go('walk');
+      setTimeout(() => toast('First item saved. Now pick a room to start in — take wide photos and AI will identify what is there.'), 500);
+      return;
+    }
+    if (roomImportantFlow) {
+      roomImportantFlow = false;
+      const savedItem = item;
+      const savedRoom = room?.name;
+      go('batch');
+      const intake = $('#batchIntake'); if (intake) intake.hidden = true;
+      $('#batchResults').innerHTML = `
+        <h2>Saved as important</h2>
+        <p class="reassure">${escapeHtml(cap.title || 'That item')} is on your list, flagged as important.</p>
+        <div class="ask">
+          <p class="askq">Should this be assigned to someone?</p>
+          <button class="primary wide" id="assignYes">Yes — assign it</button>
+          <button class="ghost wide" id="assignNo">No — just flag it as important</button>
+        </div>`;
+      $('#assignNo').onclick = async () => {
+        await leaveNaming();
+        renderRoomImportantAsk(savedRoom);
+      };
+      $('#assignYes').onclick = () => renderAssignForm(savedItem, savedRoom);
+      return;
+    }
+    // Normal mode: offer to take another photo instead of going home
+    $('#capNav').hidden = true;
+    $('#capAnother').hidden = false;
   } catch (e) { toast(e.message, true); }
 }
 
@@ -1041,7 +1716,6 @@ const cardHtml = (i) => `
       ${i.review_state === 'draft' ? '<span class="badge draft">needs review</span>' : '<span class="badge kept">confirmed</span>'}
       ${i.recipient_hint?.recipient_name ? `<span class="badge who">for ${escapeHtml(i.recipient_hint.recipient_name)}</span>` : ''}
       ${i.owner_high_value ? '<span class="badge important">Important</span>' : ''}
-      ${i.tentative_high_value ? '<span class="badge tentative">flagged for review</span>' : ''}
     </div>
   </button>`;
 
@@ -1364,7 +2038,7 @@ async function openDetail(id) {
 /* or years away. It now sits here as one option among four, chosen    */
 /* when the list is actually finished.                                 */
 /* ------------------------------------------------------------------ */
-const FINISH_OPTS = ['#optEmail', '#optPrint', '#optSave', '#optSigned', '#optFairChoice'];
+const FINISH_OPTS = ['#optEmail', '#optPrint', '#optSave', '#optSigned', '#optFairChoice', '#optDiscovery'];
 
 async function refreshFinishScreen() {
   try {
@@ -1397,9 +2071,17 @@ $('#finishGo').onclick = async () => {
     if (!name) return toast('Please write your trustee\u2019s name.', true);
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast('That email address does not look right. Please check it.', true);
     // Emailing cannot be undone, so it gets its own plain confirmation screen.
+    // Every send requires a signed page on file. If there isn't one,
+    // redirect to the signing page instead of sending.
+    if (!execution?.record) {
+      toast('You need to sign your list before sending it. Print it, sign it by hand, photograph the signed page.', true);
+      go('signing');
+      return;
+    }
     $('#confirmDetail').innerHTML =
       `<b>To:</b> ${escapeHtml(name)} &lt;${escapeHtml(email)}&gt;<br>`
-      + '<b>What they receive:</b> your full list, every photo, every story, and your wishes about who gets what.';
+      + '<b>What they receive:</b> your full list, every photo, every story, and your wishes about who gets what. Your email app will open with everything attached — just hit send.<br>'
+      + `<br><b>⚠ Fresh signature required.</b> Your signed page on file was photographed on ${new Date(execution.record.captured_at).toLocaleDateString('en-US', { dateStyle: 'long' })}. Make sure you print a fresh copy, sign it by hand, and photograph the newly signed page before sending. Do not reuse an old signed page.`;
     go('confirmsend');
     return;
   }
@@ -1418,21 +2100,51 @@ async function runFinishActions({ email }) {
 
   if (email) {
     try {
+      const trusteeName = $('#trusteeName').value.trim();
+      const trusteeEmail = $('#trusteeEmail').value.trim();
       const trustee = await api('/api/trustees', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name: $('#trusteeName').value.trim(), email: $('#trusteeEmail').value.trim() }),
+        body: JSON.stringify({ name: trusteeName, email: trusteeEmail }),
       });
       const prepared = await api('/api/delivery/prepare', {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ trustee_ids: [trustee.trustee_id ?? trustee.id] }),
       });
-      await api(`/api/delivery/${prepared.delivery_id ?? prepared.id}/send`, {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ confirmed: true }),
+
+      // Fetch the .reindeer bundle as a blob for sharing via the owner's email app
+      const bundleRes = await fetch(`${API}/api/delivery/${prepared.delivery_id ?? prepared.id}/file`);
+      const bundleBlob = await bundleRes.blob();
+      const fileName = prepared.file_name || 'estate-package.reindeer';
+      const ownerName = trusteeName || 'the estate owner';
+      const bodyText = `Hello ${trusteeName},
+
+${ownerName} has put together an inventory of their possessions and their wishes about who should receive each item. The attached file contains everything — the full list, every photo, and every story.
+
+To open it, go to ${window.location.origin.replace('registry', 'fair-play')} and use the "Import from Registry" option. You will also need a license key from ${ownerName} — they will share it with you separately.
+
+Keep this file with the estate planning documents. It is the personal property memorandum referenced by the will.
+
+This package was prepared on ${new Date().toLocaleDateString('en-US', { dateStyle: 'long' })}.`;
+
+      const shareResult = await shareWithEmailApp({
+        to: trusteeEmail,
+        subject: `${ownerName}: estate inventory package`,
+        body: bodyText,
+        fileBlob: bundleBlob,
+        fileName,
+        downloadUrl: prepared.download_url,
       });
-      done.push(`Emailed to ${escapeHtml($('#trusteeName').value.trim())}`);
+
+      if (shareResult.cancelled) {
+        // User cancelled the share sheet — not an error
+        done.push('Email was cancelled — the package is still saved, you can send it later.');
+      } else if (shareResult.method === 'share') {
+        done.push(`Shared with ${escapeHtml(trusteeName)} — your email app handled the delivery.`);
+      } else {
+        done.push(`Your email app is open — send the message to ${escapeHtml(trusteeName)}.`);
+      }
     } catch (e) {
-      failed.push(`The email did not go out: ${escapeHtml(e.message)}`);
+      failed.push(`The email could not be prepared: ${escapeHtml(e.message)}`);
     }
   }
 
@@ -1461,12 +2173,23 @@ async function runFinishActions({ email }) {
     done.push('Downloaded the file for Reindeer: FairPlay — the captain opens it there, and every item lands in their review queue first');
   }
 
+  if ($('#optDiscovery').checked) {
+    triggerDownload(`${API}/api/export/bundle`);
+    const discoveryUrl = window.location.origin.replace('registry', 'discovery');
+    done.push(`Your inventory is ready in <a href="${discoveryUrl}" style="color:var(--primary);font-weight:600">Reindeer: Discovery</a> — open it to invite your family. They'll be able to browse the collection and privately mark what matters to them.`);
+  }
+
   box.innerHTML = [
     done.length ? `<b>Done:</b><ul>${done.map((d) => `<li>${d}</li>`).join('')}</ul>` : '',
     failed.length ? `<b>Not done:</b><ul>${failed.map((d) => `<li>${d}</li>`).join('')}</ul>` : '',
   ].join('');
   FINISH_OPTS.forEach((id) => { $(id).checked = false; });
   updateFinishButton();
+
+  // Show the data access code + safe keeping instructions after actions complete
+  if (done.length) {
+    $('#finalInstructions').hidden = false;
+  }
 }
 
 function triggerDownload(url) {
@@ -1719,7 +2442,7 @@ function renderAttestations() {
    This was the single largest source of friction in the app. A recipient was a
    free-text box on every item, so somebody recording eighty belongings typed
    "Kathy" eighty times, and every slip — "Kathy M", "kathy", "my daughter
-   Kathy" — became a separate heir by the time the file reached Legacy: Fair
+   Kathy" — became a separate heir by the time the file reached Reindeer: Fair
    Choice. Now the name is said once and tapped thereafter.
 
    Two ways in, because people work differently. Some want to declare the cast
@@ -1967,7 +2690,7 @@ $('#promiseOnward').onclick = () => { promiseMode = false; promiseKept = 0; go('
  * pick the phone back up. It is also simply true, which is why it is allowed.
  */
 async function pivotSentence() {
-  const generic = 'Everything else in the house, your family will have to work out between '
+  const generic = 'The rooms in your house, your family will have to work out between '
     + 'themselves. Writing those down is what stops that becoming an argument.';
   try {
     const { people = [] } = await api('/api/people');
@@ -1979,7 +2702,7 @@ async function pivotSentence() {
       : names.length <= 3
         ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
         : `${names.slice(0, 3).join(', ')} and the others`;
-    return `Everything else in the house, ${list} will have to work out between themselves. `
+    return `The rooms in your house, ${list} will have to work out between themselves. `
       + 'Writing those down is what stops that becoming an argument.';
   } catch { return generic; }
 }
@@ -1999,26 +2722,69 @@ async function renderPartnerCard() {
   const linked = $('#homePartnerLinked');
   const nameSpan = $('#homePartnerName');
   if (!add || !linked) return;
+
+  // Fetch household-link once — it has participants, pending invites, and roles.
+  // We already need it for role checks and pending-invite detection.
+  let hl = null;
+  try { hl = await api('/api/household-link'); } catch {}
+
+  // Helpers don't see the "add co-owner/helper" card or the quiet-row link.
+  const me = (hl?.participants || []).find((p) => p.is_me);
+  const myRoleHl = me?.role;
+  if (myRoleHl === 'assistant') {
+    add.hidden = true;
+    linked.hidden = true;
+    document.querySelectorAll('[data-go="householdlink"]').forEach(el => {
+      if (el.closest('.quietrow')) el.style.display = 'none';
+    });
+    // Helpers cannot designate gifts, sign, or hand off — hide those tiles.
+    document.querySelectorAll('[data-go="memo"], [data-go="signing"], [data-go="handoff"]').forEach(el => {
+      el.style.display = 'none';
+    });
+    const cc = $('#homeConflictCounter');
+    if (cc) cc.style.display = 'none';
+    return;
+  }
+
+  // Check for pending co-owner invites (partner invited but not yet signed in).
+  // Only two owners allowed — once an invite is sent, suppress the add tile.
+  const pendingPartnerInvites = (hl?.pending_invites || []).filter(
+    (p) => p.role === 'partner'
+  );
+  const hasPendingPartner = pendingPartnerInvites.length > 0;
+
   try {
     const s = await api('/api/scope-summary');
     if (s?.household_mode === 'couple') {
+      // Already linked — show the linked card, hide the add tile
       add.hidden = true;
       linked.hidden = false;
-      // scope-summary does not include the partner's display name; fetch it
-      // from /api/household-link only when we already know we're in couple
-      // mode. Fail-silent to a generic label if the second call misses.
       let partnerName = 'your partner';
       try {
-        const hl = await api('/api/household-link');
-        // household-link returns participants[]; pick the one that is not me.
         const others = (hl?.participants || []).filter((p) => !p.is_me);
         const other = others[0];
         partnerName = other?.display_name || other?.email || partnerName;
       } catch { /* keep generic label */ }
       if (nameSpan) nameSpan.textContent = partnerName;
+    } else if (hasPendingPartner) {
+      // Co-owner invite sent but not yet accepted — suppress the add tile,
+      // show a "waiting" card instead of the linked card.
+      add.hidden = true;
+      linked.hidden = false;
+      const inviteeName = pendingPartnerInvites[0]?.display_name || pendingPartnerInvites[0]?.email || 'your co-owner';
+      if (nameSpan) nameSpan.textContent = inviteName + ' (invite sent)';
     } else {
       add.hidden = false;
       linked.hidden = true;
+      // Restore the card label and quiet-row text in case they were changed
+      add.querySelector('.lbl').textContent = 'Add a co-owner or helper';
+      add.querySelector('.hint').textContent = 'Invite a co-owner to share your inventory, or a helper to assist with photos and documentation.';
+      document.querySelectorAll('[data-go="householdlink"]').forEach(el => {
+        if (el.closest('.quietrow')) el.textContent = 'Add a co-owner or helper';
+        if (el.id === 'guidedAddPartner' || el.closest('.onboarding-tiles')) {
+          el.style.display = '';
+        }
+      });
     }
   } catch {
     add.hidden = true;
@@ -2031,6 +2797,32 @@ async function renderPartnerCard() {
  *
  * Never combined into a percentage — see the note in the markup.
  */
+// After the first item is saved in guided intro mode, update the home
+// tile to offer "Add another item?" and a hint about the room walkthrough.
+function updateHomeTileAfterFirstItem() {
+  const tile = $('#homeQuickStart');
+  if (!tile) return;
+  const lbl = tile.querySelector('.lbl');
+  const hint = tile.querySelector('.hint');
+  if (lbl) lbl.textContent = 'Add another item?';
+  if (hint) hint.textContent = 'Or try the room-by-room walkthrough to capture a whole room at once.';
+}
+
+// On every home render, check if items already exist and update the tile.
+async function updateHomeTile() {
+  const tile = $('#homeQuickStart');
+  if (!tile) return;
+  try {
+    const { items } = await api('/api/items');
+    if (items.length > 0) {
+      const lbl = tile.querySelector('.lbl');
+      const hint = tile.querySelector('.hint');
+      if (lbl) lbl.textContent = 'Add another item?';
+      if (hint) hint.textContent = 'Or try the room-by-room walkthrough to capture a whole room at once.';
+    }
+  } catch { /* fail-silent — keep default tile text */ }
+}
+
 async function renderCounters() {
   let items = [];
   try { ({ items } = await api('/api/items')); } catch { return; }
@@ -2180,25 +2972,73 @@ async function addOfferedCategory(name) {
  * the app had thrown it away. Their own room names are the ones they care most
  * about, so they are shown first and marked as theirs.
  */
+/** When a room is already selected, hide the room picker and show a breadcrumb
+ *  with a "Change room" link. The owner is photographing items one after another
+ *  in the same room — they do not need to see the full room list each time. */
+function updateRoomLockUI() {
+  const chips = $('#roomChips');
+  const other = $('#capRoomOther');
+  const moreWrap = $('#roomMoreWrap');
+  const section = chips?.closest('.cap-section');
+  if (!section) return;
+  const locked = !!cap.room;
+  // Toggle "Save & take another" visibility based on room lock
+  const anotherBtn = $('#stepNextAnother');
+  if (anotherBtn) anotherBtn.hidden = !locked;
+  if (locked) {
+    // Show a breadcrumb instead of the full picker
+    const label = section.querySelector('.fieldlabel');
+    if (label) label.innerHTML = `Room: <strong>${escapeHtml(cap.room)}</strong> `
+      + '<button class="linky" id="capChangeRoom" style="font-size:0.85rem">Change room</button>'
+      + '<button class="linky" id="capRoomDone" style="font-size:0.85rem;margin-left:8px">This room is finished</button>';
+    chips.hidden = true;
+    if (other) other.hidden = true;
+    if (moreWrap) moreWrap.hidden = true;
+    $('#capChangeRoom')?.addEventListener('click', () => {
+      cap.room = '';
+      chips.hidden = false;
+      if (other) other.hidden = false;
+      renderRoomChips();
+    });
+    $('#capRoomDone')?.addEventListener('click', () => {
+      cap.room = '';
+      go('home');
+    });
+  } else {
+    // Show the full picker
+    const label = section.querySelector('.fieldlabel');
+    if (label) label.textContent = 'Where is it kept?';
+    chips.hidden = false;
+  }
+}
+
 function renderRoomChips() {
-  const mine = registry.rooms.filter((r) => r.is_custom);
-  const standard = registry.rooms.filter((r) => !r.is_custom && r.name !== 'Other');
-  const other = registry.rooms.find((r) => r.name === 'Other');
+  // Filter rooms by active site (null = primary/home)
+  const siteRooms = registry.rooms.filter((r) => {
+    if (activeSiteId) return r.site_id === activeSiteId || (r.site_id == null && activeSiteId === null);
+    return r.site_id == null || r.site_id === undefined;
+  });
+  const mine = siteRooms.filter((r) => r.is_custom);
+  const standard = siteRooms.filter((r) => !r.is_custom);
   const chip = (r) => `<button class="chip${r.is_custom ? ' chip-mine' : ''}" aria-pressed="false"`
     + ` data-room="${escapeHtml(r.name)}">${escapeHtml(r.name)}</button>`;
-  // "Somewhere else" always sits last: it is the escape hatch, not an option.
-  $('#roomChips').innerHTML = [...mine, ...standard].map(chip).join('')
-    + (other ? `<button class="chip chip-other" aria-pressed="false" data-room="Other">Somewhere else…</button>` : '');
+  $('#roomChips').innerHTML = [...mine, ...standard].map(chip).join('');
 
   $$('#roomChips .chip').forEach((b) => {
     b.onclick = () => {
       $$('#roomChips .chip').forEach((x) => x.setAttribute('aria-pressed', 'false'));
       b.setAttribute('aria-pressed', 'true');
       cap.room = b.dataset.room;
-      $('#capRoomOther').hidden = b.dataset.room !== 'Other';
-      if (b.dataset.room === 'Other') $('#capRoomOther').focus();
+      updateRoomLockUI();
     };
   });
+  // Pre-select the room carried over from a previous capture so "Take
+  // another photo" stays in the same room without the owner re-picking it.
+  if (cap.room) {
+    const pre = $$('#roomChips .chip').find((c) => c.dataset.room === cap.room);
+    if (pre) pre.setAttribute('aria-pressed', 'true');
+  }
+  updateRoomLockUI();
 
   renderRoomMore();
 }
@@ -2287,8 +3127,163 @@ async function rememberTypedRoom(name) {
   }
 }
 
+// ---- ADMIN: LICENSE KEYS ----
+
+async function loadAdminLicenses() {
+  // Determine role from session
+  let role = '';
+  try {
+    const hl = await api('/api/household-link');
+    const me = (hl?.participants || []).find((p) => p.is_me);
+    if (me) role = me.role;
+  } catch {}
+  // Only owners/co-owners see the admin tile and can generate keys
+  const isOwner = role === 'owner' || role === 'bootstrap-owner' || role === 'partner';
+  const adminTile = $('#adminTile');
+  if (adminTile) adminTile.hidden = !isOwner;
+  loadLicenseList();
+}
+
+async function showAdminTile() {
+  let role = '';
+  try {
+    const hl = await api('/api/household-link');
+    const me = (hl?.participants || []).find((p) => p.is_me);
+    if (me) role = me.role;
+  } catch {}
+  const isOwner = role === 'owner' || role === 'bootstrap-owner' || role === 'partner';
+  const adminTile = $('#adminTile');
+  if (adminTile) adminTile.hidden = !isOwner;
+}
+
+// Video capture feature flag — fetched once on load, applied to all video tiles/lanes.
+// When OFF (default), video tiles are hidden. When ON (admin-toggled), owners can
+// record room walkthroughs and AI analyzes extracted frames.
+let videoCaptureEnabled = false;
+
+async function applyVideoFlag() {
+  try {
+    const data = await api('/api/admin/feature-flags');
+    videoCaptureEnabled = data?.effective?.videoCapture === true;
+  } catch {
+    // If the call fails (e.g. not owner), leave video hidden
+    videoCaptureEnabled = false;
+  }
+  document.querySelectorAll('[data-video-tile]').forEach((el) => { el.hidden = !videoCaptureEnabled; });
+  document.querySelectorAll('[data-video-lane]').forEach((el) => { el.hidden = !videoCaptureEnabled; });
+}
+
+async function loadLicenseList() {
+  const box = $('#licenseList');
+  box.innerHTML = '<p style="color:var(--muted)">Loading...</p>';
+  try {
+    const data = await api('/api/admin/licenses');
+    if (!data.licenses || data.licenses.length === 0) {
+      box.innerHTML = '<p style="color:var(--muted)">No license keys generated yet. Use the form below to create one.</p>';
+      return;
+    }
+    const rows = data.licenses.map((l) => {
+      const exp = l.license_expires_at ? new Date(l.license_expires_at).toLocaleDateString('en-US', { dateStyle: 'medium' }) : '—';
+      const slots = l.license_pool_slots || 0;
+      const created = l.created_at ? new Date(l.created_at).toLocaleDateString('en-US', { dateStyle: 'medium' }) : '—';
+      return '<div style="border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:12px">'
+        + '<div style="font-family:monospace;font-size:12px;color:var(--primary);font-weight:600;word-break:break-all">' + escapeHtml(l.license_key || '') + '</div>'
+        + '<div style="font-size:11px;color:var(--muted);margin-top:6px">'
+        + '<span>Status: <b>' + escapeHtml(l.status || 'active') + '</b></span> · '
+        + '<span>Expires: <b>' + exp + '</b></span>'
+        + (slots > 0 ? ' · <span>Pool slots: <b>' + slots + '</b></span>' : '')
+        + ' · <span>Created: ' + created + '</span>'
+        + '</div></div>';
+    }).join('');
+    box.innerHTML = '<h3 style="margin:0 0 12px;font-size:1rem">Current keys</h3>' + rows;
+  } catch (e) {
+    box.innerHTML = '<p style="color:var(--destructive)">Could not load keys: ' + escapeHtml(e.message) + '</p>';
+  }
+}
+
+async function loadFeatureFlags() {
+  const box = $('#flagList');
+  if (!box) return;
+  box.innerHTML = '<p style="color:var(--muted)">Loading...</p>';
+  try {
+    const data = await api('/api/admin/feature-flags');
+    const flags = data.flags || {};
+    const toggleable = [
+      { key: 'videoCapture', label: 'Video capture', hint: 'Let owners record room walkthroughs. AI analyzes frames to identify items.' },
+      { key: 'heirVisibility', label: 'Heir visibility restrictions', hint: 'Hide private data (pricing, recipient, ownership) from heirs in Discovery and FairPlay.' },
+    ];
+    box.innerHTML = toggleable.map((f) => {
+      const on = flags[f.key] === true;
+      return '<div style="border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:12px">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center">'
+        + '<div><b>' + escapeHtml(f.label) + '</b><br><span style="font-size:12px;color:var(--muted)">' + escapeHtml(f.hint) + '</span></div>'
+        + '<button class="' + (on ? 'primary' : 'ghost') + '" data-flag-toggle="' + f.key + '" style="min-width:80px">' + (on ? 'ON' : 'OFF') + '</button>'
+        + '</div></div>';
+    }).join('');
+    $$('#flagList [data-flag-toggle]').forEach((btn) => {
+      btn.onclick = async () => {
+        const flag = btn.dataset.flagToggle;
+        const current = flags[flag] === true;
+        try {
+          btn.disabled = true;
+          const res = await api('/api/admin/feature-flags', {
+            method: 'POST', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ flag, value: !current }),
+          });
+          toast(res.message || (flag + ' is now ' + (!current ? 'ON' : 'OFF')));
+          await loadFeatureFlags();
+          await applyVideoFlag();
+        } catch (e) {
+          toast(e.message, true);
+        } finally {
+          btn.disabled = false;
+        }
+      };
+    });
+  } catch (e) {
+    box.innerHTML = '<p style="color:var(--muted)">Could not load feature flags.</p>';
+  }
+}
+
+$('#generateLicenseBtn').onclick = async () => {
+  const btn = $('#generateLicenseBtn');
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  const result = $('#licenseResult');
+  result.hidden = false;
+  result.innerHTML = 'Generating...';
+  try {
+    const duration = parseInt($('#licenseDuration').value, 10) || 90;
+    const slots = parseInt($('#licenseSlots').value, 10) || 0;
+    const data = await api('/api/admin/generate-license', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ duration_days: duration, license_pool_slots: slots }),
+    });
+    const exp = new Date(data.expires_at).toLocaleDateString('en-US', { dateStyle: 'long' });
+    result.innerHTML = '<div style="border:1.5px solid var(--primary);border-radius:8px;padding:16px;background:var(--card)">'
+      + '<p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)">License key generated</p>'
+      + '<p style="margin:0 0 12px;font-family:monospace;font-size:14px;font-weight:bold;color:var(--primary);word-break:break-all">' + escapeHtml(data.license_key) + '</p>'
+      + '<p style="margin:0 0 8px;font-size:13px">Valid through: <b>' + exp + '</b>' + (data.slots ? ' · Pool slots: <b>' + data.slots + '</b>' : '') + '</p>'
+      + '<p style="margin:12px 0 0;font-size:13px;color:var(--muted)">Print the attorney/trustee letter to deliver this key with the estate documents. The letter is marked privileged and confidential — not for probate filing.</p>'
+      + '</div>'
+      + '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">'
+      + '<button class="primary" onclick="window.open(\'' + API + '/api/admin/license-letter\', \'_blank\')">Print attorney/trustee letter</button>'
+      + '<button class="ghost" onclick="navigator.clipboard.writeText(\'' + data.license_key + '\');this.textContent=\'Copied!\'">Copy key</button>'
+      + '</div>';
+    loadLicenseList();
+  } catch (e) {
+    result.innerHTML = '<p style="color:var(--destructive)">Failed to generate key: ' + escapeHtml(e.message) + '</p>';
+  }
+  btn.disabled = false;
+  btn.textContent = 'Generate license key';
+};
+
+$('#adminBackBtn').onclick = () => go('home');
+
 // ------------------------------------------------------------------- boot
 (async function boot() {
+  try {
   registry = await api('/api/registry');
   renderRoomChips();
   renderCatChips();
@@ -2321,18 +3316,33 @@ async function rememberTypedRoom(name) {
    */
   const { items } = await api('/api/items');
   $('#countPill').textContent = `${items.length} item${items.length === 1 ? '' : 's'}`;
-  // An invited participant (partner or helper) arriving for the first time
-  // gets their own welcome screen instead of the owner's onboarding.
-  let landing = items.length === 0 ? 'welcome' : 'home';
+
+  // Determine the user's role so we can land them on the right page.
+  // Owners and co-owners (partners) see the full welcome + onboarding flow.
+  // Helpers (assistants) get a simpler landing page without owner options.
+  myRole = 'owner';  // set global from boot
   try {
-    const summary = await api('/api/scope-summary');
-    const role = summary?.participant?.role;
-    if (role) myRole = role;
-    if (role && role !== 'owner' && role !== 'bootstrap-owner' && items.length === 0) {
-      landing = 'recipientwelcome';
-    }
-  } catch (e) { /* scope-summary not available — default to owner welcome */ }
+    const hl = await api('/api/household-link');
+    const me = (hl?.participants || []).find((p) => p.is_me);
+    if (me) myRole = me.role;
+  } catch {}
+
+  let landing;
+  if (myRole === 'assistant') {
+    // Helpers skip the owner welcome and onboarding — they go to a
+    // simpler page or straight home if they already have items.
+    landing = items.length === 0 ? 'helperwelcome' : 'home';
+  } else {
+    // Owners and co-owners get the full welcome flow.
+    landing = items.length === 0 ? 'welcome' : 'home';
+  }
   go(landing);
+  } catch (e) {
+    console.error('Boot failed:', e);
+    document.body.insertAdjacentHTML('afterbegin',
+      '<div style="position:fixed;top:0;left:0;right:0;background:#c00;color:#fff;padding:16px;font-family:monospace;z-index:99999;white-space:pre-wrap">Boot error: ' + (e.stack || e.message || String(e)) + '</div>');
+    go('welcome');
+  }
 })();
 
 /* =====================================================================
@@ -2366,7 +3376,7 @@ let roomPending = [];   // captures taken in this room this sitting
  */
 function offlineQueue() {
   return (
-    window.LegacyOfflineQueue ?? {
+    window.ReindeerOfflineQueue ?? {
       available: async () => false,
       add: async () => {
         throw new Error('no-idb');
@@ -2394,8 +3404,9 @@ async function serverReachable() {
 /* ---------------------------------------------------------------- the walk */
 
 async function loadWalk() {
+  const siteQs = activeSiteId ? `?site_id=${encodeURIComponent(activeSiteId)}` : '';
   try {
-    walk = await api('/api/walkthrough');
+    walk = await api('/api/walkthrough' + siteQs);
   } catch {
     // Offline: still show the rooms, from whatever the last load knew.
     walk = walk ?? { rooms: registry.rooms.map((r) => ({ ...r, walkthrough_state: 'not_started', item_count: 0 })),
@@ -2422,21 +3433,100 @@ function renderWalk() {
     ? `${c.total} rooms on your list.`
     : `${c.settled} of ${c.total} rooms finished.`;
 
+  // Show site name in the walk header if viewing a non-primary site
+  const walkH = document.querySelector('.walkh');
+  if (walkH) {
+    const site = sitesList.find((s) => s.site_id === activeSiteId);
+    walkH.textContent = site ? `${site.name} — your rooms` : 'Your rooms';
+  }
+
+  // Show the site bar with a "back to all places" button when in a non-primary site
+  const siteBar = $('#walkSiteBar');
+  if (siteBar) {
+    const site = sitesList.find((s) => s.site_id === activeSiteId);
+    if (site && !site.is_primary) {
+      siteBar.hidden = false;
+      const nameEl = $('#walkSiteName');
+      if (nameEl) nameEl.textContent = site.name;
+    } else {
+      siteBar.hidden = true;
+    }
+  }
   $('#walkRooms').innerHTML = walk.rooms.map((r) => {
     const st = ROOM_STATUS[r.walkthrough_state] ?? ROOM_STATUS.not_started;
     const bits = [];
     if (r.item_count) bits.push(`${r.item_count} thing${r.item_count === 1 ? '' : 's'} named`);
     if (r.documented_at && !r.item_count) bits.push('recorded');
-    return `<button class="roomrow ${st.cls}" data-room-id="${r.room_id}" data-room-name="${escapeHtml(r.name)}">
-        <span class="roomrow-mark" aria-hidden="true">${st.mark}</span>
-        <span class="roomrow-body">
-          <span class="roomrow-name">${escapeHtml(r.name)}</span>
-          <span class="roomrow-state">${st.word}${bits.length ? ` · ${bits.join(' · ')}` : ''}</span>
-        </span>
-      </button>`;
+    return `<div class="roomrow-wrap ${st.cls}" data-room-id="${r.room_id}" data-room-name="${escapeHtml(r.name)}">
+        <button class="roomrow ${st.cls}" data-room-id="${r.room_id}" data-room-name="${escapeHtml(r.name)}">
+          <span class="roomrow-mark" aria-hidden="true">${st.mark}</span>
+          <span class="roomrow-body">
+            <span class="roomrow-name">${escapeHtml(r.name)}</span>
+            <span class="roomrow-state">${st.word}${bits.length ? ` · ${bits.join(' · ')}` : ''}</span>
+          </span>
+        </button>
+        <button class="roomrow-edit" data-room-id="${r.room_id}" data-room-name="${escapeHtml(r.name)}" title="Rename this room">&#9998;</button>
+        <button class="roomrow-del" data-room-id="${r.room_id}" title="Remove this room">&times;</button>
+      </div>`;
   }).join('');
   $$('#walkRooms .roomrow').forEach((b) => {
     b.onclick = () => openRoom(b.dataset.roomId, b.dataset.roomName);
+  });
+  $$('#walkRooms .roomrow-edit').forEach((btn) => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      const roomId = btn.dataset.roomId;
+      const oldName = btn.dataset.roomName;
+      const wrap = btn.closest('.roomrow-wrap');
+      // Replace the row with an inline edit field
+      const nameEl = wrap.querySelector('.roomrow-name');
+      nameEl.innerHTML = `<input type="text" class="roomrow-rename" value="${escapeHtml(oldName)}" style="font-size:20px;font-weight:650;border:1px solid var(--accent);border-radius:6px;padding:2px 6px;width:100%">`;
+      const input = nameEl.querySelector('input');
+      input.focus();
+      input.select();
+      const save = async () => {
+        const newName = input.value.trim();
+        if (!newName || newName === oldName) {
+          nameEl.textContent = oldName;
+          return;
+        }
+        try {
+          await api(`/api/rooms/${roomId}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: newName }) });
+          wrap.dataset.roomName = newName;
+          btn.dataset.roomName = newName;
+          nameEl.textContent = newName;
+          const r = walk.rooms.find((x) => x.room_id === roomId);
+          if (r) r.name = newName;
+          toast(`Renamed to "${newName}".`);
+        } catch (err) {
+          nameEl.textContent = oldName;
+          toast(err.message || 'Could not rename room.', true);
+        }
+      };
+      input.onblur = save;
+      input.onkeydown = (ev) => {
+        if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
+        if (ev.key === 'Escape') { nameEl.textContent = oldName; }
+      };
+    };
+  });
+  $$('#walkRooms .roomrow-del').forEach((btn) => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      const roomId = btn.dataset.roomId;
+      const row = btn.closest('.roomrow-wrap');
+      const name = row.dataset.roomName;
+      if (!confirm(`Remove "${name}" from your room list?`)) return;
+      try {
+        await api(`/api/rooms/${roomId}`, { method: 'DELETE' });
+        row.remove();
+        walk.rooms = walk.rooms.filter((r) => r.room_id !== roomId);
+        toast(`Removed "${name}".`);
+        renderWalk();
+      } catch (err) {
+        toast(err.message || 'Could not remove room — it may still have items in it.', true);
+      }
+    };
   });
 
   const next = walk.next_room;
@@ -2451,6 +3541,7 @@ function renderWalk() {
 /* --------------------------------------------------------- inside one room */
 
 async function openRoom(roomId, name) {
+  const ask = $('#roomNextAsk'); if (ask) ask.hidden = true;
   room = { room_id: roomId, name };
   roomPending = [];
   go('room');
@@ -2482,9 +3573,19 @@ function renderRoomState() {
   $('#roomCaptured').innerHTML = roomPending.map((p) => `
     <div class="capt">
       <p class="capt-line">${p.saved ? '✓ Saved' : '⏳ Held on this device'} — ${escapeHtml(p.label)}</p>
-      ${p.frames?.length ? `<button class="ghost wide" data-name-these="${p.key}">Write down what is in it${p.frames.length ? ` (${p.frames.length} pictures)` : ''}</button>` : ''}
+      ${autoDetectInFlight && !p.named ? '<p class="capt-note" style="margin:0">⏳ AI is looking through these photos… this can take a minute.</p>' : ''}
+      ${p.frames?.length && !p.named && !autoDetectInFlight ? `<button class="ghost wide" data-name-these="${p.key}">Write down what is in it${p.frames.length ? ` (${p.frames.length} pictures)` : ''}</button>` : ''}
+      ${p.named ? '<p class="capt-note" style="margin:0">✓ AI has named the items in these photos.</p>' : ''}
       ${p.saved ? '' : '<p class="capt-note">It will be sent when you next have internet.</p>'}
     </div>`).join('');
+  // When items are already named in this room, show a hint to take close-ups
+  if (named > 0 && roomPending.length === 0) {
+    $('#roomCaptured').hidden = false;
+    $('#roomCaptured').innerHTML += `
+      <div class="capt" style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px">
+        <p class="capt-note" style="margin:0">Want better detail? Take close-ups of individual things — AI will name them and skip anything already on your list.</p>
+      </div>`;
+  }
   $$('#roomCaptured [data-name-these]').forEach((b) => {
     b.onclick = () => offerNaming(b.dataset.nameThese);
   });
@@ -2564,6 +3665,7 @@ async function offerNaming(key) {
   toast('Looking through the recording…');
   inRoomNaming = true;
   roomDupCount = 0;
+  roomSkippedDuplicates = null;
   try {
     const { detections, vision_mode } = await api('/api/intake/detect', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -2573,9 +3675,51 @@ async function offerNaming(key) {
       }),
     });
     batchFiles = entry.frames.map((dataUrl, i) => ({ _dataUrl: dataUrl, _frame: i }));
+    entry.named = true;
     showNamingResults(detections, vision_mode);
   } catch (e) {
     toast(e.message, true);
+  }
+}
+
+/**
+ * Auto-detect: runs AI identification automatically after room photos are captured,
+ * without the owner needing to click "Write down what is in it." The photos are
+ * already saved; this is the naming pass, started for them.
+ */
+async function autoDetectRoomPhotos(key) {
+  if (autoDetectInFlight) return; // don't overlap two detection runs
+  const entry = roomPending.find((p) => p.key === key);
+  if (!entry?.frames?.length) return;
+  if (!(await serverReachable())) {
+    toast('Photos kept. AI naming will happen when you have internet.');
+    showRoomNextAsk();
+    return;
+  }
+  toast('Looking through your photos…');
+  inRoomNaming = true;
+  roomDupCount = 0;
+  roomSkippedDuplicates = null;
+  autoDetectInFlight = true;
+  renderRoomState();
+  try {
+    const { detections, vision_mode } = await api('/api/intake/detect', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        images: entry.frames.map((dataUrl, i) => ({ data_url: dataUrl, frame_index: i, media_id: `${key}-${i}` })),
+        room_hint: room.name,
+      }),
+    });
+    batchFiles = entry.frames.map((dataUrl, i) => ({ _dataUrl: dataUrl, _frame: i }));
+    entry.named = true;
+    showNamingResults(detections, vision_mode);
+  } catch (e) {
+    toast('Photos are saved. AI naming did not work just now — try again later.', true);
+    inRoomNaming = false;
+    showRoomNextAsk();
+  } finally {
+    autoDetectInFlight = false;
+    renderRoomState();
   }
 }
 
@@ -2609,7 +3753,7 @@ async function showNamingResults(detections, mode) {
       <p class="reassure">The recording itself is saved with your inventory either way.
         A shorter walk through one room, pausing on each thing, usually reads better.</p>
       <button class="ghost wide" id="namingBack">Back to the room</button>`;
-    $('#namingBack').onclick = () => leaveNaming();
+    $('#namingBack').onclick = () => { leaveNaming(); showRoomNextAsk(); };
     return;
   }
 
@@ -2625,8 +3769,20 @@ async function showNamingResults(detections, mode) {
       <h2>Those could not be saved</h2>
       <p class="reassure">${escapeHtml(e.message)} The recording is still safe.</p>
       <button class="ghost wide" id="namingBack">Back to the room</button>`;
-    $('#namingBack').onclick = () => leaveNaming();
+    $('#namingBack').onclick = () => { leaveNaming(); showRoomNextAsk(); };
     return;
+  }
+  // If some items were skipped as duplicates, mention them before the gift ask
+  if (roomSkippedDuplicates?.length) {
+    const skippedList = roomSkippedDuplicates.map((s) => escapeHtml(s.label)).join(', ');
+    $('#batchResults').innerHTML += `
+      <div class="note" style="margin-top:1rem;padding:12px 16px;border:1px solid var(--border);border-radius:8px;background:var(--muted)">
+        <p style="margin:0;font-size:13px;color:var(--muted)">
+          <b>Skipped ${roomSkippedDuplicates.length} duplicate${roomSkippedDuplicates.length === 1 ? '' : 's'}:</b> ${skippedList}
+          — already on your list.
+        </p>
+      </div>`;
+    roomSkippedDuplicates = null;
   }
   renderRoomGiftAsk(added);
 }
@@ -2646,22 +3802,62 @@ async function commitEverything(detections) {
     const crop = src ? await cropTo(src._dataUrl, d.bbox) : null;
     payload.push({ ...d, crop_data_url: crop, room_hint: room?.name ?? d.room_hint ?? d.room ?? null });
   }
-  const { created, possible_duplicates } = await api('/api/intake/commit', {
+  const { created, possible_duplicates, skipped_duplicates } = await api('/api/intake/commit', {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ detections: payload }),
   });
   // Mentioned once on the way out, as information. Never a task.
   if (possible_duplicates > 0) roomDupCount += possible_duplicates;
-  await Promise.all(created.map((id) => api(`/api/items/${id}/keep`, { method: 'POST' }).catch(() => {})));
+  // Track skipped duplicates for display in the results
+  if (skipped_duplicates?.length) roomSkippedDuplicates = skipped_duplicates;
+  // created is now [{item_id, detection_index}] — use the index to map back
+  const createdIds = created.map((c) => c.item_id);
+  await Promise.all(createdIds.map((id) => api(`/api/items/${id}/keep`, { method: 'POST' }).catch(() => {})));
   refreshCount();
-  return created.map((id, i) => ({
-    item_id: id,
-    label: detections[i]?.label ?? 'Item',
-    thumb: payload[i]?.crop_data_url || batchFiles[detections[i]?.frame_index ?? 0]?._dataUrl || '',
-  }));
+  return created.map((c) => {
+    const d = detections[c.detection_index] ?? {};
+    return {
+      item_id: c.item_id,
+      label: d.label ?? 'Item',
+      thumb: payload[c.detection_index]?.crop_data_url || batchFiles[d.frame_index ?? 0]?._dataUrl || '',
+    };
+  });
 }
 
-/** The one question. Asked about the room, once, and never repeated. */
+/** After photos are taken but AI didn't run (or found nothing), offer the owner
+ *  the two paths Mark wants: add assigned items, or move to the next room. */
+function showRoomNextAsk() {
+  const ask = $('#roomNextAsk');
+  if (!ask) return;
+  ask.hidden = false;
+  const assignBtn = $('#roomNextAssign');
+  const nextRoomBtn = $('#roomNextRoom');
+  if (assignBtn) assignBtn.onclick = () => {
+    ask.hidden = true;
+    // Enter the gift-designation flow — same path as the "Items already
+    // designated" tile, but pre-filled with this room.
+    promiseMode = true;
+    resetCapture();
+    go('capture');
+    if (room?.name) {
+      cap.room = room.name;
+      const chip = $$('#roomChips .chip').find((c) => c.dataset.room === room.name);
+      if (chip) chip.classList.add('sel');
+    }
+    renderCapture();
+  };
+  if (nextRoomBtn) nextRoomBtn.onclick = () => {
+    ask.hidden = true;
+    setRoomFinished('done');
+  };
+}
+
+/** The one question. Asked about the room, once, and never repeated.
+ *  Not about gift assignment — that is a separate flow. This is about the
+ *  owner's eye: did anything in this room catch their attention as important?
+ *  If yes, they take a close-up. The close-up makes it important by default,
+ *  asks for details, and AI identifies the item from the close-up photo.
+ */
 function renderRoomGiftAsk(added, again = false) {
   const n = added.length;
   $('#batchResults').innerHTML = `
@@ -2670,92 +3866,95 @@ function renderRoomGiftAsk(added, again = false) {
     <p class="reassure">That part is done. They are written down and they will print.</p>`}
     <div class="ask">
       <p class="askq">${again
-        ? 'Anything else in here meant for someone in particular?'
-        : 'Did you see anything in here that is meant for someone in particular?'}</p>
-      <button class="primary wide" id="giftYes">Yes — let me point ${again ? 'more' : 'them'} out</button>
+        ? 'Did anything else catch your eye as important in this room?'
+        : 'Did anything catch your eye as important in this room?'}</p>
+      <p class="reassure" style="font-size:0.85rem;margin-top:4px">Take a close-up photo of it. That marks it as important, asks for details, and AI will help identify what it is.</p>
+      <button class="primary wide" id="giftYes">Yes — something caught my eye</button>
       <button class="ghost wide" id="giftNo">${again ? 'No — that is everything' : 'No — on to the next room'}</button>
     </div>`;
-  $('#giftNo').onclick = () => leaveNaming();
-  $('#giftYes').onclick = () => renderGiftPicker(added);
+  $('#giftNo').onclick = async () => { await leaveNaming(); setRoomFinished('done'); };
+  $('#giftYes').onclick = () => {
+    leaveNaming();
+    resetCapture();
+    if (room?.name) cap.room = room.name;
+    cap.preSetImportant = true;
+    roomImportantFlow = true;
+    go('capture');
+    toast('Take a close-up of the item that caught your eye. AI will help identify it.');
+  };
 }
 
-/**
- * Point at several things, then say one name.
- *
- * More than one item at a time on purpose: a set of dining chairs, a pair of
- * lamps, or three pieces of one grandmother's china are one decision to the
- * owner and should not cost three passes through a form.
- */
-function renderGiftPicker(added) {
-  const picked = new Set();
+
+/** Assignment form for an important item from the room flow. */
+function renderAssignForm(savedItem, savedRoom) {
   $('#batchResults').innerHTML = `
-    <h2>Which ones?</h2>
-    <p class="reassure">Tap as many as you like. They can all go to the same person.</p>
-    <div class="picks">
-      ${added.map((a) => `
-        <button class="pick" data-pick-id="${a.item_id}" aria-pressed="false">
-          ${a.thumb ? `<img src="${a.thumb}" alt="">` : '<span class="noimg">no picture</span>'}
-          <span class="picklbl">${escapeHtml(a.label)}</span>
-        </button>`).join('')}
-    </div>
-    <div id="giftWhoBox" hidden>
-      <h3>Who are they for?</h3>
-      <div class="chips" id="giftChips"></div>
-      <input type="text" id="giftName" class="bigin" placeholder="A name">
-      <input type="text" id="giftRel" class="bigin" placeholder="Relationship, for example: daughter">
-      <button class="primary wide" id="giftSave">Save this</button>
-      <p class="reassure">This is a wish, not a legal instruction. You can change it any time.</p>
-    </div>
-    <button class="ghost wide" id="giftCancel">Never mind</button>`;
-
-  const box = $('#giftWhoBox');
-  $$('.picks .pick').forEach((b) => {
-    b.onclick = () => {
-      const id = b.dataset.pickId;
-      const on = b.getAttribute('aria-pressed') === 'true';
-      b.setAttribute('aria-pressed', on ? 'false' : 'true');
-      if (on) picked.delete(id); else picked.add(id);
-      box.hidden = picked.size === 0;
-      $('#giftSave').textContent = picked.size > 1 ? `Save these ${picked.size}` : 'Save this';
-    };
-  });
-
-  // The roster, so the second and third gift are one tap each.
-  const chips = $('#giftChips');
-  chips.innerHTML = people.filter((p) => !p.archived).map((p) =>
-    `<button class="chip" data-gift-pick="${escapeHtml(p.name)}" data-rel="${escapeHtml(p.relationship ?? '')}" aria-pressed="false">${escapeHtml(p.name)}${p.relationship ? ` <span class="chiprel">${escapeHtml(p.relationship)}</span>` : ''}</button>`).join('');
-  $$('#giftChips .chip').forEach((c) => {
-    c.onclick = () => {
-      $$('#giftChips .chip').forEach((o) => o.setAttribute('aria-pressed', 'false'));
-      c.setAttribute('aria-pressed', 'true');
-      $('#giftName').value = c.dataset.giftPick;
-      $('#giftRel').value = c.dataset.rel || '';
-    };
-  });
-
-  $('#giftCancel').onclick = () => renderRoomGiftAsk(added, true);
-  $('#giftSave').onclick = async () => {
-    const name = $('#giftName').value.trim();
+    <h2>Who is this for?</h2>
+    <div class="chips" id="assignChips"></div>
+    <input type="text" id="assignName" class="bigin" placeholder="A name">
+    <input type="text" id="assignRel" class="bigin" placeholder="Relationship, for example: daughter">
+    <button class="primary wide" id="assignSave">Save this</button>
+    <p class="reassure">This is a wish, not a legal instruction. You can change it any time.</p>
+    <button class="ghost wide" id="assignCancel">Never mind — just flag as important</button>`;
+  const chips = $('#assignChips');
+  if (chips) {
+    chips.innerHTML = people.filter((p) => !p.archived).map((p) =>
+      `<button class="chip" data-pick="${escapeHtml(p.name)}" data-rel="${escapeHtml(p.relationship ?? '')}" aria-pressed="false">${escapeHtml(p.name)}${p.relationship ? ` <span class="chiprel">${escapeHtml(p.relationship)}</span>` : ''}</button>`).join('');
+    $$('#assignChips .chip').forEach((c) => {
+      c.onclick = () => {
+        $$('#assignChips .chip').forEach((o) => o.setAttribute('aria-pressed', 'false'));
+        c.setAttribute('aria-pressed', 'true');
+        $('#assignName').value = c.dataset.pick;
+        $('#assignRel').value = c.dataset.rel || '';
+      };
+    });
+  }
+  $('#assignCancel').onclick = async () => {
+    await leaveNaming();
+    renderRoomImportantAsk(savedRoom);
+  };
+  $('#assignSave').onclick = async () => {
+    const name = $('#assignName').value.trim();
     if (!name) return toast('Please put in a name, or press Never mind.', true);
-    const rel = $('#giftRel').value.trim();
-    $('#giftSave').disabled = true;
-    const ids = [...picked];
+    const rel = $('#assignRel').value.trim();
+    $('#assignSave').disabled = true;
     try {
-      for (const id of ids) {
-        await api(`/api/items/${id}`, {
-          method: 'PATCH', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ recipient_hint: { recipient_name: name, relationship: rel, owner_note: '' } }),
-        });
-      }
-      try { await addPerson(name, rel, 'from_item'); } catch { /* not worth stopping for */ }
-      toast(`${ids.length === 1 ? 'That one is' : `Those ${ids.length} are`} for ${name}.`);
-      const left = added.filter((a) => !picked.has(a.item_id));
-      if (!left.length) return leaveNaming();
-      renderRoomGiftAsk(left, true);
+      await api(`/api/items/${savedItem.item_id}`, {
+        method: 'PATCH', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ recipient_hint: { recipient_name: name, relationship: rel, owner_note: '' } }),
+      });
+      try { await addPerson(name, rel, 'from_item'); } catch {}
+      toast(`That is for ${name}.`);
+      await leaveNaming();
+      renderRoomImportantAsk(savedRoom);
     } catch (e) {
-      $('#giftSave').disabled = false;
+      $('#assignSave').disabled = false;
       toast(e.message, true);
     }
+  };
+}
+
+/** After saving an important item, ask if there is anything else important,
+ *  or finish the room. */
+function renderRoomImportantAsk(savedRoom) {
+  go('batch');
+  const intake = $('#batchIntake'); if (intake) intake.hidden = true;
+  $('#batchResults').innerHTML = `
+    <h2>Anything else in the ${escapeHtml(savedRoom ?? 'room')} that caught your eye?</h2>
+    <div class="ask">
+      <button class="primary wide" id="impYes">Yes — take another close-up</button>
+      <button class="ghost wide" id="impNo">No — this room is done</button>
+    </div>`;
+  $('#impYes').onclick = () => {
+    resetCapture();
+    if (room?.name) cap.room = room.name;
+    cap.preSetImportant = true;
+    roomImportantFlow = true;
+    go('capture');
+    toast('Take a close-up of the next item.');
+  };
+  $('#impNo').onclick = async () => {
+    await leaveNaming();
+    setRoomFinished('done');
   };
 }
 
@@ -2770,6 +3969,7 @@ async function leaveNaming() {
   // rather than the count from before the naming pass.
   try { walk = await api('/api/walkthrough'); } catch { /* keep what we have */ }
   renderRoomState();
+  roomSkippedDuplicates = null;
   if (roomDupCount > 0) {
     const n = roomDupCount;
     roomDupCount = 0;
@@ -2781,6 +3981,7 @@ async function leaveNaming() {
 /* ------------------------------------------------------- finishing a room */
 
 async function setRoomFinished(state) {
+  const ask = $('#roomNextAsk'); if (ask) ask.hidden = true;
   inRoomNaming = false;
   const word = state === 'skipped' ? 'Nothing to record here' : 'Finished';
   try {
@@ -2808,6 +4009,7 @@ async function setRoomFinished(state) {
  * left, and an explicit promise that nothing needs finishing today.
  */
 function pauseWalk() {
+  const ask = $('#roomNextAsk'); if (ask) ask.hidden = true;
   const left = walk?.unfinished?.length ?? 0;
   go('home');
   renderResume();
@@ -2931,6 +4133,18 @@ async function uploadQueue() {
 /* ------------------------------------------------- wiring the walk screens */
 $('#walkNewRoom')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#walkAddRoom').click(); });
 
+// "All places" button on the walk screen — returns to home and
+// scrolls to the sites section so the owner can pick another site.
+$('#walkSiteBack')?.addEventListener('click', () => {
+  activeSiteId = null;
+  go('home');
+  // Scroll to the sites section after the home screen renders
+  setTimeout(() => {
+    const ss = $('#homeSitesSection');
+    if (ss && !ss.hidden) ss.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 100);
+});
+
 $('#walkAddRoom').onclick = async () => {
   const name = $('#walkNewRoom').value.trim();
   if (!name) { toast('Type a name for the room first.', true); return; }
@@ -2942,7 +4156,7 @@ $('#walkAddRoom').onclick = async () => {
   try {
     const created = await api('/api/rooms', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, site_id: activeSiteId || null }),
     });
     registry.rooms.push(created);
     renderRoomChips();
@@ -2993,7 +4207,13 @@ $('#roomPhotos').onchange = async (e) => {
   }
   renderRoomState();
   await refreshQueueBadge();
-  toast('Photos kept. You can name what is in them now, or later.');
+  // Auto-trigger AI detection — the owner took photos to get things written down,
+  // not to click another button. If offline or AI fails, the photos are still saved.
+  if (entry.frames.length > 0) {
+    autoDetectRoomPhotos(key);
+  } else {
+    toast('Photos kept. They will be named when you have internet.');
+  }
 };
 
 // "Add one thing carefully" hands over to the guided capture, pre-filled with
@@ -3008,64 +4228,7 @@ $('#roomOneItem').onclick = () => {
   }
 };
 
-$('#roomDoneBtn').onclick = () => checkRoomReviewBeforeFinish();
-$('#roomReviewDone').onclick = () => { $('#roomReviewPanel').hidden = true; setRoomFinished('done'); };
-
-/**
- * Before marking a room done, check if any items in this room have
- * tentative_high_value flags (from helpers or AI). If so, surface them
- * for owner review. The owner can confirm (promote to permanent) or
- * dismiss (remove the tentative flag), then finish the room.
- */
-async function checkRoomReviewBeforeFinish() {
-  if (!room?.room_id) { setRoomFinished('done'); return; }
-  try {
-    const { items } = await api(`/api/items?room_id=${room.room_id}&tentative_high_value_only=true`);
-    if (!items || items.length === 0) { setRoomFinished('done'); return; }
-    // Show the review panel
-    const list = $('#roomReviewList');
-    list.innerHTML = items.map((it) => `
-      <div class="review-item" data-id="${it.item_id}">
-        ${it.photos?.[0] ? `<img src="${API}/api/photos/${it.photos[0].photo_id}" alt="">` : '<div class="noimg" style="width:72px;height:72px;border-radius:10px">no photo</div>'}
-        <div class="review-body">
-          <h4>${escapeHtml(it.title)}</h4>
-          <p class="review-flag">${it.tentative_high_value_source === 'ai'
-            ? 'AI flagged — ' + escapeHtml(it.tentative_high_value_reason || 'may be significant')
-            : 'Helper flagged — ' + escapeHtml(it.tentative_high_value_reason || 'marked important')}</p>
-          <div class="review-actions">
-            <button class="btn-confirm" data-confirm="${it.item_id}">Mark important</button>
-            <button class="btn-dismiss" data-dismiss="${it.item_id}">Not important</button>
-          </div>
-        </div>
-      </div>
-    `).join('');
-    // Wire up confirm/dismiss buttons
-    list.querySelectorAll('[data-confirm]').forEach((btn) => {
-      btn.onclick = async () => {
-        const id = btn.dataset.confirm;
-        await api(`/api/items/${id}/confirm-important`, { method: 'POST' });
-        const row = btn.closest('.review-item');
-        row.style.opacity = '0.5';
-        row.querySelector('.review-actions').innerHTML = '<span class="badge kept">Marked important</span>';
-      };
-    });
-    list.querySelectorAll('[data-dismiss]').forEach((btn) => {
-      btn.onclick = async () => {
-        const id = btn.dataset.dismiss;
-        await api(`/api/items/${id}/dismiss-important`, { method: 'POST' });
-        const row = btn.closest('.review-item');
-        row.style.opacity = '0.5';
-        row.querySelector('.review-actions').innerHTML = '<span class="badge draft">dismissed</span>';
-      };
-    });
-    $('#roomReviewPanel').hidden = false;
-    toast(`${items.length} item${items.length === 1 ? '' : 's'} flagged for review.`);
-  } catch (e) {
-    // If the check fails, just finish the room — don't block
-    console.warn('room review check failed:', e.message);
-    setRoomFinished('done');
-  }
-}
+$('#roomDoneBtn').onclick = () => setRoomFinished('done');
 $('#roomSkipBtn').onclick = () => setRoomFinished('skipped');
 $('#roomPauseBtn').onclick = () => pauseWalk();
 
@@ -3820,22 +4983,6 @@ function renderMemo() {
     });
   }
 
-  // Footer buttons. The versions link only appears once at least one
-  // version has been signed, otherwise there's nothing to look at.
-  // memoState.versions comes from the server and includes the current
-  // in-flight draft, so filter to entries that were actually signed.
-  const hasSigned = memoState.versions.some((v) => v.is_signed === true || v.is_signed === 1);
-  const versionsBtn = $('#memoVersionsBtn');
-  versionsBtn.hidden = !hasSigned;
-  versionsBtn.style.display = hasSigned ? '' : 'none';
-
-  // The primary action \u2014 "Print and sign" \u2014 is only meaningful when
-  // there is at least one entry with a person named. Otherwise it's a
-  // dead-end, so we disable it and tell the owner why in the label.
-  const canSign = entries.some((e) => !!e.assigned_to_heir_id);
-  const signBtn = $('#memoSignBtn');
-  signBtn.disabled = !canSign;
-  signBtn.textContent = canSign ? 'Print and sign' : 'Print and sign \u2014 add at least one first';
 }
 
 /*
@@ -4049,6 +5196,8 @@ async function removeMemoEntry() {
 /* ---------------------------- wiring ----------------------------- */
 
 $('#memoAddBtn').onclick = () => go('memoentry');
+$('#memoPhotoBtn').onclick = () => { promiseMode = true; promiseKept = 0; resetCapture(); go('capture'); };
+$('#signVersionsBtn')?.addEventListener('click', () => go('giftversions'));
 $('#memoEntrySave').onclick = saveMemoEntry;
 $('#memoEntryCancel').onclick = () => go('memo', { back: true });
 $('#memoEntryRemove').onclick = removeMemoEntry;
@@ -4063,11 +5212,7 @@ $('#memoEntryNote').addEventListener('input', (e) => {
  * will wire the real destinations. For now they route to the existing
  * giftsign / giftversions screens so the buttons don't dead-end mid-slice.
  */
-$('#memoSignBtn').onclick = () => {
-  toast('The sign flow lands next step. For now, use the older screen.');
-  go('giftsign');
-};
-$('#memoVersionsBtn').onclick = () => go('giftversions');
+
 
 /* ================================================================== */
 /* Slice 4 \u2014 household link screen.                                 */
@@ -4124,7 +5269,7 @@ async function loadHelperInvite() {
 
   body.innerHTML = `
     <h2>Invite a helper</h2>
-    <p class="lede">A helper can take photos and document items for you. They do not have their own gift list and are not part of any conflict checks. They will get an email with a secure, one-time sign-in link valid for twenty minutes.</p>
+    <p class="lede">A helper can take photos and document items for you. They do not have their own gift list and are not part of any conflict checks. Your email app will open with a secure, one-time sign-in link for them. Just hit send — the link works once and expires in twenty minutes.</p>
     ${helperList}
     <div class="invite-form">
       <label for="helperName">Their first name (optional)</label>
@@ -4150,10 +5295,18 @@ async function loadHelperInvite() {
       });
       const box = $('#helperInviteResult');
       box.hidden = false;
-      box.innerHTML = out.link
-        ? `<p class="reassure">Invitation sent. For development, the sign-in link is:<br><code class="invite-link">${escapeHtml(out.link)}</code></p>`
-        : `<p class="reassure">Helper invite sent to ${escapeHtml(email)}. Ask them to check their inbox; the link expires in twenty minutes.</p>`;
-      toast('Helper invite sent.');
+      if (out.link) {
+        openEmailApp({
+          to: email,
+          subject: 'Your sign-in link for Reindeer Registry',
+          body: `You have been invited to participate with an Estate Inventory.\n\nClick the link to join.\n${out.link}\n`,
+        });
+        box.innerHTML = `<p class="reassure">Choose how to send the invitation to ${escapeHtml(email)}. Send it and ask them to check their inbox; the link expires in twenty minutes.</p>`;
+        toast('Choose how to send…');
+      } else {
+        box.innerHTML = `<p class="reassure">Invitation sent to ${escapeHtml(email)}. Ask them to check their inbox; the link expires in twenty minutes.</p>`;
+        toast('Helper invite sent.');
+      }
       // Refresh the helper list
       loadHelperInvite();
     } catch (e) { toast(e.message, true); }
@@ -4177,6 +5330,7 @@ async function loadHouseholdLink() {
   const partner = (s.participants || []).find((p) => !p.is_me);
   const assistants = s.assistants || [];
   const partners = s.partners || [];
+  const pendingInvites = s.pending_invites || [];
 
   if (isCouple) {
     body.innerHTML = `
@@ -4197,7 +5351,14 @@ async function loadHouseholdLink() {
       <div class="link-card" style="margin-top:20px">
         <div><b>Helpers (${assistants.length}/10)</b></div>
         <ul class="plain-list">
-          ${assistants.map((a) => `<li>${escapeHtml(a.display_name || a.email)}</li>`).join('')}
+          ${assistants.map((a) => `<li>${escapeHtml(a.display_name || a.email)} <button class="linky" data-revoke="${a.participant_id}" style="font-size:0.85em;margin-left:8px">remove</button></li>`).join('')}
+        </ul>
+      </div>` : ''}
+      ${pendingInvites.length ? `
+      <div class="link-card" style="margin-top:20px">
+        <div><b>Pending invites (${pendingInvites.length})</b></div>
+        <ul class="plain-list">
+          ${pendingInvites.map((p) => `<li>${escapeHtml(p.display_name || p.email)} <span class="badge">waiting to sign in</span> <button class="linky" data-revoke="${p.participant_id}" style="font-size:0.85em;margin-left:8px">revoke</button></li>`).join('')}
         </ul>
       </div>` : ''}
       ${isOwner || me?.role === 'partner' ? `
@@ -4231,11 +5392,27 @@ async function loadHouseholdLink() {
         });
         const box = $('#helperResult2');
         box.hidden = false;
-        box.innerHTML = out.link
-          ? `<p class="reassure">Invitation sent. For development, the sign-in link is:<br><code class="invite-link">${escapeHtml(out.link)}</code></p>`
-          : `<p class="reassure">Helper invite sent to ${escapeHtml(email)}. Ask them to check their inbox; the link expires in twenty minutes.</p>`;
-        toast('Helper invite sent.');
-        loadHouseholdLink();
+        if (out.link) {
+          openEmailApp({
+            to: email,
+            subject: 'Your sign-in link for Reindeer Registry',
+            body: `You have been invited to participate with an Estate Inventory.\n\nClick the link to join.\n${out.link}\n`,
+          });
+          box.innerHTML = `<p class="reassure">Choose how to send the invitation to ${escapeHtml(email)}. Send it and ask them to check their inbox; the link expires in twenty minutes.</p>`;
+          toast('Choose how to send…');
+        } else {
+          box.innerHTML = `<p class="reassure">Invitation sent to ${escapeHtml(email)}. Ask them to check their inbox; the link expires in twenty minutes.</p>`;
+          toast('Helper invite sent.');
+        }
+        // Ask if they want to invite another helper
+        if (confirm('Would you like to invite another helper?')) {
+          $('#helperName2').value = '';
+          $('#helperEmail2').value = '';
+          $('#helperName2').focus();
+          box.hidden = true;
+        } else {
+          loadHouseholdLink();
+        }
       } catch (e) { toast(e.message, true); }
     };
     return;
@@ -4277,10 +5454,15 @@ async function loadHouseholdLink() {
     return;
   }
 
-  // Solo mode, owner. Show unified invite page: co-owner + helpers
+  // Solo mode, owner. Show unified invite page: co-owner + helpers.
+  // When a co-owner invite is pending, suppress the co-owner invite form —
+  // only two owners allowed, and the slot is taken (pending acceptance).
+  const pendingPartner = pendingInvites.find((p) => p.role === 'partner');
+  const coOwnerSlotTaken = partners.length > 0 || !!pendingPartner;
+
   body.innerHTML = `
-    <h2>Add a co-owner or helper</h2>
-    <p class="lede">Invite someone to join your Registry. A co-owner shares your inventory and keeps their own gift list. A helper can take photos and document items for you.</p>
+    <h2>${coOwnerSlotTaken ? 'There can only be one co-owner' : 'Add a co-owner or helper'}</h2>
+    <p class="lede">${coOwnerSlotTaken ? 'There can only be one co-owner. Would you like to add a helper?' : 'Invite someone to join your Registry. A co-owner shares your inventory and keeps their own gift list. A helper can take photos and document items for you.'}</p>
 
     ${partners.length ? `
     <div class="link-card" style="margin-bottom:16px">
@@ -4294,10 +5476,19 @@ async function loadHouseholdLink() {
     <div class="link-card" style="margin-bottom:16px">
       <div><b>Helpers (${assistants.length}/10)</b></div>
       <ul class="plain-list">
-        ${assistants.map((a) => `<li>${escapeHtml(a.display_name || a.email)}</li>`).join('')}
+        ${assistants.map((a) => `<li>${escapeHtml(a.display_name || a.email)} <button class="linky" data-revoke="${a.participant_id}" style="font-size:0.85em;margin-left:8px">remove</button></li>`).join('')}
       </ul>
     </div>` : ''}
 
+    ${pendingInvites.length ? `
+    <div class="link-card" style="margin-bottom:20px">
+      <div><b>Pending invites (${pendingInvites.length})</b></div>
+      <ul class="plain-list">
+        ${pendingInvites.map((p) => `<li>${escapeHtml(p.display_name || p.email)} <span class="badge">${p.role === 'assistant' ? 'helper' : 'co-owner'} · waiting to sign in</span> <button class="linky" data-revoke="${p.participant_id}" style="font-size:0.85em;margin-left:8px">revoke</button></li>`).join('')}
+      </ul>
+    </div>` : ''}
+
+    ${!coOwnerSlotTaken ? `
     <div class="invite-form">
       <h3>Invite a co-owner</h3>
       <p class="reassure" style="margin-bottom:8px">Your legally bound partner. They will see everything you record and keep their own gift list. One co-owner maximum.</p>
@@ -4307,7 +5498,7 @@ async function loadHouseholdLink() {
       <input id="inviteEmail" type="email" autocomplete="email" placeholder="name@example.com">
       <button class="primary wide" id="inviteBtn">Send co-owner invite</button>
     </div>
-    <div id="inviteResult" hidden></div>
+    <div id="inviteResult" hidden></div>` : ''}
 
     <div class="invite-form" style="margin-top:24px">
       <h3>Invite a helper</h3>
@@ -4320,11 +5511,11 @@ async function loadHouseholdLink() {
     </div>
     <div id="helperResult3" hidden></div>
 
-    <p class="reassure" style="margin-top:16px">They will get an email with a secure, one-time sign-in link valid for twenty minutes. You can revoke access anytime. Nothing here is a will.</p>
-    <button class="ghost wide" data-go="home" style="margin-top:8px">Back to home</button>
+    ${coOwnerSlotTaken ? `<button class="primary wide" data-go="home" style="margin-top:16px">No thanks — back to home</button>` : `<button class="ghost wide" data-go="home" style="margin-top:8px">Back to home</button>`}
   `;
 
-  $('#inviteBtn').onclick = async () => {
+  const inviteBtn = $('#inviteBtn');
+  if (inviteBtn) inviteBtn.onclick = async () => {
     const email = $('#inviteEmail').value.trim();
     const display_name = $('#inviteName').value.trim();
     if (!email) { toast('Type their email.', true); return; }
@@ -4336,15 +5527,24 @@ async function loadHouseholdLink() {
       });
       const box = $('#inviteResult');
       box.hidden = false;
-      box.innerHTML = out.link
-        ? `<p class="reassure">Invitation sent. For development, the sign-in link is:<br><code class="invite-link">${escapeHtml(out.link)}</code></p>`
-        : `<p class="reassure">Co-owner invite sent to ${escapeHtml(email)}. Ask them to check their inbox; the link expires in twenty minutes.</p>`;
-      toast('Co-owner invite sent.');
+      if (out.link) {
+        openEmailApp({
+          to: email,
+          subject: 'Your co-owner sign-in link for Reindeer Registry',
+          body: `You have been invited to participate with an Estate Inventory.\n\nClick the link to join.\n${out.link}\n`,
+        });
+        box.innerHTML = `<p class="reassure">Choose how to send the co-owner invitation to ${escapeHtml(email)}. Send it and ask them to check their inbox; the link expires in twenty minutes.</p>`;
+        toast('Choose how to send…');
+      } else {
+        box.innerHTML = `<p class="reassure">Co-owner invite sent to ${escapeHtml(email)}. Ask them to check their inbox; the link expires in twenty minutes.</p>`;
+        toast('Co-owner invite sent.');
+      }
       loadHouseholdLink();
     } catch (e) { toast(e.message, true); }
   };
 
-  $('#helperInviteBtn3').onclick = async () => {
+  const helperBtn3 = $('#helperInviteBtn3');
+  if (helperBtn3) helperBtn3.onclick = async () => {
     const email = $('#helperEmail3').value.trim();
     const display_name = $('#helperName3').value.trim();
     if (!email) { toast('Type their email.', true); return; }
@@ -4356,13 +5556,49 @@ async function loadHouseholdLink() {
       });
       const box = $('#helperResult3');
       box.hidden = false;
-      box.innerHTML = out.link
-        ? `<p class="reassure">Invitation sent. For development, the sign-in link is:<br><code class="invite-link">${escapeHtml(out.link)}</code></p>`
-        : `<p class="reassure">Helper invite sent to ${escapeHtml(email)}. Ask them to check their inbox; the link expires in twenty minutes.</p>`;
-      toast('Helper invite sent.');
-      loadHouseholdLink();
+      if (out.link) {
+        openEmailApp({
+          to: email,
+          subject: 'Your sign-in link for Reindeer Registry',
+          body: `You have been invited to participate with an Estate Inventory.\n\nClick the link to join.\n${out.link}\n`,
+        });
+        box.innerHTML = `<p class="reassure">Choose how to send the invitation to ${escapeHtml(email)}. Send it and ask them to check their inbox; the link expires in twenty minutes.</p>`;
+        toast('Choose how to send…');
+      } else {
+        box.innerHTML = `<p class="reassure">Helper invite sent to ${escapeHtml(email)}. Ask them to check their inbox; the link expires in twenty minutes.</p>`;
+        toast('Helper invite sent.');
+      }
+      // Ask if they want to invite another helper
+      if (confirm('Would you like to invite another helper?')) {
+        $('#helperName3').value = '';
+        $('#helperEmail3').value = '';
+        $('#helperName3').focus();
+        box.hidden = true;
+      } else {
+        loadHouseholdLink();
+      }
     } catch (e) { toast(e.message, true); }
   };
+
+  // Wire up revoke/remove buttons for pending invites and active helpers
+  body.querySelectorAll('[data-revoke]').forEach((btn) => {
+    btn.onclick = async () => {
+      const pid = btn.dataset.revoke;
+      const isRemove = btn.textContent.trim() === 'remove';
+      const msg = isRemove
+        ? 'Remove this helper? Their access will be revoked but any photos they took stay on record.'
+        : 'Revoke this invite? They will not be able to sign in with the old link.';
+      if (!confirm(msg)) return;
+      try {
+        await api('/api/household-link/revoke', {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ participant_id: pid }),
+        });
+        toast(isRemove ? 'Helper removed.' : 'Invite revoked.');
+        loadHouseholdLink();
+      } catch (e) { toast(e.message, true); }
+    };
+  });
 }
 
 // ---------------------------------------------------------- Ship B: contested
@@ -4380,7 +5616,7 @@ async function loadHouseholdLink() {
  */
 const CONTESTED_CATEGORIES = [
   { key: 'Jewelry', why: 'Everyone remembers a piece differently, and market value hides the story.',
-    advice: 'Lay all your jewelry and watches out on a table together. Take a wide photo of the whole spread first, then close-ups of each piece. Do it once and it is done.' },
+    advice: 'Take a wide photo of the whole spread first, then close-ups of each piece. Do it once and it is done.' },
   { key: 'Holiday ornaments', why: 'Every family fights about who gets Grandma\u2019s ornaments.',
     advice: 'Bring the box out at the holiday. Photograph as you unwrap. Say aloud who gave you which ornament \u2014 the recording is the point.' },
   { key: 'Heirloom and special furniture', why: 'Big pieces are hard to move; who \u201cclaims\u201d them turns tense.',
@@ -4401,13 +5637,13 @@ function renderContestedCards() {
   if (!wrap) return;
   wrap.innerHTML = CONTESTED_CATEGORIES.map((c, i) => `
     <article class="contested-card" data-idx="${i}">
-      <h3>${escapeHtml(c.key)}</h3>
+      <div class="contested-card-head">
+        <h3>${escapeHtml(c.key)}</h3>
+      </div>
       <p class="why">${escapeHtml(c.why)}</p>
       <p class="advice">${escapeHtml(c.advice)}</p>
-      ${c.notice ? `<div class="trustee-notice"><strong>A word about firearms.</strong> ${escapeHtml(c.notice)}</div>` : ''}
-      <div class="detrow">
-        <button class="primary contested-add" data-cat="${escapeHtml(c.key)}">Add ${escapeHtml(c.key)} items</button>
-      </div>
+      ${c.notice ? `<div class="trustee-notice">${escapeHtml(c.notice)}</div>` : ''}
+      <button class="primary wide contested-add" data-cat="${escapeHtml(c.key)}">Add ${escapeHtml(c.key)} items</button>
     </article>
   `).join('');
   $$('#contestedCards .contested-add').forEach((btn) => {
@@ -4420,6 +5656,20 @@ function renderContestedCards() {
       go('capture');
     };
   });
+
+  // Special collections — items are pre-flagged as important so they
+  // migrate to FairPlay flagged for resolution.
+  const scBtn = $('#specialCollectionsBtn');
+  if (scBtn) {
+    scBtn.onclick = () => {
+      resetCapture();
+      cap.category = 'Special collections';
+      cap.important = true;
+      cap.importantFeeling = true;
+      cap.preSetImportant = true; // signal to showCapDetails to sync the UI
+      go('capture');
+    };
+  }
 }
 
 /*
@@ -4461,3 +5711,5 @@ async function loadReminderPicker() {
     wrap.innerHTML = `<p class="reassure">Could not load: ${escapeHtml(e.message)}</p>`;
   }
 }
+
+
