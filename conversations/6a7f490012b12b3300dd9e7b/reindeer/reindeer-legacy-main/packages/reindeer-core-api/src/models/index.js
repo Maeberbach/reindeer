@@ -259,6 +259,12 @@ export function makeItemRecord(input = {}) {
     // docs/decisions/2026-08-06-important-comment.md.
     owner_important_comment: input.owner_important_comment ?? '',
     ownership_tag: input.ownership_tag ?? 'mine',
+    // Tentative high-value: helper or AI flag that queues for owner review
+    // before becoming a permanent owner_high_value mark. Source is 'helper'
+    // or 'ai'; reason is free text explaining why it was flagged.
+    tentative_high_value: input.tentative_high_value ?? false,
+    tentative_high_value_source: input.tentative_high_value_source ?? '',
+    tentative_high_value_reason: input.tentative_high_value_reason ?? '',
     ai_confidence: input.ai_confidence ?? null,
     review_state: input.review_state ?? REVIEW_STATE.DRAFT,
     print_state: input.print_state ?? PRINT_STATE.UNPRINTED,

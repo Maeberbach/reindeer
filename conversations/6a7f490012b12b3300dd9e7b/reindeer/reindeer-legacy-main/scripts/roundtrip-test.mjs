@@ -700,7 +700,7 @@ await inv.itemRepo.create({
   owner_high_value_reason: '',
   tentative_high_value: true,
   tentative_high_value_source: 'helper',
-  tentative_high_value_reason: 'sentimental: family heirloom',
+  tentative_high_value_reason: 'family heirloom',
 }, inv.ctx);
 
 await check('a helper flag is tentative, not a permanent owner flag', async () => {
@@ -745,7 +745,7 @@ await check('confirm-important promotes tentative to permanent', async () => {
   const clock = items.find((i) => i.title === 'Grandfather clock');
   await inv.itemRepo.update(clock.item_id, {
     owner_high_value: true,
-    owner_high_value_reason: clock.tentative_high_value_reason,
+    owner_high_value_reason: 'feeling',
     tentative_high_value: false,
     tentative_high_value_source: '',
     tentative_high_value_reason: '',
@@ -753,7 +753,7 @@ await check('confirm-important promotes tentative to permanent', async () => {
   }, inv.ctx);
   const updated = await inv.itemRepo.get(clock.item_id, inv.ctx);
   assert.equal(updated.owner_high_value, true);
-  assert.equal(updated.owner_high_value_reason, 'sentimental: family heirloom');
+  assert.equal(updated.owner_high_value_reason, 'feeling');
   assert.equal(updated.tentative_high_value, false);
   assert.equal(updated.review_state, 'kept');
 });
