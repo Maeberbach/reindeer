@@ -264,10 +264,12 @@ export function createIntakeRouter(deps) {
 
   // ---- AI detection -------------------------------------------------------
   // Accepts stills or extracted video keyframes. The browser caps frames at
-  // 8-10 and discards the raw video; only crops are ever stored.
+  // the configured max (default 4, admin can raise to 8) and discards the raw
+  // video; only crops are ever stored.
   r.post('/intake/detect', express.json({ limit: '60mb' }), wrap(async (req, res) => {
     const ctx = ctxOf(req);
-    const images = (req.body.images ?? []).slice(0, 10).map((img, i) => ({
+    const maxFrames = deps.maxFrames ?? 4;
+    const images = (req.body.images ?? []).slice(0, maxFrames).map((img, i) => ({
       media_id: img.media_id ?? `m${i}`,
       frame_index: img.frame_index ?? i,
       buffer: Buffer.from((img.data_url ?? img.data ?? '').split(',').pop() ?? '', 'base64'),

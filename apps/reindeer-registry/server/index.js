@@ -196,7 +196,9 @@ app.use('/api', createScopeSummaryRouter({ registry, participants, resolveScope 
 app.use('/api', createHouseholdLinkRouter({ registry, participants, auth, resolveScope }));
 app.use('/api', createMemorandumRouter({ memorandum, registry, participants, resolveScope }));
 app.use('/api', createRemindersRouter({ reminderPrefs, resolveScope }));
-app.use('/api', createIntakeRouter({ itemRepo, mediaStore, scopeMediaStore, registry, vision, duplicates, audit, resolveScope }));
+// maxFramesSetting is defined above (admin-configurable, default 4, hard max 8).
+// Passed into the intake router so the detect endpoint clamps incoming frames.
+app.use('/api', createIntakeRouter({ itemRepo, mediaStore, scopeMediaStore, registry, vision, duplicates, audit, resolveScope, maxFrames: () => maxFramesSetting }));
 app.use('/api', createExecutionRouter({ db, scopeMediaStore, audit, resolveScope }));
 app.use('/api', createPeopleRouter({ people, audit, resolveScope }));
 app.use('/api', createPrintRouter({ itemRepo, resolveScope, ownerName: OWNER_NAME }));
@@ -282,6 +284,44 @@ app.post('/api/two-outputs/freeze', express.json(), async (req, res, next) => {
 
 app.use(express.static(path.join(__dirname, '..', 'client')));
 app.use(legacyErrorHandler);
+
+// ---------------------------------------------------------------------------
+// Admin settings — configurable limits for room walkthroughs
+// ---------------------------------------------------------------------------
+
+// Default 4 photos per room. An admin (owner) can increase this up to 8
+// for when vision technology improves enough to handle more frames
+// within the API timeout.
+const DEFAULT_MAX_FRAMES = 4;
+const HARD_MAX_FRAMES = 8;
+
+let maxFramesSetting = parseInt(process.env.REINDEER_MAX_FRAMES, 10);
+if (!Number.isFinite(maxFramesSetting) || maxFramesSetting < 1) maxFramesSetting = DEFAULT_MAX_FRAMES;
+if (maxFramesSetting > HARD_MAX_FRAMES) maxFramesSetting = HARD_MAX_FRAMES;
+
+// GET /api/settings/max-frames — returns the current max frames per room.
+// Public to the authenticated session.
+app.get('/api/settings/max-frames', (req, res) => {
+  res.json({ max_frames: maxFramesSetting, hard_max: HARD_MAX_FRAMES });
+});
+
+// POST /api/admin/max-frames — owner-only. Sets the max frames per room.
+// Body: { max_frames: number } — clamped to [1, HARD_MAX_FRAMES].
+app.post('/api/admin/max-frames', (req, res, next) => {
+  try {
+    const p = req.participant;
+    if (!p) return res.status(401).json({ error: 'Sign in to continue.' });
+    if (p.participant_id !== 'bootstrap-owner' && p.role !== 'owner') {
+      return res.status(403).json({ error: 'Only the account owner can change this setting.' });
+    }
+    const requested = parseInt(req.body?.max_frames, 10);
+    if (!Number.isFinite(requested) || requested < 1) {
+      return res.status(400).json({ error: 'max_frames must be a positive number.' });
+    }
+    maxFramesSetting = Math.min(requested, HARD_MAX_FRAMES);
+    res.json({ max_frames: maxFramesSetting, hard_max: HARD_MAX_FRAMES });
+  } catch (e) { next(e); }
+});
 
 const PORT = process.env.PORT || 3210;
 app.listen(PORT, () => {
