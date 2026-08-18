@@ -1410,5 +1410,22 @@ if ('serviceWorker' in navigator) {
   <span class="fh-lbl">Home</span>
 </button>
 
+<script>
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    var ws = document.querySelector('[data-screen="welcome"]');
+    var hs = document.querySelector('[data-screen="home"]');
+    var all = document.querySelectorAll('.screen');
+    var visible = [];
+    all.forEach(function(s) { if (!s.hasAttribute('hidden')) visible.push(s.dataset.screen); });
+    var banner = document.querySelector('div[style*="background:#c00"]');
+    document.title = 'DIAG|welcome_hidden=' + (ws ? ws.hasAttribute('hidden') : 'NO_EL') + 
+      '|home_hidden=' + (hs ? hs.hasAttribute('hidden') : 'NO_EL') + 
+      '|visible_screens=' + visible.join(',') +
+      '|error_banner=' + (banner ? 'YES' : 'NO') +
+      '|screen_count=' + all.length;
+  }, 3000);
+});
+</script>
 </body>
 </html>
