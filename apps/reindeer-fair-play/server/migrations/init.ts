@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   pause_count INTEGER NOT NULL DEFAULT 0,
   total_paused_ms INTEGER NOT NULL DEFAULT 0,
   /* v15c3 appraisal threshold (used by AI auto-flag; family-configurable) */
-  appraisal_threshold_usd INTEGER NOT NULL DEFAULT 2000
+  appraisal_threshold_usd INTEGER NOT NULL DEFAULT 3000
 );
 
 /* ------------------------------------------------------------------ */
@@ -208,7 +208,12 @@ CREATE TABLE IF NOT EXISTS items (
   owner_assigned_evidence TEXT NOT NULL DEFAULT '',
   /* commit 4 memorandum-locked items */
   locked_by_memorandum INTEGER NOT NULL DEFAULT 0,
-  memorandum_owner_name TEXT NOT NULL DEFAULT ''
+  memorandum_owner_name TEXT NOT NULL DEFAULT '',
+  /* owner's Important flag from Registry — carried as metadata, does NOT
+     auto-trigger appraisal. Appraisal is decided by AI value estimation
+     (>= 85% of captain's threshold) or captain manual flag. */
+  owner_high_value INTEGER NOT NULL DEFAULT 0,
+  owner_high_value_reason TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_items_site ON items (session_id, site_id);
 
@@ -542,7 +547,9 @@ CREATE TABLE IF NOT EXISTS staged_items (
   detected_owner_assignment_review_reason TEXT NOT NULL DEFAULT '',
   /* commit 4 memorandum-locked items */
   locked_by_memorandum INTEGER NOT NULL DEFAULT 0,
-  memorandum_owner_name TEXT NOT NULL DEFAULT ''
+  memorandum_owner_name TEXT NOT NULL DEFAULT '',
+  owner_high_value INTEGER NOT NULL DEFAULT 0,
+  owner_high_value_reason TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_staged_items_batch ON staged_items (import_batch_row_id);
 CREATE INDEX IF NOT EXISTS idx_staged_items_state ON staged_items (session_id, state);

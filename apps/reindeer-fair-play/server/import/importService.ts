@@ -507,13 +507,15 @@ export async function stageBundle(
         estimatedValue:
           typeof srcItem.value_estimate_cents === "number" ? srcItem.value_estimate_cents / 100 : null,
         valueSource: srcItem.value_basis ?? null,
-        // Registry's high_value_flag OR the owner's Important mark promotes
-        // the item to high-value on the FC side. Same mechanism as an heir
-        // promoting an item during cataloguing; the audited classification
-        // change is written on approveStaged (not here at stage time) so the
-        // PR still gets to review the batch before the flag becomes a real
-        // items row. See docs/decisions/2026-08-06-fc-honors-owner-important.md.
-        needsAppraisal: !!srcItem.high_value_flag || !!(srcItem as any).owner_high_value,
+        // The owner's Important flag (owner_high_value) is carried through to
+        // FairPlay as metadata, but it does NOT auto-trigger appraisal.
+        // Appraisal is determined by AI value estimation: if AI estimates
+        // the item at >= 85% of the captain's threshold (default $3,000),
+        // autoFlagAfterAiAnalysis flags it. The captain can also manually
+        // flag any item. See docs/decisions/2026-08-06-fc-honors-owner-important.md.
+        needsAppraisal: false,
+        ownerHighValue: !!(srcItem as any).owner_high_value,
+        ownerHighValueReason: (srcItem as any).owner_high_value_reason ?? "",
         isSentimental: false,
         recipientHint,
         recipientHintNote,
@@ -920,6 +922,8 @@ export async function approveStaged(
         needsAppraisal: staged.needsAppraisal,
         isSentimental: staged.isSentimental,
         estimatedValue: staged.estimatedValue,
+        ownerHighValue: !!(staged as any).ownerHighValue,
+        ownerHighValueReason: (staged as any).ownerHighValueReason ?? "",
         originApp: "reindeer_registry",
         originItemId: staged.originItemId,
         importBatchId: staged.batchId,
@@ -965,6 +969,8 @@ export async function approveStaged(
       needsAppraisal: staged.needsAppraisal,
       isSentimental: staged.isSentimental,
       estimatedValue: staged.estimatedValue,
+      ownerHighValue: !!(staged as any).ownerHighValue,
+      ownerHighValueReason: (staged as any).ownerHighValueReason ?? "",
       originApp: "reindeer_registry",
       originItemId: staged.originItemId,
       importBatchId: staged.batchId,

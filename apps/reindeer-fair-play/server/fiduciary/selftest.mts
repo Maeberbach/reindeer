@@ -632,7 +632,7 @@ async function main() {
 
   // Fix the threshold at $2,000 so soft-floor math is predictable
   // (0.85 × 2000 = $1,700).
-  await storage.updateSession({ appraisalThresholdUsd: 2000 } as any);
+  await storage.updateSession({ appraisalThresholdUsd: 3000 } as any);
 
   // --- Rule A: AI estimate crosses the soft floor -----------------
   const aiHighItem = await storage.createItem({

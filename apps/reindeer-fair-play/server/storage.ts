@@ -1558,7 +1558,7 @@ export class DatabaseStorage implements IStorage {
     const categoryRevert = reverts.find((r) => r.flaggedBySource === "category");
 
     const s = await this.getSession();
-    const threshold = s.appraisalThresholdUsd ?? 2000;
+    const threshold = s.appraisalThresholdUsd ?? 3000;
     const softFloor = threshold * 0.85;
 
     let inserted = 0;
@@ -1621,7 +1621,7 @@ export class DatabaseStorage implements IStorage {
         .all();
       if (rows.some((r) => r.revertedAt == null)) continue;
 
-      const threshold = s.appraisalThresholdUsd ?? 2000;
+      const threshold = s.appraisalThresholdUsd ?? 3000;
       const softFloor = threshold * 0.85;
 
       // Rule A first.
