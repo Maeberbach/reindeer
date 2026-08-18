@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import { openDb, defaultDataDir, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry } from '@reindeer-legacy/core-data';
 import { SCOPE_TYPE } from '@reindeer-legacy/core-api';
 import { FEATURE_FLAGS, isSubscriptionGateEnabled, isHeirVisibilityEnabled, isMultiEstateEnabled } from './featureFlags.js';
-import { adminBackdoor, backdoorEnabled } from './adminBackdoor.js';
+import { adminBackdoor, backdoorEnabled, supportEnabled } from './adminBackdoor.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -630,7 +630,7 @@ app.get('/api/admin/status', (req, res) => {
   const heirs = db.prepare('SELECT COUNT(*) as c FROM discovery_heirs').get();
   const reactions = db.prepare('SELECT COUNT(*) as c FROM discovery_reactions').get();
   res.json({
-    estate: { backdoor_enabled: backdoorEnabled, scope_id: SCOPE_ID },
+    estate: { backdoor_enabled: backdoorEnabled, support_enabled: supportEnabled, scope_id: SCOPE_ID },
     counts: { items: items.length, heirs: heirs.c, reactions: reactions.c },
     feature_flags: FEATURE_FLAGS,
   });
@@ -650,7 +650,8 @@ db.exec(`
   );
 `);
 
-app.get('/api/admin/feature-flags', ownerAuth, (req, res) => {
+app.get('/api/admin/feature-flags', (req, res) => {
+  if (!req.isAdminBackdoor) return res.status(403).json({ message: 'Backdoor admin only.' });
   const overrides = db.prepare('SELECT key, value FROM estate_settings WHERE scope_id = ?').all(SCOPE_ID);
   const overrideMap = {};
   for (const row of overrides) overrideMap[row.key] = row.value;
@@ -675,7 +676,8 @@ app.get('/api/admin/feature-flags', ownerAuth, (req, res) => {
   });
 });
 
-app.post('/api/admin/feature-flags', ownerAuth, (req, res) => {
+app.post('/api/admin/feature-flags', (req, res) => {
+  if (!req.isAdminBackdoor) return res.status(403).json({ message: 'Backdoor admin only.' });
   const { flag, value } = req.body || {};
   const allowedFlags = ['heirVisibility', 'subscriptionGate', 'multiEstate'];
   if (!allowedFlags.includes(flag)) {
@@ -693,6 +695,37 @@ app.post('/api/admin/feature-flags', ownerAuth, (req, res) => {
   FEATURE_FLAGS[flag] = value;
 
   res.json({ ok: true, flag, value, message: `${flag} is now ${value ? 'ON' : 'OFF'}` });
+});
+
+// POST /api/admin/reset — corporate admin only. Wipes all estate data.
+app.post('/api/admin/reset', (req, res) => {
+  if (!req.isAdminBackdoor) return res.status(403).json({ message: 'Backdoor admin only.' });
+  try {
+    const tables = ['discovery_heirs', 'discovery_reactions', 'discovery_sessions', 'estate_settings'];
+    for (const table of tables) {
+      try { db.prepare(`DELETE FROM ${table}`).run(); } catch {}
+    }
+    res.json({ ok: true, message: 'Estate reset to fresh state.' });
+  } catch (e) {
+    res.status(500).json({ message: e.message });
+  }
+});
+
+// ─── Support admin API (REINDEER_SUPPORT_KEY) ──────────────────
+app.get('/api/admin/items', (req, res) => {
+  if (!req.isBackdoorSupport) return res.status(403).json({ message: 'Support key required for data access.' });
+  try {
+    const items = itemRepo.list();
+    res.json({ items: items.map(i => ({ id: i.id, title: i.title, category: i.category, room: i.room }))});
+  } catch (e) { res.status(500).json({ message: e.message }); }
+});
+
+app.get('/api/admin/heirs', (req, res) => {
+  if (!req.isBackdoorSupport) return res.status(403).json({ message: 'Support key required for data access.' });
+  try {
+    const heirs = db.prepare('SELECT id, name, email, relationship FROM discovery_heirs').all();
+    res.json({ heirs });
+  } catch (e) { res.status(500).json({ message: e.message }); }
 });
 
 const PORT = process.env.PORT || 3220;

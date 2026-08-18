@@ -433,7 +433,8 @@ import { createFiduciaryRouter } from "./fiduciary";
 import { createImportRouter } from "./import";
 import { createAuthRouter } from "./auth/router";
 import { attachActor, requireAuth, requireCaptain } from "./auth/middleware";
-import { adminBackdoor, isBackdoorAdmin, backdoorEnabled } from "./auth/adminBackdoor";
+import { adminBackdoor, isBackdoorAdmin, isBackdoorSupport, backdoorEnabled, supportEnabled } from "./auth/adminBackdoor";
+import { FEATURE_FLAGS } from "./featureFlags";
 import { denyIfNotCaptain } from "./auth/sharedGuards";
 import { setSessionCookie } from "./auth/cookies";
 import { recordAuthEvent } from "./auth/events";
@@ -523,11 +524,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.status(401).json({ message: SIGN_IN_REQUIRED_MESSAGE });
   });
 
-  /* ---------- backdoor admin API ---------- */
-  // Full estate access via REINDEER_ADMIN_KEY. The adminBackdoor middleware
-  // above already set req.actor when the key matches, so these endpoints
-  // pass the deny-by-default gate. The explicit isBackdoorAdmin check
-  // ensures they only respond to the backdoor, not regular sessions.
+  /* ---------- Corporate admin API (REINDEER_ADMIN_KEY) ---------- */
   app.get("/api/admin/status", async (req, res) => {
     if (!isBackdoorAdmin(req)) return res.status(403).json({ message: "Backdoor admin only." });
     try {
@@ -536,67 +533,69 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const session = await storage.getSession();
       res.json({
         estate: {
-          backdoor_enabled: backdoorEnabled,
-          session_phase: session.phase,
-          captain_id: session.captainParticipantId,
+          backdoor_enabled: backdoorEnabled, support_enabled: supportEnabled,
+          session_phase: session.phase, captain_id: session.captainParticipantId,
         },
-        counts: {
-          participants: roster.length,
-          items: items.length,
-        },
-        participants: roster.map(p => ({
-          id: p.id,
-          name: p.name,
-          email: p.email,
-          role: p.role,
-          isAdmin: p.isAdmin,
-          administersOnly: p.administersOnly,
-        })),
+        counts: { participants: roster.length, items: items.length },
+        feature_flags: { ...FEATURE_FLAGS },
       });
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
-  app.get("/api/admin/items", async (req, res) => {
+  app.get("/api/admin/feature-flags", async (req, res) => {
+    if (!isBackdoorAdmin(req)) return res.status(403).json({ message: "Backdoor admin only." });
+    res.json({ feature_flags: { ...FEATURE_FLAGS } });
+  });
+
+  app.post("/api/admin/feature-flags", async (req, res) => {
     if (!isBackdoorAdmin(req)) return res.status(403).json({ message: "Backdoor admin only." });
     try {
+      const updates = req.body || {};
+      for (const [key, val] of Object.entries(updates)) {
+        if (key in FEATURE_FLAGS) {
+          (FEATURE_FLAGS as any)[key] = !!val;
+          console.log(`[admin] feature flag ${key} = ${val}`);
+        }
+      }
+      res.json({ feature_flags: { ...FEATURE_FLAGS } });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.post("/api/admin/reset", async (req, res) => {
+    if (!isBackdoorAdmin(req)) return res.status(403).json({ message: "Backdoor admin only." });
+    try {
+      await storage.resetSession();
+      res.json({ ok: true, message: "Estate reset to fresh state." });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  /* ---------- Support admin API (REINDEER_SUPPORT_KEY) ---------- */
+  app.get("/api/admin/items", async (req, res) => {
+    if (!isBackdoorSupport(req)) return res.status(403).json({ message: "Support key required for data access." });
+    try {
       const items = await storage.listItems();
-      res.json({ items: items.map(i => ({
-        id: i.id, title: i.title, category: i.category,
-        status: i.status, sessionId: i.sessionId,
-      }))});
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
+      res.json({ items: items.map((i: any) => ({ id: i.id, title: i.title, category: i.category, status: i.status, sessionId: i.sessionId }))});
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/admin/items/:id", async (req, res) => {
-    if (!isBackdoorAdmin(req)) return res.status(403).json({ message: "Backdoor admin only." });
+    if (!isBackdoorSupport(req)) return res.status(403).json({ message: "Support key required for data access." });
     try {
       const id = Number(req.params.id);
       await storage.deleteItem(id);
       res.json({ ok: true, deleted: id });
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/admin/participants", async (req, res) => {
-    if (!isBackdoorAdmin(req)) return res.status(403).json({ message: "Backdoor admin only." });
+    if (!isBackdoorSupport(req)) return res.status(403).json({ message: "Support key required for data access." });
     try {
       const roster = await storage.listParticipants();
-      res.json({ participants: roster.map(p => ({
-        id: p.id, name: p.name, email: p.email, role: p.role,
-        isAdmin: p.isAdmin, administersOnly: p.administersOnly,
-        seatOrder: p.seatOrder, autoSubmit: p.autoSubmit,
-      }))});
-    } catch (e: any) {
-      res.status(500).json({ message: e.message });
-    }
+      res.json({ participants: roster.map((p: any) => ({ id: p.id, name: p.name, email: p.email, role: p.role, isAdmin: p.isAdmin, administersOnly: p.administersOnly, seatOrder: p.seatOrder, autoSubmit: p.autoSubmit }))});
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
-    /* ---------- license enforcement (write gate) ---------- */
+  /* ---------- license enforcement (write gate) ---------- */
   // Mounted after attachActor + deny-by-default, so the actor is resolved
   // and authenticated before we check license status. Only blocks writes
   // (POST/PUT/PATCH/DELETE) — reads are never blocked. No-op while
