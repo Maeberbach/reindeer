@@ -961,4 +961,15 @@ export const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_items_tentative_high_value ON items(scope_id, tentative_high_value);
     `,
   },
+  {
+    id: 25,
+    name: 'item_geolocation',
+    sql: `
+      ALTER TABLE items ADD COLUMN captured_lat REAL;
+      ALTER TABLE items ADD COLUMN captured_lon REAL;
+      ALTER TABLE items ADD COLUMN photo_lat REAL;
+      ALTER TABLE items ADD COLUMN photo_lon REAL;
+      ALTER TABLE items ADD COLUMN photo_taken_at INTEGER;
+    `,
+  },
 ];
