@@ -19,6 +19,11 @@ const toRow = (i) => ({
   tentative_high_value: i.tentative_high_value ? 1 : 0,
   tentative_high_value_source: i.tentative_high_value_source ?? '',
   tentative_high_value_reason: i.tentative_high_value_reason ?? '',
+  captured_lat: i.captured_lat ?? null,
+  captured_lon: i.captured_lon ?? null,
+  photo_lat: i.photo_lat ?? null,
+  photo_lon: i.photo_lon ?? null,
+  photo_taken_at: i.photo_taken_at ?? null,
 });
 
 const fromRow = (r) => r && ({
@@ -32,6 +37,11 @@ const fromRow = (r) => r && ({
   tentative_high_value: !!r.tentative_high_value,
   tentative_high_value_source: r.tentative_high_value_source ?? '',
   tentative_high_value_reason: r.tentative_high_value_reason ?? '',
+  captured_lat: r.captured_lat ?? null,
+  captured_lon: r.captured_lon ?? null,
+  photo_lat: r.photo_lat ?? null,
+  photo_lon: r.photo_lon ?? null,
+  photo_taken_at: r.photo_taken_at ?? null,
 });
 
 export class SqliteItemRepository extends ItemRepository {
@@ -53,13 +63,15 @@ export class SqliteItemRepository extends ItemRepository {
         high_value_flag, owner_high_value, owner_high_value_reason, owner_important_comment,
         ownership_tag,
         tentative_high_value, tentative_high_value_source, tentative_high_value_reason,
-        ai_confidence, review_state, print_state, export_state, created_at, updated_at)
+        ai_confidence, review_state, print_state, export_state, created_at, updated_at,
+        captured_lat, captured_lon, photo_lat, photo_lon, photo_taken_at)
       VALUES (@item_id, @scope_id, @origin_app, @origin_item_id, @title, @category_id, @room_id,
         @description, @story, @quantity, @condition, @identifiers, @value_estimate_cents, @value_basis,
         @high_value_flag, @owner_high_value, @owner_high_value_reason, @owner_important_comment,
         @ownership_tag,
         @tentative_high_value, @tentative_high_value_source, @tentative_high_value_reason,
-        @ai_confidence, @review_state, @print_state, @export_state, @created_at, @updated_at)
+        @ai_confidence, @review_state, @print_state, @export_state, @created_at, @updated_at,
+        @captured_lat, @captured_lon, @photo_lat, @photo_lon, @photo_taken_at)
     `).run({ ...row, scope_id: ctx.scopeId });
 
     if (input.recipient_hint) await this.setRecipientHint(value.item_id, input.recipient_hint, ctx);
@@ -134,7 +146,9 @@ export class SqliteItemRepository extends ItemRepository {
         tentative_high_value_source=@tentative_high_value_source,
         tentative_high_value_reason=@tentative_high_value_reason,
         ai_confidence=@ai_confidence, review_state=@review_state,
-        print_state=@print_state, export_state=@export_state, updated_at=@updated_at
+        print_state=@print_state, export_state=@export_state, updated_at=@updated_at,
+        captured_lat=@captured_lat, captured_lon=@captured_lon,
+        photo_lat=@photo_lat, photo_lon=@photo_lon, photo_taken_at=@photo_taken_at
       WHERE item_id=@item_id AND scope_id=@scope_id
     `).run({ ...row, scope_id: ctx.scopeId });
 

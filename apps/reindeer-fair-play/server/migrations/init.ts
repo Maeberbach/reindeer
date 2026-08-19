@@ -688,10 +688,3 @@ CREATE INDEX IF NOT EXISTS method_agreements_session
   ON method_agreements (session_id, agreed_at);
 `);
 }
-
--- v16: geolocation + photo EXIF for items (room/site verification)
-ALTER TABLE items ADD COLUMN lat REAL;
-ALTER TABLE items ADD COLUMN lon REAL;
-ALTER TABLE items ADD COLUMN photo_lat REAL;
-ALTER TABLE items ADD COLUMN photo_lon REAL;
-ALTER TABLE items ADD COLUMN photo_taken_at INTEGER;

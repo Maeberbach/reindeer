@@ -266,6 +266,15 @@ export function makeItemRecord(input = {}) {
     tentative_high_value_source: input.tentative_high_value_source ?? '',
     tentative_high_value_reason: input.tentative_high_value_reason ?? '',
     ai_confidence: input.ai_confidence ?? null,
+    // Geolocation — browser GPS captured at intake, plus EXIF GPS extracted
+    // from the photo itself. Two independent sources that corroborate each
+    // other for room/site verification. captured_lat/lon = browser;
+    // photo_lat/lon + photo_taken_at = JPEG EXIF metadata.
+    captured_lat: input.captured_lat ?? null,
+    captured_lon: input.captured_lon ?? null,
+    photo_lat: input.photo_lat ?? null,
+    photo_lon: input.photo_lon ?? null,
+    photo_taken_at: input.photo_taken_at ?? null,
     review_state: input.review_state ?? REVIEW_STATE.DRAFT,
     print_state: input.print_state ?? PRINT_STATE.UNPRINTED,
     export_state: input.export_state ?? EXPORT_STATE.NEVER,

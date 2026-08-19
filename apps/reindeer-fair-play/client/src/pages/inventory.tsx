@@ -200,7 +200,7 @@ export default function InventoryPage() {
 
   const { capture: captureLocation } = useGeolocation();
   const addItem = useMutation({
-    mutationFn: async (v: ItemForm & { photoUrl?: string | null }) => {
+    mutationFn: async (v: ItemForm & { photoUrl?: string | null; lat?: number | null; lon?: number | null; photoLat?: number | null; photoLon?: number | null; photoTakenAt?: number | null }) => {
       const res = await apiRequest("POST", "/api/items", {
         participantId: userId,
         name: v.name,
@@ -211,6 +211,11 @@ export default function InventoryPage() {
         estimateSource: v.estimate ? "manual" : null,
         photoUrl: v.photoUrl ?? null,
         thumbnailUrl: v.photoUrl ?? null,
+        lat: v.lat ?? null,
+        lon: v.lon ?? null,
+        photoLat: v.photoLat ?? null,
+        photoLon: v.photoLon ?? null,
+        photoTakenAt: v.photoTakenAt ?? null,
       });
       const created = await res.json();
       // The suggestion was accepted in the form, so make it stick on save.
