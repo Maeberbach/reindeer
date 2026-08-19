@@ -3365,6 +3365,11 @@ $('#adminBackBtn')?.addEventListener('click', () => go('home'));
     // Helpers skip the owner welcome and onboarding — they go to a
     // simpler page or straight home if they already have items.
     landing = items.length === 0 ? 'helperwelcome' : 'home';
+  } else if (myRole === 'partner') {
+    // Co-owners (partners) get their own welcome that frames their role
+    // — invited to help inventory and capture, with a practice item
+    // before diving into the room walkthrough.
+    landing = items.length === 0 ? 'recipientwelcome' : 'home';
   } else {
     // First-time owners see the "how it works" screen (take a practice
     // photo, see how AI identification works). Returning owners go
