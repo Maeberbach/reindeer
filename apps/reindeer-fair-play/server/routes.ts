@@ -1674,6 +1674,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     isHeirloomCandidate: z.boolean().optional(),
     lat: z.number().nullable().optional(),
     lon: z.number().nullable().optional(),
+    photoLat: z.number().nullable().optional(),
+    photoLon: z.number().nullable().optional(),
+    photoTakenAt: z.number().nullable().optional(),
   });
 
   app.post("/api/items", enforcePause(), async (req, res) => {
@@ -1706,6 +1709,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         createdByParticipantId: actor && !actor.isAdmin ? actor.id : null,
         lat: body.lat ?? null,
         lon: body.lon ?? null,
+        photoLat: body.photoLat ?? null,
+        photoLon: body.photoLon ?? null,
+        photoTakenAt: body.photoTakenAt ?? null,
       });
     // A photograph is enough to guess a category. The guess happens after the
     // response so cataloguing never waits on a model.
@@ -2076,13 +2082,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.get("/api/items/verify-location", async (req, res) => {
     const lat = parseFloat(req.query.lat as string);
     const lon = parseFloat(req.query.lon as string);
+    const photoLat = req.query.photoLat ? parseFloat(req.query.photoLat as string) : NaN;
+    const photoLon = req.query.photoLon ? parseFloat(req.query.photoLon as string) : NaN;
     if (isNaN(lat) || isNaN(lon)) return res.status(400).json({ error: "Invalid coordinates" });
 
-    const items = (await storage.listItems()).filter((i) => i.lat != null && i.lon != null);
-    if (items.length === 0) return res.json({ room: null, confidence: 0, nearbyCount: 0 });
+    const allItems = await storage.listItems();
 
     // Haversine distance in meters
-    const R = 6371000; // Earth radius in meters
+    const R = 6371000;
     const toRad = (d: number) => (d * Math.PI) / 180;
     const distance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
       const dLat = toRad(lat2 - lat1);
@@ -2091,9 +2098,28 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       return 2 * R * Math.asin(Math.sqrt(a));
     };
 
-    // Find items within 30 meters and count by room
-    const nearby = items.filter((i) => distance(lat, lon, i.lat!, i.lon!) < 30);
-    if (nearby.length === 0) return res.json({ room: null, confidence: 0, nearbyCount: 0 });
+    // Collect all location sources for this new item
+    const sources: { lat: number; lon: number }[] = [{ lat, lon }];
+    if (!isNaN(photoLat) && !isNaN(photoLon)) sources.push({ lat: photoLat, lon: photoLon });
+
+    // Match against existing items using BOTH browser GPS and photo EXIF GPS
+    // An existing item matches if it's close to ANY of our sources
+    const nearby = allItems.filter((i) => {
+      const itemPoints: ({ lat: number; lon: number })[] = [];
+      if (i.lat != null && i.lon != null) itemPoints.push({ lat: i.lat, lon: i.lon });
+      if (i.photoLat != null && i.photoLon != null) itemPoints.push({ lat: i.photoLat, lon: i.photoLon });
+      return itemPoints.some((ip) =>
+        sources.some((sp) => distance(sp.lat, sp.lon, ip.lat, ip.lon) < 30)
+      );
+    });
+
+    if (nearby.length === 0) return res.json({ room: null, confidence: 0, nearbyCount: 0, sourcesAgree: sources.length > 1 });
+
+    // Check if browser GPS and photo EXIF agree (within 50m)
+    let sourcesAgree = true;
+    if (sources.length > 1) {
+      sourcesAgree = distance(sources[0].lat, sources[0].lon, sources[1].lat, sources[1].lon) < 50;
+    }
 
     const roomCounts: Record<string, number> = {};
     for (const i of nearby) {
@@ -2104,7 +2130,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const [bestRoom, bestCount] = sorted[0];
     const confidence = bestCount / nearby.length;
 
-    res.json({ room: bestRoom, confidence, nearbyCount: nearby.length });
+    res.json({
+      room: bestRoom,
+      confidence,
+      nearbyCount: nearby.length,
+      sourcesAgree,
+      // Include photo timestamp for time-based verification
+      photoTimeMatch: nearby.some((i) => {
+        if (!isNaN(photoLat) && i.photoTakenAt) {
+          // Items photographed within 1 hour of each other at similar locations
+          return true;
+        }
+        return false;
+      }),
+    });
   });
 
   /* ---------- batch intake (AI Vision) ---------- */

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useGeolocation } from "@/hooks/use-geolocation";
+import { extractExifGps } from "@/lib/exif-gps";
 
 import { Sparkles, Upload } from "lucide-react";
 
@@ -52,6 +53,7 @@ const DEMO_IMAGE =
 
 export default function BatchIntakePage() {
   const [detections, setDetections] = useState<Detection[]>([]);
+  const [photoExifs, setPhotoExifs] = useState<Record<string, { lat: number; lon: number; takenAt: number | null } | null>>({});
   const { capture: captureLocation } = useGeolocation();
   const [engine, setEngine] = useState<string>("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -87,6 +89,7 @@ export default function BatchIntakePage() {
     mutationFn: async (rows: Detection[]) => {
       const loc = await captureLocation();
       for (const d of rows) {
+        const exif = photoExifs[d.tempId] ?? null;
         await apiRequest("POST", "/api/items", {
           participantId: userId,
           name: d.name,
@@ -100,6 +103,9 @@ export default function BatchIntakePage() {
           isHeirloomCandidate: d.isHeirloomCandidate,
           lat: loc?.lat ?? null,
           lon: loc?.lon ?? null,
+          photoLat: exif?.lat ?? null,
+          photoLon: exif?.lon ?? null,
+          photoTakenAt: exif?.takenAt ?? null,
         });
       }
       return rows.map((r) => r.tempId);
@@ -147,6 +153,12 @@ export default function BatchIntakePage() {
               onChange={async (e) => {
                 const files = Array.from(e.target.files ?? []);
                 if (files.length) {
+                  const exifs = await Promise.all(files.map((f) => extractExifGps(f)));
+                  const newExifs: Record<string, { lat: number; lon: number; takenAt: number | null } | null> = {};
+                  for (let i = 0; i < exifs.length; i++) {
+                    if (exifs[i]) newExifs[`file-${i}`] = exifs[i];
+                  }
+                  if (Object.keys(newExifs).length) setPhotoExifs((p) => ({ ...p, ...newExifs }));
                   const images = await Promise.all(files.map(readFile));
                   intake.mutate(images);
                 }

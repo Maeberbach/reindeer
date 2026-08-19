@@ -466,6 +466,7 @@ function resetCapture() {
           important: false, importantFeeling: false, importantMoney: false,
           siteId: activeSiteId || null, siteName: activeSite ? activeSite.name : '',
           capturedLat: null, capturedLon: null,
+    photoExif: null,
           geoChecked: false, offsite: false };
   ['#capTitle', '#capMaker', '#capMarks', '#capStory', '#capValue', '#capRecipient', '#capRelationship', '#capOwnerNote', '#capRoomOther']
     .forEach((s) => { $(s).value = ''; });
@@ -967,6 +968,8 @@ $('#stepNextAnother')?.addEventListener('click', async () => {
         ai_confidence: cap.ai?.confidence ?? null,
         site_id: cap.siteId || null, site_name: cap.siteName || '',
         captured_lat: cap.capturedLat, captured_lon: cap.capturedLon,
+        photo_lat: cap.photoExif?.lat ?? null, photo_lon: cap.photoExif?.lon ?? null,
+        photo_taken_at: cap.photoExif?.takenAt ?? null,
         identifiers: buildIdentifiers(),
         recipient_hint: cap.recipient
           ? { recipient_name: cap.recipient, relationship: cap.relationship, owner_note: cap.note }
@@ -1330,6 +1333,9 @@ async function saveItem() {
         site_name: cap.siteName || '',
         captured_lat: cap.capturedLat,
         captured_lon: cap.capturedLon,
+        photo_lat: cap.photoExif?.lat ?? null,
+        photo_lon: cap.photoExif?.lon ?? null,
+        photo_taken_at: cap.photoExif?.takenAt ?? null,
         identifiers: buildIdentifiers(),
         recipient_hint: cap.recipient
           ? { recipient_name: cap.recipient, relationship: cap.relationship, owner_note: cap.note }

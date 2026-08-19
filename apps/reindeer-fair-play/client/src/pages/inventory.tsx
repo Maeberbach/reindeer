@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useGeolocation } from "@/hooks/use-geolocation";
+import { extractExifGps } from "@/lib/exif-gps";
 
 import type { Item } from "@shared/schema";
 import {
@@ -142,6 +143,7 @@ export default function InventoryPage() {
   /* --- v6: the add form looks at the photograph before you save --- */
   const addPhotoRef = useRef<HTMLInputElement>(null);
   const [addPhotoUrl, setAddPhotoUrl] = useState<string | null>(null);
+  const [addPhotoExif, setAddPhotoExif] = useState<{ lat: number; lon: number; takenAt: number | null } | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [aiAssigned, setAiAssigned] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
@@ -150,6 +152,7 @@ export default function InventoryPage() {
 
   function resetAddAi() {
     setAddPhotoUrl(null);
+    setAddPhotoExif(null);
     setAnalyzing(false);
     setAiAssigned(false);
     setAiSuggestions([]);
@@ -512,7 +515,7 @@ export default function InventoryPage() {
                     data-testid="form-add-item"
                     onSubmit={form.handleSubmit(async (v) => {
                       const loc = await captureLocation();
-                      addItem.mutate({ ...v, room: room || v.room, photoUrl: addPhotoUrl, lat: loc?.lat ?? null, lon: loc?.lon ?? null });
+                      addItem.mutate({ ...v, room: room || v.room, photoUrl: addPhotoUrl, lat: loc?.lat ?? null, lon: loc?.lon ?? null, photoLat: addPhotoExif?.lat ?? null, photoLon: addPhotoExif?.lon ?? null, photoTakenAt: addPhotoExif?.takenAt ?? null });
                     })}
                   >
                     <FormField
@@ -574,6 +577,7 @@ export default function InventoryPage() {
                               });
                               const { url } = (await up.json()) as { url: string };
                               setAddPhotoUrl(url);
+                              setAddPhotoExif(await extractExifGps(f));
                               await runAddPreview(url);
                             } catch (err) {
                               toast({

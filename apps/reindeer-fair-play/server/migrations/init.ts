@@ -207,7 +207,10 @@ CREATE TABLE IF NOT EXISTS items (
   locked_by_memorandum INTEGER NOT NULL DEFAULT 0,
   memorandum_owner_name TEXT NOT NULL DEFAULT '',
   lat REAL,
-  lon REAL
+  lon REAL,
+  photo_lat REAL,
+  photo_lon REAL,
+  photo_taken_at INTEGER
 );
 
 /* ------------------------------------------------------------------ */
@@ -539,7 +542,10 @@ CREATE TABLE IF NOT EXISTS staged_items (
   locked_by_memorandum INTEGER NOT NULL DEFAULT 0,
   memorandum_owner_name TEXT NOT NULL DEFAULT '',
   lat REAL,
-  lon REAL
+  lon REAL,
+  photo_lat REAL,
+  photo_lon REAL,
+  photo_taken_at INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_staged_items_batch ON staged_items (import_batch_row_id);
 CREATE INDEX IF NOT EXISTS idx_staged_items_state ON staged_items (session_id, state);
@@ -683,6 +689,9 @@ CREATE INDEX IF NOT EXISTS method_agreements_session
 `);
 }
 
--- v16: geolocation for items (room/site verification)
+-- v16: geolocation + photo EXIF for items (room/site verification)
 ALTER TABLE items ADD COLUMN lat REAL;
 ALTER TABLE items ADD COLUMN lon REAL;
+ALTER TABLE items ADD COLUMN photo_lat REAL;
+ALTER TABLE items ADD COLUMN photo_lon REAL;
+ALTER TABLE items ADD COLUMN photo_taken_at INTEGER;

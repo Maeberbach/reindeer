@@ -403,6 +403,16 @@ export const items = sqliteTable("items", {
    */
   lat: real("lat"),
   lon: real("lon"),
+  /**
+   * GPS coordinates extracted from the photo's EXIF metadata. An
+   * independent confirmation source — if the browser geolocation and
+   * the EXIF GPS agree, high confidence the item is where expected.
+   * Null when the photo has no EXIF GPS (e.g. uploaded from desktop).
+   */
+  photoLat: real("photo_lat"),
+  photoLon: real("photo_lon"),
+  /** Epoch ms from EXIF DateTimeOriginal — when the photo was taken. */
+  photoTakenAt: integer("photo_taken_at"),
 });
 
 /* ------------------------------------------------------------------ */
