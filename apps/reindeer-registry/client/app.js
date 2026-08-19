@@ -2072,7 +2072,7 @@ async function openDetail(id) {
 /* or years away. It now sits here as one option among four, chosen    */
 /* when the list is actually finished.                                 */
 /* ------------------------------------------------------------------ */
-const FINISH_OPTS = ['#optEmail', '#optPrint', '#optSave', '#optSigned', '#optFairChoice', '#optDiscovery'];
+const FINISH_OPTS = ['#optEmail', '#optSave', '#optSigned', '#optFairChoice', '#optDiscovery'];
 
 async function refreshFinishScreen() {
   try {
@@ -2180,11 +2180,6 @@ This package was prepared on ${new Date().toLocaleDateString('en-US', { dateStyl
     } catch (e) {
       failed.push(`The email could not be prepared: ${escapeHtml(e.message)}`);
     }
-  }
-
-  if ($('#optPrint').checked) {
-    window.open(`${API}/api/print/report`, '_blank');
-    done.push('Opened the printable list');
   }
 
   if ($('#optSave').checked) {
