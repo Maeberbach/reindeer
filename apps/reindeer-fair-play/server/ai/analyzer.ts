@@ -54,7 +54,7 @@ export type AnalyzableItem = {
 
 const TIMEOUT_MS = 15_000;
 const OPENAI_MODEL = "gpt-4o-mini";
-const ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
+const ANTHROPIC_MODEL = "claude-sonnet-4-6";
 
 /* ------------------------------------------------------------------ */
 /* Provider selection                                                  */

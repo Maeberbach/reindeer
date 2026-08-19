@@ -107,7 +107,7 @@ export class AnthropicVisionProvider extends VisionProvider {
     Object.assign(this, {
       endpoint: endpoint || 'https://api.anthropic.com/v1/messages',
       apiKey,
-      model: model || 'claude-sonnet-4-5',
+      model: model || 'claude-sonnet-4-6',
       fetchImpl,
       timeoutMs,
     });
