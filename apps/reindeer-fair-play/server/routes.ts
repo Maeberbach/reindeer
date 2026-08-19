@@ -434,6 +434,7 @@ import { createImportRouter } from "./import";
 import { createAuthRouter } from "./auth/router";
 import { attachActor, requireAuth, requireCaptain } from "./auth/middleware";
 import { adminBackdoor, isBackdoorAdmin, isBackdoorSupport, backdoorEnabled, supportEnabled } from "./auth/adminBackdoor";
+import { persistFlag } from "./storage";
 import { FEATURE_FLAGS } from "./featureFlags";
 import { denyIfNotCaptain } from "./auth/sharedGuards";
 import { setSessionCookie } from "./auth/cookies";
@@ -554,7 +555,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       for (const [key, val] of Object.entries(updates)) {
         if (key in FEATURE_FLAGS) {
           (FEATURE_FLAGS as any)[key] = !!val;
-          console.log(`[admin] feature flag ${key} = ${val}`);
+          persistFlag(key, !!val, "backdoor-admin");
+          console.log(`[admin] feature flag ${key} = ${val} (persisted)`);
         }
       }
       res.json({ feature_flags: { ...FEATURE_FLAGS } });

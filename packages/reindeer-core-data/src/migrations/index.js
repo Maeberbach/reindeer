@@ -972,4 +972,16 @@ export const MIGRATIONS = [
       ALTER TABLE items ADD COLUMN photo_taken_at INTEGER;
     `,
   },
+  {
+    id: 26,
+    name: 'corporate_settings',
+    sql: `
+      CREATE TABLE IF NOT EXISTS corporate_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        updated_by TEXT NOT NULL DEFAULT 'system'
+      );
+    `,
+  },
 ];

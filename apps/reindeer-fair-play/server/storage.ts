@@ -156,6 +156,38 @@ sqlite.pragma("journal_mode = WAL");
 // historical database to upgrade. See migrations/init.ts for the full DDL.
 initSchema(sqlite);
 
+// ─── Persistent corporate settings ───────────────────────────────
+// Feature flags are loaded from the corporate_settings table so they
+// survive server restarts. Every admin toggle writes back to the table.
+const settingsGet = sqlite.prepare("SELECT value FROM corporate_settings WHERE key = ?");
+const settingsSet = sqlite.prepare(`
+  INSERT INTO corporate_settings (key, value, updated_at, updated_by)
+  VALUES (?, ?, ?, ?)
+  ON CONFLICT(key) DO UPDATE SET
+    value = excluded.value,
+    updated_at = excluded.updated_at,
+    updated_by = excluded.updated_by
+`);
+const settingsAll = sqlite.prepare("SELECT key, value FROM corporate_settings");
+
+function loadPersistedFlags() {
+  const rows = settingsAll.all() as Array<{ key: string; value: string }>;
+  for (const row of rows) {
+    if (row.key.startsWith("flag.")) {
+      const flagName = row.key.slice(5);
+      if (flagName in FEATURE_FLAGS) {
+        (FEATURE_FLAGS as any)[flagName] = row.value === "true";
+      }
+    }
+  }
+}
+loadPersistedFlags();
+console.log("[admin] Feature flags loaded from corporate_settings:", { ...FEATURE_FLAGS });
+
+export function persistFlag(key: string, value: boolean, updatedBy = "backdoor-admin") {
+  settingsSet.run(`flag.${key}`, value ? "true" : "false", Date.now(), updatedBy);
+}
+
 // For databases created before the Captain terminology migration,
 // rename any remaining pr_* columns/tables to captain_*.
 // No-op on fresh databases where init.ts already used the final names.

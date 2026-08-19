@@ -13,32 +13,57 @@
   .header { text-align: center; margin-bottom: 32px; }
   .header h1 { font-size: 28px; font-weight: 600; color: #fff; margin-bottom: 4px; }
   .header p { color: #8b949e; font-size: 14px; }
+
+  /* Key bar — dual input */
   .key-bar {
     max-width: 1200px; margin: 0 auto 24px; display: flex; gap: 12px; align-items: center;
     background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px 16px;
+    flex-wrap: wrap;
   }
-  .key-bar label { font-size: 13px; color: #8b949e; white-space: nowrap; }
-  .key-bar input {
+  .key-group { display: flex; gap: 8px; align-items: center; flex: 1; min-width: 280px; }
+  .key-group label { font-size: 13px; color: #8b949e; white-space: nowrap; }
+  .key-group input {
     flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
     padding: 8px 12px; color: #e1e4e8; font-size: 13px; font-family: monospace;
   }
-  .key-bar input:focus { outline: none; border-color: #58a6ff; }
+  .key-group input:focus { outline: none; border-color: #58a6ff; }
   .key-bar .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
   .dot-green { background: #3fb950; } .dot-red { background: #f85149; } .dot-gray { background: #484f58; }
+  .dot-yellow { background: #d29922; }
+
+  /* Tier indicator */
+  .tier-badge {
+    font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .tier-corp { background: #1f6feb33; color: #58a6ff; border: 1px solid #1f6feb55; }
+  .tier-support { background: #da363333; color: #f85149; border: 1px solid #f8514955; }
+  .tier-none { background: #30363d; color: #8b949e; }
+
+  /* Dashboard grid */
   .dashboard { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 900px) { .dashboard { grid-template-columns: 1fr; } }
+
   .app-card {
     background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px;
   }
   .app-card h2 { font-size: 18px; color: #fff; margin-bottom: 4px; }
-  .app-card .subtitle { font-size: 12px; color: #8b949e; margin-bottom: 16px; }
+  .app-card .subtitle { font-size: 12px; color: #8b949e; margin-bottom: 8px; }
   .app-card .url { font-size: 11px; color: #6e7681; margin-bottom: 16px; word-break: break-all; font-family: monospace; }
+
   .stats-row { display: flex; gap: 12px; margin-bottom: 16px; }
   .stat-box {
     flex: 1; background: #21262d; border-radius: 8px; padding: 12px; text-align: center;
   }
   .stat-box .num { font-size: 24px; font-weight: 600; color: #fff; }
   .stat-box .label { font-size: 11px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; }
-  .section-title { font-size: 13px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; margin: 16px 0 8px; }
+
+  .section-title {
+    font-size: 13px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px;
+    margin: 16px 0 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .persisted-badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; background: #3fb95022; color: #3fb950; }
+
   .flag-row {
     display: flex; align-items: center; justify-content: space-between;
     padding: 8px 12px; background: #21262d; border-radius: 6px; margin-bottom: 6px;
@@ -54,6 +79,23 @@
     background: #fff; transition: left 0.2s;
   }
   .toggle.on::after { left: 21px; } .toggle.off::after { left: 3px; }
+
+  /* Support data panel */
+  .data-panel {
+    margin-top: 16px; border: 1px solid #f8514944; border-radius: 8px; padding: 12px;
+    background: #1a0d0d;
+  }
+  .data-panel-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+  }
+  .data-panel-header h3 { font-size: 14px; color: #f85149; }
+  .data-panel-header .badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #f8514922; color: #f85149; }
+  .data-row {
+    display: flex; justify-content: space-between; padding: 6px 10px; background: #21262d;
+    border-radius: 4px; margin-bottom: 4px; font-size: 12px;
+  }
+  .data-row .key { color: #8b949e; } .data-row .val { color: #c9d1d9; font-family: monospace; }
+
   .btn {
     width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #30363d;
     font-size: 13px; font-weight: 500; cursor: pointer; margin-top: 8px; transition: all 0.15s;
@@ -62,34 +104,68 @@
   .btn-danger:hover { background: #f85149; }
   .btn-secondary { background: #21262d; color: #c9d1d9; }
   .btn-secondary:hover { background: #30363d; }
+  .btn-sm { width: auto; padding: 6px 14px; margin: 0; font-size: 12px; }
+
   .msg { font-size: 12px; padding: 8px 12px; border-radius: 6px; margin-top: 8px; display: none; }
   .msg.ok { background: #0d2818; color: #3fb950; display: block; }
   .msg.err { background: #3d1014; color: #f85149; display: block; }
+
   .conn-status { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-bottom: 12px; }
   .conn-status .label { color: #8b949e; }
   .conn-status .value { font-weight: 500; }
   .loading { text-align: center; padding: 40px; color: #8b949e; font-size: 14px; }
+
+  /* License section */
+  .license-box {
+    background: #1c2330; border: 1px solid #1f6feb44; border-radius: 8px; padding: 12px; margin-top: 8px;
+  }
+  .license-row {
+    display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #30363d;
+    font-size: 12px;
+  }
+  .license-row:last-child { border-bottom: none; }
+  .license-row .k { color: #8b949e; }
+  .license-row .v { color: #58a6ff; font-family: monospace; }
+
+  /* Audit log viewer */
+  .audit-log {
+    max-height: 200px; overflow-y: auto; margin-top: 8px;
+    background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 8px;
+    font-family: monospace; font-size: 11px;
+  }
+  .audit-entry { padding: 4px 0; border-bottom: 1px solid #21262d; color: #8b949e; }
+  .audit-entry .ts { color: #6e7681; }
+  .audit-entry .action { color: #d29922; }
 </style>
 </head>
 <body>
 
 <div class="header">
   <h1>Reindeer Corporate Admin</h1>
-  <p>Feature management, license control, and estate reset across all apps</p>
+  <p>Unified dashboard — feature management, license control, and support access across all apps</p>
 </div>
 
 <div class="key-bar">
-  <label>Admin Key:</label>
-  <input type="password" id="adminKey" placeholder="Enter REINDEER_ADMIN_KEY" value="">
+  <div class="key-group">
+    <span class="tier-badge tier-corp">Corp</span>
+    <label>Admin Key:</label>
+    <input type="password" id="adminKey" placeholder="REINDEER_ADMIN_KEY (feature mgmt)">
+  </div>
+  <div class="key-group">
+    <span class="tier-badge tier-support">Support</span>
+    <label>Support Key:</label>
+    <input type="password" id="supportKey" placeholder="REINDEER_SUPPORT_KEY (data access)">
+  </div>
   <div class="status-dot dot-gray" id="connDot"></div>
   <label id="connLabel" style="white-space:nowrap;">Not connected</label>
   <button class="btn btn-secondary" style="width:auto;padding:8px 16px;margin:0;" onclick="loadAll()">Connect</button>
 </div>
 
 <div class="dashboard" id="dashboard">
+  <!-- Registry card -->
   <div class="app-card" id="card-registry">
     <h2>Reindeer Registry</h2>
-    <div class="subtitle">Estate inventory & item capture</div>
+    <div class="subtitle">Estate inventory &amp; item capture</div>
     <div class="url">https://reindeer-registry.onrender.com</div>
     <div class="conn-status">
       <div class="status-dot dot-gray" id="dot-registry"></div>
@@ -99,9 +175,10 @@
     <div id="content-registry" class="loading">Enter admin key and click Connect</div>
   </div>
 
+  <!-- FairPlay card -->
   <div class="app-card" id="card-fairplay">
     <h2>Reindeer: FairPlay</h2>
-    <div class="subtitle">Estate distribution & fair division</div>
+    <div class="subtitle">Estate distribution &amp; heir ranking</div>
     <div class="url">https://reindeer-fair-play.onrender.com</div>
     <div class="conn-status">
       <div class="status-dot dot-gray" id="dot-fairplay"></div>
@@ -111,9 +188,10 @@
     <div id="content-fairplay" class="loading">Enter admin key and click Connect</div>
   </div>
 
+  <!-- Discovery card -->
   <div class="app-card" id="card-discovery">
     <h2>Reindeer: Discovery</h2>
-    <div class="subtitle">Heir interest & early discovery</div>
+    <div class="subtitle">Heir interest &amp; early reactions</div>
     <div class="url">https://reindeer-discovery.onrender.com</div>
     <div class="conn-status">
       <div class="status-dot dot-gray" id="dot-discovery"></div>
@@ -126,37 +204,48 @@
 
 <script>
 const APPS = {
-  registry:  { url: 'https://reindeer-registry.onrender.com',     name: 'Registry' },
-  fairplay:  { url: 'https://reindeer-fair-play.onrender.com',    name: 'FairPlay' },
-  discovery: { url: 'https://reindeer-discovery.onrender.com',    name: 'Discovery' },
+  registry:   { name: 'Reindeer Registry',       url: 'https://reindeer-registry.onrender.com' },
+  fairplay:   { name: 'Reindeer: FairPlay',      url: 'https://reindeer-fair-play.onrender.com' },
+  discovery:  { name: 'Reindeer: Discovery',     url: 'https://reindeer-discovery.onrender.com' },
 };
 
-let adminKey = '';
-let appData = { registry: null, fairplay: null, discovery: null };
+var adminKey = '';
+var supportKey = '';
+var appData = {};
 
-function headers() {
-  return { 'Content-Type': 'application/json', 'x-admin-key': adminKey };
+function getHeaders(appKey, needSupport) {
+  var headers = { 'Content-Type': 'application/json' };
+  if (needSupport && supportKey) {
+    headers['x-support-key'] = supportKey;
+  } else if (adminKey) {
+    headers['x-admin-key'] = adminKey;
+  }
+  return headers;
 }
 
-async function api(app, method, path, body) {
-  const url = APPS[app].url + path;
-  const opts = { method, headers: headers() };
+async function api(appKey, method, path, body, needSupport) {
+  var url = APPS[appKey].url + path;
+  var opts = {
+    method: method,
+    headers: getHeaders(appKey, needSupport),
+  };
   if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(url, opts);
+  var res = await fetch(url, opts);
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || err.message || 'HTTP ' + res.status);
+    var err = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(err.message || err.error || res.statusText);
   }
   return res.json();
 }
 
 async function loadAll() {
   adminKey = document.getElementById('adminKey').value.trim();
-  if (!adminKey) { alert('Enter the admin key first'); return; }
+  supportKey = document.getElementById('supportKey').value.trim();
+  if (!adminKey && !supportKey) { alert('Enter at least one key'); return; }
   document.getElementById('connDot').className = 'status-dot dot-gray';
   document.getElementById('connLabel').textContent = 'Connecting...';
-  let connected = 0;
-  for (const key of Object.keys(APPS)) {
+  var connected = 0;
+  for (var key of Object.keys(APPS)) {
     await loadApp(key);
     if (appData[key]) connected++;
   }
@@ -170,42 +259,68 @@ async function loadAll() {
 }
 
 async function loadApp(appKey) {
-  const contentId = 'content-' + appKey;
-  const dotId = 'dot-' + appKey;
-  const connId = 'conn-' + appKey;
+  var contentId = 'content-' + appKey;
+  var dotId = 'dot-' + appKey;
+  var connId = 'conn-' + appKey;
   document.getElementById(contentId).innerHTML = '<div class="loading">Loading...</div>';
   try {
-    const status = await api(appKey, 'GET', '/api/admin/status');
+    var status = await api(appKey, 'GET', '/api/admin/status');
     appData[appKey] = status;
-    let flags = status.feature_flags || {};
-    let html = '';
+    var flags = status.feature_flags || {};
+    var html = '';
+
+    // Stats
     html += '<div class="stats-row">';
     html += '<div class="stat-box"><div class="num">' + (status.counts?.items ?? '?') + '</div><div class="label">Items</div></div>';
     html += '<div class="stat-box"><div class="num">' + (status.counts?.participants ?? '?') + '</div><div class="label">Users</div></div>';
     html += '</div>';
+
+    // Support key status
     var supportOn = status.estate?.support_enabled;
     html += '<div class="conn-status"><div class="status-dot ' + (supportOn ? 'dot-green' : 'dot-gray') + '"></div>';
-    html += '<span class="label">Support Key:</span><span class="value">' + (supportOn ? 'Configured (data access ON)' : 'Not configured (data access OFF)') + '</span></div>';
-    html += '<div class="section-title">Feature Toggles</div>';
-    for (const [flag, val] of Object.entries(flags)) {
+    html += '<span class="label">Support Key:</span><span class="value">' + (supportOn ? 'Configured' : 'Not configured') + '</span></div>';
+
+    // Feature toggles (with persisted badge)
+    html += '<div class="section-title">Feature Toggles <span class="persisted-badge">persisted</span></div>';
+    for (var flag in flags) {
       html += '<div class="flag-row"><span class="name">' + flag + '</span>';
-      html += '<button class="toggle ' + (val ? 'on' : 'off') + '" onclick="toggleFlag(\'' + appKey + '\',\'' + flag + '\',' + !val + ')"></button></div>';
+      html += '<button class="toggle ' + (flags[flag] ? 'on' : 'off') + '" onclick="toggleFlag(\'' + appKey + '\',\'' + flag + '\',' + !flags[flag] + ')"></button></div>';
     }
+
+    // Subscription info
     if (status.subscription) {
       html += '<div class="section-title">Subscription</div>';
-      html += '<div class="flag-row"><span class="name">Status: ' + status.subscription.status + '</span><span class="name">Gate: ' + (status.subscription.gate_enabled ? 'ON' : 'OFF') + '</span></div>';
+      html += '<div class="flag-row"><span class="name">Status: ' + status.subscription.status + '</span></div>';
+      html += '<div class="flag-row"><span class="name">Gate: ' + (status.subscription.gate_enabled ? 'ON' : 'OFF') + '</span></div>';
     }
+
+    // Session phase (FairPlay)
     if (status.estate?.session_phase) {
       html += '<div class="flag-row"><span class="name">Session Phase: ' + status.estate.session_phase + '</span></div>';
     }
+
+    // Vision / max frames (Registry)
     if (status.vision) {
       html += '<div class="flag-row"><span class="name">Vision: ' + status.vision + '</span></div>';
     }
     if (status.max_frames) {
       html += '<div class="flag-row"><span class="name">Max Frames: ' + status.max_frames + '</span></div>';
     }
+
+    // Estate operations
     html += '<div class="section-title">Estate Operations</div>';
     html += '<button class="btn btn-danger" onclick="resetEstate(\'' + appKey + '\')">Reset Estate Data</button>';
+
+    // Support data panel (only if support key provided)
+    if (supportKey) {
+      html += '<div class="data-panel">';
+      html += '<div class="data-panel-header"><h3>Support Data Access</h3><span class="badge">Tier 2</span></div>';
+      html += '<button class="btn btn-secondary btn-sm" style="margin-bottom:8px;" onclick="loadItems(\'' + appKey + '\')">Load Items</button>';
+      html += '<button class="btn btn-secondary btn-sm" style="margin-bottom:8px;" onclick="loadAudit(\'' + appKey + '\')">Load Audit Log</button>';
+      html += '<div id="support-data-' + appKey + '"></div>';
+      html += '</div>';
+    }
+
     html += '<div class="msg" id="msg-' + appKey + '"></div>';
     document.getElementById(contentId).innerHTML = html;
     document.getElementById(dotId).className = 'status-dot dot-green';
@@ -220,7 +335,7 @@ async function loadApp(appKey) {
 async function toggleFlag(appKey, flag, value) {
   try {
     if (appKey === 'discovery') {
-      await api(appKey, 'POST', '/api/admin/feature-flags', { flag, value });
+      await api(appKey, 'POST', '/api/admin/feature-flags', { flag: flag, value: value });
     } else {
       var body = {}; body[flag] = value;
       await api(appKey, 'POST', '/api/admin/feature-flags', body);
@@ -243,8 +358,46 @@ async function resetEstate(appKey) {
   }
 }
 
+async function loadItems(appKey) {
+  try {
+    var data = await api(appKey, 'GET', '/api/admin/items', null, true);
+    var el = document.getElementById('support-data-' + appKey);
+    var html = '<div class="section-title" style="margin-top:8px;">Items (' + (data.items?.length || 0) + ')</div>';
+    if (data.items) {
+      data.items.slice(0, 10).forEach(function(item) {
+        html += '<div class="data-row"><span class="key">' + (item.title || item.name || 'Untitled') + '</span><span class="val">' + (item.category || item.room || '') + '</span></div>';
+      });
+      if (data.items.length > 10) html += '<div class="data-row"><span class="key">...' + data.items.length + ' total</span></div>';
+    }
+    el.innerHTML = html;
+  } catch (e) {
+    showMsg(appKey, 'err', 'Support access: ' + e.message);
+  }
+}
+
+async function loadAudit(appKey) {
+  try {
+    var data = await api(appKey, 'GET', '/api/admin/audit?limit=20', null, true);
+    var el = document.getElementById('support-data-' + appKey);
+    var html = '<div class="section-title" style="margin-top:8px;">Audit Log</div>';
+    html += '<div class="audit-log">';
+    if (data.entries) {
+      data.entries.forEach(function(entry) {
+        html += '<div class="audit-entry"><span class="ts">' + (entry.created_at || entry.timestamp || '') + '</span> <span class="action">' + (entry.action || entry.event || '') + '</span> ' + (entry.detail || entry.actor || '') + '</div>';
+      });
+    } else {
+      html += '<div class="audit-entry">No audit log available</div>';
+    }
+    html += '</div>';
+    el.innerHTML = html;
+  } catch (e) {
+    showMsg(appKey, 'err', 'Audit access: ' + e.message);
+  }
+}
+
 function showMsg(appKey, type, text) {
   var el = document.getElementById('msg-' + appKey);
+  if (!el) return;
   el.className = 'msg ' + type;
   el.textContent = text;
 }

@@ -686,5 +686,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS method_agreements_unique_heir
   ON method_agreements (session_id, participant_id, captain_participant_id);
 CREATE INDEX IF NOT EXISTS method_agreements_session
   ON method_agreements (session_id, agreed_at);
+
+/* ------------------------------------------------------------------ */
+/* corporate_settings — persistent feature-flag & config storage        */
+/* ------------------------------------------------------------------ */
+CREATE TABLE IF NOT EXISTS corporate_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  updated_by TEXT NOT NULL DEFAULT 'system'
+);
 `);
 }

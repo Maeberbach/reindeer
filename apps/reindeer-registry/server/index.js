@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SCOPE_TYPE } from '@reindeer-legacy/core-api';
-import { openDb, defaultDataDir, ulid, SqliteAuditLog, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry, PeopleRepo, HeirsRepo, WillsCaretakersRepo, AddendumVersionsRepo, ParticipantsRepo, MagicLinksRepo, SessionsRepo, MemorandumRepo, ReminderPrefsRepo } from '@reindeer-legacy/core-data';
+import { openDb, defaultDataDir, ulid, SqliteAuditLog, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry, PeopleRepo, HeirsRepo, WillsCaretakersRepo, AddendumVersionsRepo, ParticipantsRepo, MagicLinksRepo, SessionsRepo, MemorandumRepo, ReminderPrefsRepo, createCorporateSettings } from '@reindeer-legacy/core-data';
 import { AuthService } from './auth/service.js';
 import { attachSession, authRequired } from './auth/middleware.js';
 import { adminBackdoor, backdoorEnabled, isBackdoorAdmin, isBackdoorSupport, supportEnabled } from './adminBackdoor.js';
@@ -33,6 +33,11 @@ const db = openDb(path.join(DATA_DIR, 'inventory.db'), {
   estateId: SCOPE_ID,
   encrypt: REGISTRY_FLAGS.encryption === true,
 });
+
+// Persistent corporate settings store — feature flags survive restarts.
+const corporateSettings = createCorporateSettings(db);
+corporateSettings.loadAllFlags(REGISTRY_FLAGS);
+console.log('[admin] Feature flags loaded from corporate_settings:', { ...REGISTRY_FLAGS });
 const audit = new SqliteAuditLog(db);
 const itemRepo = new SqliteItemRepository(db, audit);
 const mediaStore = new FsMediaStore(db, path.join(DATA_DIR, 'media'));
@@ -302,6 +307,12 @@ const HARD_MAX_FRAMES = 8;
 let maxFramesSetting = parseInt(process.env.REINDEER_MAX_FRAMES, 10);
 if (!Number.isFinite(maxFramesSetting) || maxFramesSetting < 1) maxFramesSetting = DEFAULT_MAX_FRAMES;
 if (maxFramesSetting > HARD_MAX_FRAMES) maxFramesSetting = HARD_MAX_FRAMES;
+// Override with persisted value if it exists (admin previously changed it).
+const persistedMaxFrames = corporateSettings.get('max_frames');
+if (persistedMaxFrames) {
+  const pf = parseInt(persistedMaxFrames, 10);
+  if (Number.isFinite(pf) && pf >= 1) maxFramesSetting = Math.min(pf, HARD_MAX_FRAMES);
+}
 
 // GET /api/settings/max-frames — returns the current max frames per room.
 // Public to the authenticated session.
@@ -323,6 +334,7 @@ app.post('/api/admin/max-frames', (req, res, next) => {
       return res.status(400).json({ error: 'max_frames must be a positive number.' });
     }
     maxFramesSetting = Math.min(requested, HARD_MAX_FRAMES);
+    corporateSettings.set('max_frames', maxFramesSetting, 'admin');
     res.json({ max_frames: maxFramesSetting, hard_max: HARD_MAX_FRAMES });
   } catch (e) { next(e); }
 });
@@ -425,7 +437,8 @@ app.post('/api/admin/feature-flags', (req, res, next) => {
     for (const [key, val] of Object.entries(updates)) {
       if (key in REGISTRY_FLAGS) {
         REGISTRY_FLAGS[key] = !!val;
-        console.log(`[admin] feature flag ${key} = ${val}`);
+        corporateSettings.saveFlag(key, !!val, 'backdoor-admin');
+        console.log(`[admin] feature flag ${key} = ${val} (persisted)`);
       }
     }
     res.json({ feature_flags: REGISTRY_FLAGS });
