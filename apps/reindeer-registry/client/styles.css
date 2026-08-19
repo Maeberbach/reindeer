@@ -544,6 +544,8 @@ select.bigin{appearance:none; background-image:linear-gradient(45deg,transparent
   margin:20px 0 6px; padding-top:16px; border-top:1px solid var(--line);
 }
 .quietrow .linky{font-size:18px}
+.quick-links{display:flex;flex-wrap:wrap;gap:18px 24px;justify-content:center;margin:14px 0 6px}
+.quick-links .linky{font-size:18px}
 
 /* -------------------------------------------------- Add-your-partner card
    Sits between the main tile grid and the quietrow. Soft-colored so it invites

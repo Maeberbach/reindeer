@@ -281,7 +281,8 @@
   </section>
 
   <section class="screen" data-screen="home" hidden>
-    <h2 class="bighead">Photograph the things that matter. Write down who they are for. Print it, and hand it on.</h2>
+    <h2 class="bighead">Welcome to Reindeer Registry</h2>
+    <p class="lede">A loving place to begin naming who should receive the belongings closest to your heart. Photograph what matters, write down who it's for, and hand it on.</p>
     <!--
       Co-owner invitation card — at the top so it's the first thing
       a solo owner sees. Shown ONLY when household_mode === 'solo'.
@@ -295,6 +296,18 @@
       </span>
     </button>
     <p class="partner-linked" id="homePartnerLinked" hidden>Linked with <span id="homePartnerName"></span>.</p>
+
+    <!--
+      Three quick links — right under the co-owner card so the owner
+      can reach their items, people, and print without scrolling to the
+      bottom. These were partner-card tiles in an earlier layout and
+      got accidentally demoted to the quiet row.
+    -->
+    <div class="quick-links">
+      <button class="linky" data-go="list">My items</button>
+      <button class="linky" data-go="people">My people</button>
+      <button class="linky" data-go="print">Print</button>
+    </div>
 
     <!--
       Two counts, never one bar.
@@ -406,9 +419,6 @@
     </div>
 
     <div class="quietrow">
-      <button class="linky" data-go="list">My items</button>
-      <button class="linky" data-go="people">My people</button>
-      <button class="linky" data-go="print">Print</button>
       <!--
         Slice 4a — quiet-row entry for household-link. Kept out of the main
         tile grid on purpose: most owners do this alone and the two doors up
