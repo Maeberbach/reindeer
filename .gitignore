@@ -10,5 +10,4 @@ uploads/*
 .npm/
 __pycache__/
 .cache/
-blobs/
 conversations/
