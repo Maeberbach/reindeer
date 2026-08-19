@@ -598,6 +598,19 @@
 
   <!-- GUIDED CAPTURE -->
   <section class="screen" data-screen="capture" hidden>
+    <!--
+      Location permission notice — shown before the browser's geolocation
+      prompt so the owner understands why we need location and which
+      permission level to choose. Only shown once (first capture session).
+    -->
+    <div class="loc-notice" id="locNotice" hidden>
+      <div class="loc-notice-box">
+        <h3>Why we need your location</h3>
+        <p>Reindeer uses your location to keep track of where things are. This helps when you have items at more than one place — a storage unit or a second home.</p>
+        <p>When your browser asks for permission, we recommend choosing <strong>"Only while using the site."</strong></p>
+        <button class="primary" id="locNoticeContinue">Continue</button>
+      </div>
+    </div>
     <div class="steps" id="stepDots"></div>
     <!-- Helper banner: shown only when myRole === 'assistant'. Explains
          that they can capture and flag for review, but cannot assign items. -->

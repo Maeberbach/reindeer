@@ -323,9 +323,20 @@ function go(name, opts = {}) {
     if (currentSite && currentSite.site_id !== activeSiteId) {
       activeSiteId = currentSite.site_id;
     }
-    // Trigger geosyncing when entering capture
+    // Trigger geosyncing when entering capture — but show the location
+    // notice first so the owner knows why the browser is about to ask.
     if (!cap.geoChecked) {
-      loadSites().then(() => detectLocation());
+      const locNotice = $('#locNotice');
+      if (locNotice && locNotice.hidden) {
+        locNotice.hidden = false;
+        const locBtn = $('#locNoticeContinue');
+        if (locBtn) locBtn.onclick = () => {
+          locNotice.hidden = true;
+          loadSites().then(() => detectLocation());
+        };
+      } else {
+        loadSites().then(() => detectLocation());
+      }
     }
     // Always update the site UI — breadcrumb shows even before geo check
     syncSiteUI();

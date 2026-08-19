@@ -1016,3 +1016,11 @@ hr.softrule {
 .review-item .btn-confirm{background:var(--ok); color:#fff; border:0}
 .review-item .btn-dismiss{background:transparent; color:var(--ink)}
 .roomreview .primary.wide{margin-top:18px}
+
+/* Location permission notice — shown before browser geolocation prompt */
+.loc-notice{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+.loc-notice[hidden]{display:none}
+.loc-notice-box{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:28px 24px;max-width:420px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.2)}
+.loc-notice-box h3{margin:0 0 12px;font-size:20px;color:var(--ink)}
+.loc-notice-box p{font-size:16px;color:var(--ink-2);line-height:1.5;margin:0 0 12px}
+.loc-notice-box .primary{margin-top:8px}
