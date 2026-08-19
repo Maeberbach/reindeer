@@ -1672,6 +1672,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     photoUrl: z.string().nullable().optional(),
     thumbnailUrl: z.string().nullable().optional(),
     isHeirloomCandidate: z.boolean().optional(),
+    lat: z.number().nullable().optional(),
+    lon: z.number().nullable().optional(),
   });
 
   app.post("/api/items", enforcePause(), async (req, res) => {
@@ -1702,6 +1704,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         isPractice: false,
         // Null when the captain catalogued it; heirs own what they add.
         createdByParticipantId: actor && !actor.isAdmin ? actor.id : null,
+        lat: body.lat ?? null,
+        lon: body.lon ?? null,
       });
     // A photograph is enough to guess a category. The guess happens after the
     // response so cataloguing never waits on a model.
@@ -2060,6 +2064,47 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
     await storage.deleteItem(Number(req.params.id));
     res.json({ ok: true });
+  });
+
+  /* ---------- location-based room verification ---------- */
+  /**
+   * Given a lat/lon, returns the most likely room based on existing
+   * items' locations. Items photographed within ~30 meters of each
+   * other are likely in the same room. Returns the best-matching room
+   * and a confidence score.
+   */
+  app.get("/api/items/verify-location", async (req, res) => {
+    const lat = parseFloat(req.query.lat as string);
+    const lon = parseFloat(req.query.lon as string);
+    if (isNaN(lat) || isNaN(lon)) return res.status(400).json({ error: "Invalid coordinates" });
+
+    const items = (await storage.listItems()).filter((i) => i.lat != null && i.lon != null);
+    if (items.length === 0) return res.json({ room: null, confidence: 0, nearbyCount: 0 });
+
+    // Haversine distance in meters
+    const R = 6371000; // Earth radius in meters
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const distance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(a));
+    };
+
+    // Find items within 30 meters and count by room
+    const nearby = items.filter((i) => distance(lat, lon, i.lat!, i.lon!) < 30);
+    if (nearby.length === 0) return res.json({ room: null, confidence: 0, nearbyCount: 0 });
+
+    const roomCounts: Record<string, number> = {};
+    for (const i of nearby) {
+      const r = i.room || "(unassigned)";
+      roomCounts[r] = (roomCounts[r] || 0) + 1;
+    }
+    const sorted = Object.entries(roomCounts).sort((a, b) => b[1] - a[1]);
+    const [bestRoom, bestCount] = sorted[0];
+    const confidence = bestCount / nearby.length;
+
+    res.json({ room: bestRoom, confidence, nearbyCount: nearby.length });
   });
 
   /* ---------- batch intake (AI Vision) ---------- */

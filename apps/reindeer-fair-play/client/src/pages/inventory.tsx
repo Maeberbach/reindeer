@@ -43,6 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useGeolocation } from "@/hooks/use-geolocation";
 
 import type { Item } from "@shared/schema";
 import {
@@ -194,6 +195,7 @@ export default function InventoryPage() {
     }
   }
 
+  const { capture: captureLocation } = useGeolocation();
   const addItem = useMutation({
     mutationFn: async (v: ItemForm & { photoUrl?: string | null }) => {
       const res = await apiRequest("POST", "/api/items", {
@@ -235,6 +237,7 @@ export default function InventoryPage() {
       const dataUrl = await readFile(file);
       const up = await apiRequest("POST", "/api/upload", { dataUrl });
       const { url } = await up.json();
+      const loc = await captureLocation();
       const res = await apiRequest("POST", "/api/items", {
         participantId: userId,
         name: file.name.replace(/\.[a-z0-9]+$/i, "") || "Untitled item",
@@ -243,6 +246,8 @@ export default function InventoryPage() {
         notes: "Quick add — single photo",
         photoUrl: url,
         thumbnailUrl: url,
+        lat: loc?.lat ?? null,
+        lon: loc?.lon ?? null,
       });
       return res.json();
     },
@@ -505,9 +510,10 @@ export default function InventoryPage() {
                   <form
                     className="space-y-4"
                     data-testid="form-add-item"
-                    onSubmit={form.handleSubmit((v) =>
-                      addItem.mutate({ ...v, room: room || v.room, photoUrl: addPhotoUrl }),
-                    )}
+                    onSubmit={form.handleSubmit(async (v) => {
+                      const loc = await captureLocation();
+                      addItem.mutate({ ...v, room: room || v.room, photoUrl: addPhotoUrl, lat: loc?.lat ?? null, lon: loc?.lon ?? null });
+                    })}
                   >
                     <FormField
                       control={form.control}

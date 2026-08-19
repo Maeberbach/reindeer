@@ -205,7 +205,9 @@ CREATE TABLE IF NOT EXISTS items (
   owner_assigned_evidence TEXT NOT NULL DEFAULT '',
   /* commit 4 memorandum-locked items */
   locked_by_memorandum INTEGER NOT NULL DEFAULT 0,
-  memorandum_owner_name TEXT NOT NULL DEFAULT ''
+  memorandum_owner_name TEXT NOT NULL DEFAULT '',
+  lat REAL,
+  lon REAL
 );
 
 /* ------------------------------------------------------------------ */
@@ -535,7 +537,9 @@ CREATE TABLE IF NOT EXISTS staged_items (
   detected_owner_assignment_review_reason TEXT NOT NULL DEFAULT '',
   /* commit 4 memorandum-locked items */
   locked_by_memorandum INTEGER NOT NULL DEFAULT 0,
-  memorandum_owner_name TEXT NOT NULL DEFAULT ''
+  memorandum_owner_name TEXT NOT NULL DEFAULT '',
+  lat REAL,
+  lon REAL
 );
 CREATE INDEX IF NOT EXISTS idx_staged_items_batch ON staged_items (import_batch_row_id);
 CREATE INDEX IF NOT EXISTS idx_staged_items_state ON staged_items (session_id, state);
@@ -678,3 +682,7 @@ CREATE INDEX IF NOT EXISTS method_agreements_session
   ON method_agreements (session_id, agreed_at);
 `);
 }
+
+-- v16: geolocation for items (room/site verification)
+ALTER TABLE items ADD COLUMN lat REAL;
+ALTER TABLE items ADD COLUMN lon REAL;

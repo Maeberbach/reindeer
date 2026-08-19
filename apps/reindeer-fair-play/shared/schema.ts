@@ -394,6 +394,15 @@ export const items = sqliteTable("items", {
    */
   lockedByMemorandum: integer("locked_by_memorandum", { mode: "boolean" }).notNull().default(false),
   memorandumOwnerName: text("memorandum_owner_name").notNull().default(""),
+  /**
+   * Geolocation captured when the item was catalogued. Used to verify
+   * the room/site assignment by cross-referencing with previous items'
+   * locations — items photographed close together are likely in the
+   * same room. Also helps when items span multiple sites (storage unit,
+   * second home). Both are null when location permission was denied.
+   */
+  lat: real("lat"),
+  lon: real("lon"),
 });
 
 /* ------------------------------------------------------------------ */

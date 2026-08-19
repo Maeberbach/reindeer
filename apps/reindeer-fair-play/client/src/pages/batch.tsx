@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useGeolocation } from "@/hooks/use-geolocation";
 
 import { Sparkles, Upload } from "lucide-react";
 
@@ -51,6 +52,7 @@ const DEMO_IMAGE =
 
 export default function BatchIntakePage() {
   const [detections, setDetections] = useState<Detection[]>([]);
+  const { capture: captureLocation } = useGeolocation();
   const [engine, setEngine] = useState<string>("");
   const fileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -83,6 +85,7 @@ export default function BatchIntakePage() {
 
   const approve = useMutation({
     mutationFn: async (rows: Detection[]) => {
+      const loc = await captureLocation();
       for (const d of rows) {
         await apiRequest("POST", "/api/items", {
           participantId: userId,
@@ -95,6 +98,8 @@ export default function BatchIntakePage() {
           photoUrl: d.photoUrl || null,
           thumbnailUrl: d.thumbnailUrl,
           isHeirloomCandidate: d.isHeirloomCandidate,
+          lat: loc?.lat ?? null,
+          lon: loc?.lon ?? null,
         });
       }
       return rows.map((r) => r.tempId);
