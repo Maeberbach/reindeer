@@ -330,9 +330,15 @@ function go(name, opts = {}) {
       if (locNotice && locNotice.hidden) {
         locNotice.hidden = false;
         const locBtn = $('#locNoticeContinue');
+        const locSkip = $('#locNoticeSkip');
         if (locBtn) locBtn.onclick = () => {
           locNotice.hidden = true;
           loadSites().then(() => detectLocation());
+        };
+        if (locSkip) locSkip.onclick = () => {
+          locNotice.hidden = true;
+          cap.geoChecked = true;  // Mark as checked so we don't ask again this session
+          syncSiteUI();
         };
       } else {
         loadSites().then(() => detectLocation());
