@@ -1290,3 +1290,9 @@ hr.softrule {
 .freview-actions {
   margin-top: 20px;
 }
+
+/* Accept bar — quick save path for guided intro / practice mode */
+.cap-accept{margin:16px 0;padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--surface,#fff)}
+.cap-accept p{font-size:16px;margin:0 0 10px;color:var(--ink)}
+.cap-accept .bigin{margin-bottom:12px}
+.cap-accept button{margin-top:6px}
