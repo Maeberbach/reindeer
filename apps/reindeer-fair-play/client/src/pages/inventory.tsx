@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { useAppState, useUser, STATE_KEY, money } from "@/lib/app";
+import { useAppState, useUser, STATE_KEY, money , useCanSeeValues } from "@/lib/app";
 import { AppShell, PageHeader, LoadingRows } from "@/components/shell";
 import { FlagToggles } from "@/components/classification-flags";
 import { AskForAppraisalButton } from "@/components/ask-for-appraisal";
@@ -119,6 +119,7 @@ export default function InventoryPage() {
 
   const me = data?.participants.find((p) => p.id === userId) ?? null;
   const isCaptain = !!me?.id && me.id === data?.session?.captainParticipantId;
+  const canSeeValues = useCanSeeValues();
   // Every heir capability is its own toggle; the captain may always act.
   const perms = parseHeirPermissions(data?.session.heirPermissions);
   const isHelper = isHelperParticipant(me);
@@ -923,7 +924,7 @@ export default function InventoryPage() {
                       )}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      {isCaptain && (
+                      {canSeeValues && (
                         <span data-testid={`text-item-value-${i.id}`}>
                           {i.estimateSource === "ai" ? "AI est — not an appraisal: " : "Est. value: "}
                           {money(i.aiEstimatedValue)}
@@ -931,7 +932,7 @@ export default function InventoryPage() {
                       )}
                       {i.notes && (
                         <span>
-                          {isCaptain ? " · " : ""}
+                          {canSeeValues ? " · " : ""}
                           {i.notes}
                         </span>
                       )}

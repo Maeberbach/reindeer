@@ -9,6 +9,7 @@ import {
   owedLevel,
   priorityList,
   money,
+  useCanSeeValues,
 } from "@/lib/app";
 import { AppShell, PageHeader, LoadingRows } from "@/components/shell";
 import { RankSuggestion } from "@/components/rank-suggestion";
@@ -29,6 +30,7 @@ export default function DraftPage() {
 
   const me = data?.participants.find((p) => p.id === userId) ?? null;
   const isCaptain = !!me?.isAdmin;
+  const canSeeValues = useCanSeeValues();
   const heirs = heirsOf(data?.participants ?? []);
   const round = data?.session.currentRound ?? 0;
   const priority = data ? priorityList(data.session) : [];
@@ -263,7 +265,7 @@ export default function DraftPage() {
                     >
                       <div className="text-sm font-medium">{i.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {i.room}{isCaptain ? ` · ${money(i.aiEstimatedValue)}` : ""}
+                        {i.room}{canSeeValues ? ` · ${money(i.aiEstimatedValue)}` : ""}
                       </div>
                     </Card>
                   ))}
@@ -310,7 +312,7 @@ export default function DraftPage() {
                               {i.name}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {i.room || "—"}{isCaptain ? ` · ${money(i.aiEstimatedValue)}` : ""}
+                              {i.room || "—"}{canSeeValues ? ` · ${money(i.aiEstimatedValue)}` : ""}
                             </div>
                           </div>
                           {isMine && <Lock className="h-3.5 w-3.5 shrink-0 text-primary" />}

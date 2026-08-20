@@ -2,7 +2,7 @@ import { canHeirDo } from "@shared/schema";
 import { useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { STATE_KEY, money, useIsCaptain, useUser, useAppState } from "@/lib/app";
+import { STATE_KEY, money, useIsCaptain, useCanSeeValues, useUser, useAppState } from "@/lib/app";
 import { AppShell, PageHeader } from "@/components/shell";
 import { RoomPicker, useTaxonomy, TAXONOMY_KEY } from "@/components/room-picker";
 import { Button } from "@/components/ui/button";
@@ -61,6 +61,7 @@ export default function BatchIntakePage() {
   const { userId } = useUser();
   const { data: appState } = useAppState();
   const isCaptain = useIsCaptain();
+  const canSeeValues = useCanSeeValues();
   const meB = appState?.participants.find((p) => p.id === userId) ?? null;
   const canIntake = !!meB?.isAdmin || canHeirDo(appState?.session ?? {}, "addItems");
   const { data: taxonomy } = useTaxonomy();
@@ -255,7 +256,7 @@ export default function BatchIntakePage() {
                       onChange={(e) => patch(d.tempId, { name: e.target.value })}
                     />
                     <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      {isCaptain && (
+                      {canSeeValues && (
                         <Badge variant="secondary" data-testid={`text-detection-estimate-${d.tempId}`}>
                           AI est — not an appraisal: {money(d.aiEstimatedValue)}
                         </Badge>

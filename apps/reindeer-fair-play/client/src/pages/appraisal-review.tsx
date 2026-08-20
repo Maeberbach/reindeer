@@ -27,7 +27,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useAppState, useUser, STATE_KEY } from "@/lib/app";
+import { useAppState, useUser, STATE_KEY, useCanSeeValues } from "@/lib/app";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { AppraisalFlag, Item } from "@shared/schema";
@@ -152,6 +152,7 @@ export default function AppraisalReviewPage() {
 
   const phase = state?.session.phase ?? "welcome";
   const isCaptain = state?.session.captainParticipantId === userId;
+  const canSeeValues = useCanSeeValues();
   const canOpenRanking = phase === "intake" && isCaptain;
 
   if (stateLoading || itemsQuery.isLoading || flagsQuery.isLoading) {
@@ -336,7 +337,7 @@ export default function AppraisalReviewPage() {
                       {r.item.category && (
                         <span className="text-xs text-muted-foreground">· {r.item.category}</span>
                       )}
-                      {r.item.aiEstimatedValue != null && (
+                      {canSeeValues && r.item.aiEstimatedValue != null && (
                         <span
                           className="text-xs tabular-nums text-muted-foreground"
                           data-testid={`text-ai-estimate-${r.item.id}`}

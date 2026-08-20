@@ -1,4 +1,4 @@
-import { useAppState, useIsCaptain, heirsOf, money } from "@/lib/app";
+import { useAppState, useIsCaptain, useCanSeeValues, heirsOf, money } from "@/lib/app";
 import { AppShell, PageHeader, LoadingRows, Logo } from "@/components/shell";
 import { useCsvExport } from "@/pages/inventory";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { Download, Printer } from "lucide-react";
 export default function ResultsPage() {
   const { data, isLoading } = useAppState();
   const isCaptain = useIsCaptain();
+  const canSeeValues = useCanSeeValues();
   const csv = useCsvExport();
   const awarded = (data?.items ?? []).filter((i) => i.status === "awarded");
   const heirs = heirsOf(data?.participants ?? []);
@@ -153,7 +154,7 @@ export default function ResultsPage() {
                           </Badge>
                         )}
                       </TableCell>
-                      {isCaptain && (
+                      {canSeeValues && (
                         <TableCell className="text-right">{money(i.aiEstimatedValue)}</TableCell>
                       )}
                     </TableRow>
@@ -276,7 +277,7 @@ export default function ResultsPage() {
                   <Card key={i.id} className="p-3" data-testid={`card-leftover-${i.id}`}>
                     <div className="text-sm font-medium">{i.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      {[i.room, isCaptain ? money(i.aiEstimatedValue) : null]
+                      {[i.room, canSeeValues ? money(i.aiEstimatedValue) : null]
                         .filter(Boolean)
                         .join(" · ")}
                     </div>

@@ -613,8 +613,9 @@ export function money(v: number | null | undefined) {
 }
 
 /**
- * True when the current signed-in participant is the captain (or a captain-heir). Only
- * The captain sees monetary estimates — heirs see the "High value" badge alone.
+ * True when the current signed-in participant is the captain (or a captain-heir). This
+ * gates ADMINISTRATIVE powers (advancing phases, editing items, managing flags) —
+ * NOT value visibility. Use useCanSeeValues() for that.
  */
 export function useIsCaptain(): boolean {
   const { data } = useAppState();
@@ -623,9 +624,41 @@ export function useIsCaptain(): boolean {
   return !!me?.isAdmin;
 }
 
-/** Money display gated by captain role. Heirs see a placeholder, captain sees the figure. */
-export function moneyForRole(v: number | null | undefined, isCaptain: boolean): string {
-  if (!isCaptain) return "";
+/**
+ * Who may see monetary estimates. Per Mark's rule:
+ *   - Only fiduciaries (trustee / representative role) see values.
+ *   - Guest captains never see values — not even after distributions complete.
+ *   - Captain-heirs never see values (they are also heirs).
+ *   - After distributions are complete, everyone EXCEPT pure guest captains sees values.
+ *
+ * A "pure guest captain" is isAdmin && administersOnly && role === 'heir' — someone
+ * brought in from outside the family to run the session who is neither heir nor
+ * fiduciary.
+ */
+export function useCanSeeValues(): boolean {
+  const { data } = useAppState();
+  const { userId } = useUser();
+  const me = data?.participants.find((p) => p.id === userId) ?? null;
+  if (!me) return false;
+  const phase = data?.session.phase ?? "welcome";
+  const isFiduciary = me.role === "trustee" || me.role === "representative";
+  const distributionsComplete = phase === "complete";
+  // Pure guest captain: outside admin who is NOT an heir and NOT a fiduciary.
+  // They never see values, period.
+  const isPureGuestCaptain =
+    !!me.isAdmin && !!me.administersOnly && me.role === "heir";
+  if (isPureGuestCaptain) return false;
+  // Fiduciaries always see values.
+  if (isFiduciary) return true;
+  // After distributions complete, everyone except pure guest captains sees values.
+  if (distributionsComplete) return true;
+  // Otherwise (intake, ranking, draft, etc.) only fiduciaries see values.
+  return false;
+}
+
+/** Money display gated by value-visibility (fiduciary or post-distribution). */
+export function moneyForRole(v: number | null | undefined, canSeeValues: boolean): string {
+  if (!canSeeValues) return "";
   return money(v);
 }
 

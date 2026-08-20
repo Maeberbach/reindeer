@@ -58,7 +58,7 @@ import {
   money,
   useAppState,
   useCountdown,
-  useIsCaptain,
+  useIsCaptain, useCanSeeValues,
   useUser,
 } from "@/lib/app";
 import { useToast } from "@/hooks/use-toast";
@@ -100,11 +100,13 @@ function RankRowCard({
   onRemove,
   onAdd,
   isCaptain,
+  canSeeValues,
 }: {
   item: Item;
   rank: number | null;
   total: number;
   isCaptain: boolean;
+  canSeeValues: boolean;
   disabled: boolean;
   /** "Edited by captain at …" note shown on the heir's own list. */
   assistBadge?: string | null;
@@ -174,7 +176,7 @@ function RankRowCard({
         </div>
         <div className="truncate text-xs text-muted-foreground">
           {item.room || "No room recorded"}
-          {isCaptain && item.aiEstimatedValue ? ` · ${money(item.aiEstimatedValue)}` : ""}
+          {canSeeValues && item.aiEstimatedValue ? ` · ${money(item.aiEstimatedValue)}` : ""}
         </div>
         {/* Ranking is where most families finally agree what a thing *is*. */}
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -278,6 +280,7 @@ export default function RankPage({
   const { data, isLoading } = useAppState();
   const { userId } = useUser();
   const isCaptain = useIsCaptain();
+  const canSeeValues = useCanSeeValues();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [auditOpen, setAuditOpen] = useState(false);
@@ -733,6 +736,7 @@ export default function RankPage({
                       disabled={disabled}
                       tinted={assisting}
                       isCaptain={isCaptain}
+                      canSeeValues={canSeeValues}
                       assistBadge={badgeByItem.get(item.id) ?? null}
                       onMoveTo={(r) => commit(arrayMove(order, idx, r - 1))}
                       onNudge={(d) =>
@@ -815,6 +819,7 @@ export default function RankPage({
                       disabled={disabled}
                       tinted={assisting}
                       isCaptain={isCaptain}
+                      canSeeValues={canSeeValues}
                       onAdd={() => commit([...order, item.id])}
                     />
                   ))}
