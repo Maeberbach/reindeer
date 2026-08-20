@@ -494,11 +494,17 @@ function resetCapture() {
 
 // Show the details section after a photo is taken
 function showCapDetails() {
-  ($('#capPhotoLabel') || {}).hidden = true;
-  ($('#capRetake') || {}).hidden = false;
-  ($('#capPhotoHint') || {}).hidden = true;
-  ($('#capDetails') || {}).hidden = false;
-  ($('#capNav') || {}).hidden = false;
+  // Unhide the step divs (Name through Save) so the owner can fill in
+  // details while AI thinks. Previously this tried to show a #capDetails
+  // container that no longer exists — the steps stayed hidden and the
+  // AI note, name field, and everything else were invisible.
+  document.querySelectorAll('.step[data-step]').forEach((el) => {
+    if (el.dataset.step !== '0') el.hidden = false;
+  });
+  // Skip the retired "Worth" step — the owner sets value, not the camera.
+  document.querySelectorAll('.step[data-retired]').forEach((el) => {
+    el.hidden = true;
+  });
   // Show "Save & take another" when a room is locked — lets the owner rapid-fire
   // through items in the same room without going through the post-save screen.
   const anotherBtn = $('#stepNextAnother');

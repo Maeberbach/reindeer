@@ -664,6 +664,20 @@
       <p class="reassure">Hold the item so it fills most of the picture.</p>
     </div>
 
+    <!--
+      Accept bar — quick save path for guided intro / practice mode.
+      Shown by showAcceptBar() after the AI identifies the photo (or
+      immediately if AI is unavailable). Lets the owner confirm the name
+      and save in one tap without scrolling through the full form.
+      "Edit details" reveals the full multi-step form below.
+    -->
+    <div class="cap-accept" id="capAcceptBar" hidden>
+      <p id="capAcceptLabel"></p>
+      <input type="text" id="capAcceptName" class="bigin" placeholder="What is this?">
+      <button class="primary wide" id="capAcceptBtn">Save this item</button>
+      <button class="ghost wide" id="capEditDetailsBtn">Edit details first</button>
+    </div>
+
     <div class="step" data-stepname="Name" data-step="1" hidden>
       <h2>What is it?</h2>
       <p class="aiNote" id="aiNote" hidden></p>
