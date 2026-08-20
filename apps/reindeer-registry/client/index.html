@@ -735,49 +735,23 @@
       questions are unnecessary. They appear here, after the important
       toggle, so the owner never has to scroll past them for ordinary items.
     -->
-    <div class="step cap-important-only" data-stepname="Maker" data-step="5" hidden>
-      <h2>Who made it?</h2>
-      <label class="fieldlabel" for="capMaker">Maker, artist, or brand</label>
-      <input type="text" id="capMaker" class="bigin" placeholder="A name — or leave this blank">
-      <button class="ghost wide" data-mic="capMaker">🎤 Speak instead of typing</button>
-
-      <label class="fieldlabel" for="capMarks">Any signature, stamp, or numbers on it</label>
-      <textarea id="capMarks" class="bigin" rows="2" placeholder="For example: signed on the back, or a number stamped underneath"></textarea>
-      <button class="ghost wide" data-mic="capMarks">🎤 Speak instead of typing</button>
-
-      <p class="reassure">If a piece is signed, this is often the single most valuable thing to write down. Look on the back, the underside, and the edges.</p>
-    </div>
-
-    <div class="step cap-important-only" data-stepname="Story" data-step="6" hidden>
+    <!--
+      Story comes first among the important-only details. The owner explains
+      why this item matters and why the person they have in mind should have
+      it, before naming that person in the "For whom" step below.
+    -->
+    <div class="step cap-important-only" data-stepname="Story" data-step="5" hidden>
       <h2>Tell its story</h2>
-      <textarea id="capStory" class="bigin" rows="4" placeholder="Where it came from, who it belonged to, why it matters"></textarea>
+      <textarea id="capStory" class="bigin" rows="4" placeholder="Why this item matters, who should have it and why"></textarea>
       <button class="ghost wide" data-mic="capStory">🎤 Speak instead of typing</button>
-      <p class="reassure">This is optional. Even one sentence helps.</p>
+      <p class="reassure">Even one sentence helps. Say why this one matters to you.</p>
     </div>
 
-    <div class="step" data-stepname="Worth" data-step="7" hidden data-retired="1">
-      <h2>What is it worth?</h2>
-      <label class="fieldlabel" for="capValue">Your best idea of the value</label>
-      <div class="moneyrow">
-        <span class="moneysign">$</span>
-        <input type="text" inputmode="decimal" id="capValue" class="bigin" placeholder="Leave blank if you don't know">
-      </div>
-      <button class="ghost wide" data-mic="capValue">🎤 Say the amount instead</button>
-
-      <label class="fieldlabel" for="capValueBasis">How do you know?</label>
-      <select id="capValueBasis" class="bigin">
-        <option value="unknown">I'm not sure — this is a guess</option>
-        <option value="owner_estimate">My own estimate</option>
-        <option value="appraisal">A written appraisal</option>
-        <option value="receipt">A receipt or purchase record</option>
-        <option value="comparable_sale">I saw a similar one sell</option>
-        <option value="insurance">It is listed on my insurance</option>
-      </select>
-
-      <p class="reassure">A rough number is far better than none. Nobody is held to it, and you can change it any time.</p>
-    </div>
-
-    <div class="step" data-stepname="For whom" data-step="8" hidden>
+    <!--
+      For whom — also important-only. General inventory does not need a
+      recipient. This is a wish, not a legal instruction.
+    -->
+    <div class="step cap-important-only" data-stepname="For whom" data-step="6" hidden>
       <h2>Who would you like to have it?</h2>
       <div class="chips" id="personChips"></div>
       <input type="text" id="capRecipient" class="bigin" placeholder="A name — or leave this blank">
@@ -799,6 +773,45 @@
         </label>
         <p class="important-hint">Puts <span id="capGiftWho">this person</span> and this item on your list of special gifting. You can change it later on the Special gifts screen.</p>
       </div>
+    </div>
+
+    <!--
+      Maker — the last of the important-only details. Who made it, any
+      signatures or marks. This is where the provenance lives.
+    -->
+    <div class="step cap-important-only" data-stepname="Maker" data-step="7" hidden>
+      <h2>Who made it?</h2>
+      <label class="fieldlabel" for="capMaker">Maker, artist, or brand</label>
+      <input type="text" id="capMaker" class="bigin" placeholder="A name — or leave this blank">
+      <button class="ghost wide" data-mic="capMaker">🎤 Speak instead of typing</button>
+
+      <label class="fieldlabel" for="capMarks">Any signature, stamp, or numbers on it</label>
+      <textarea id="capMarks" class="bigin" rows="2" placeholder="For example: signed on the back, or a number stamped underneath"></textarea>
+      <button class="ghost wide" data-mic="capMarks">🎤 Speak instead of typing</button>
+
+      <p class="reassure">If a piece is signed, this is often the single most valuable thing to write down. Look on the back, the underside, and the edges.</p>
+    </div>
+
+    <div class="step" data-stepname="Worth" data-step="8" hidden data-retired="1">
+      <h2>What is it worth?</h2>
+      <label class="fieldlabel" for="capValue">Your best idea of the value</label>
+      <div class="moneyrow">
+        <span class="moneysign">$</span>
+        <input type="text" inputmode="decimal" id="capValue" class="bigin" placeholder="Leave blank if you don't know">
+      </div>
+      <button class="ghost wide" data-mic="capValue">🎤 Say the amount instead</button>
+
+      <label class="fieldlabel" for="capValueBasis">How do you know?</label>
+      <select id="capValueBasis" class="bigin">
+        <option value="unknown">I'm not sure — this is a guess</option>
+        <option value="owner_estimate">My own estimate</option>
+        <option value="appraisal">A written appraisal</option>
+        <option value="receipt">A receipt or purchase record</option>
+        <option value="comparable_sale">I saw a similar one sell</option>
+        <option value="insurance">It is listed on my insurance</option>
+      </select>
+
+      <p class="reassure">A rough number is far better than none. Nobody is held to it, and you can change it any time.</p>
     </div>
 
     <div class="step" data-stepname="Save" data-step="9" hidden>
