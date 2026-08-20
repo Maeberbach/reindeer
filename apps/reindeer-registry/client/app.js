@@ -1205,6 +1205,17 @@ $('#capPhoto').onchange = async (e) => {
           </div>`;
         });
         noteHtml += `<button class="primary wide" id="saveAllExtras">Save all items from this photo</button>`;
+        noteHtml += `<div class="ai-extra-manual">
+          <p class="ai-extras-hint">Didn't catch something? Add it yourself.</p>
+          <div class="ai-extra-manual-row">
+            <input type="text" id="manualExtraName" placeholder="What else is in this photo?" class="ai-extra-input">
+            <label class="ai-extra-check ai-extra-manual-important">
+              <input type="checkbox" id="manualExtraImportant">
+              <span>Important</span>
+            </label>
+            <button class="ghost small" id="saveManualExtra">Add</button>
+          </div>
+        </div>`;
         noteHtml += `</div>`;
       }
       setNote(noteHtml);
@@ -1261,6 +1272,53 @@ $('#capPhoto').onchange = async (e) => {
             toast(`${saved} items saved from this photo.`);
           };
         }
+        // Manual "Add another item from this photo" — lets the owner type a
+        // name for something the AI missed (e.g. a mirror in the background).
+        // Saves via intake/commit with the whole photo (no crop) and the
+        // owner's typed name. Created as DRAFT so it shows for review.
+        const manualBtn = $('#saveManualExtra');
+        if (manualBtn) {
+          manualBtn.onclick = async () => {
+            const nameInput = $('#manualExtraName');
+            const name = nameInput?.value.trim();
+            if (!name) { nameInput?.focus(); return; }
+            const importantBox = $('#manualExtraImportant');
+            const isImportant = importantBox?.checked === true;
+            manualBtn.disabled = true;
+            manualBtn.textContent = 'Saving…';
+            try {
+              await api('/api/intake/commit', {
+                method: 'POST', headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ detections: [{
+                  label: name,
+                  crop_data_url: cap.dataUrl,
+                  room: cap.room || null,
+                  tentative_high_value: isImportant,
+                  tentative_high_value_source: isImportant ? 'owner' : '',
+                  site_id: cap.siteId || activeSiteId || null,
+                  confidence: null,
+                }] }),
+              });
+              nameInput.value = '';
+              if (importantBox) importantBox.checked = false;
+              manualBtn.textContent = 'Added ✓';
+              setTimeout(() => { manualBtn.disabled = false; manualBtn.textContent = 'Add'; }, 2000);
+              refreshCount();
+              toast(`"${name}" added from this photo.`);
+            } catch (e) {
+              manualBtn.disabled = false;
+              manualBtn.textContent = 'Add';
+              toast('Could not save that — try again.', true);
+            }
+          };
+          // Allow Enter key to submit
+          const nameInput = $('#manualExtraName');
+          if (nameInput) {
+            nameInput.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter') { e.preventDefault(); manualBtn.click(); }
+            });
+          }
+        }
         $$('#aiNote [data-save-extra]').forEach((btn) => {
           btn.onclick = async () => {
             const idx = Number(btn.dataset.saveExtra);
@@ -1287,10 +1345,22 @@ $('#capPhoto').onchange = async (e) => {
                   body: JSON.stringify({ images: [{ data_url: crop, frame_index: 0 }] }),
                 });
                 clearTimeout(timer);
-                // Use the enriched detection if AI found something; fall
-                // back to the original whole-photo detection otherwise.
+                // Use the enriched detection for supplementary metadata only
+                // (value suggestion, category refinement). The ORIGINAL label
+                // from the whole-photo detection stays — the close-up AI can
+                // misidentify a crop (e.g. a mirror crop labeled as the same
+                // sculpture), and overwriting the label creates duplicates.
                 if (detections && detections.length > 0) {
-                  enriched = detections.sort((a, b) => b.confidence - a.confidence)[0];
+                  const closeup = detections.sort((a, b) => b.confidence - a.confidence)[0];
+                  // Merge: keep original label, take enriched metadata
+                  enriched = {
+                    ...d,  // original detection (label, bbox, etc.)
+                    value_suggestion: closeup.value_suggestion ?? d.value_suggestion,
+                    value_unknown_reason: closeup.value_unknown_reason ?? d.value_unknown_reason,
+                    category_hint: closeup.category_hint ?? d.category_hint,
+                    identifiers: closeup.identifiers ?? d.identifiers,
+                    confidence: Math.max(d.confidence ?? 0, closeup.confidence ?? 0),
+                  };
                 }
               } catch (e) {
                 // Identification on the crop failed — save with what we
@@ -1307,9 +1377,10 @@ $('#capPhoto').onchange = async (e) => {
                   site_id: cap.siteId || activeSiteId || null,
                 }] }),
               });
-              // Update the label if the close-up identification changed it.
+              // Update the category hint if the close-up refined it.
+              // The label itself stays as the original detection (see above).
               const labelEl = row.querySelector('.ai-extra-label');
-              if (labelEl && enriched.label !== d.label) {
+              if (labelEl && enriched.category_hint && enriched.category_hint !== d.category_hint) {
                 labelEl.textContent = enriched.label + (enriched.category_hint ? ` (${enriched.category_hint})` : '');
               }
               btn.textContent = 'Saved ✓';

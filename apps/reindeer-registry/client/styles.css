@@ -1318,3 +1318,10 @@ hr.softrule {
 .batch-important-check{display:flex;align-items:center;gap:8px;margin:8px 0;cursor:pointer}
 .batch-important-check input{width:20px;height:20px;accent-color:var(--accent)}
 .batch-important-check span{font-size:14px;color:var(--muted)}
+
+/* Manual "Add another item from this photo" section */
+.ai-extra-manual{margin-top:12px;padding-top:12px;border-top:2px dashed var(--border)}
+.ai-extra-manual-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ai-extra-input{flex:1;min-width:160px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.9375rem;background:var(--card);color:var(--text)}
+.ai-extra-input:focus{outline:none;border-color:var(--primary)}
+.ai-extra-manual-important{white-space:nowrap}
