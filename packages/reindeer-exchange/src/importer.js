@@ -85,6 +85,8 @@ export async function importBundle(buffer, {
       identifiers: src.identifiers ?? {},
       value_estimate_cents: src.value_estimate_cents ?? null,
       value_basis: src.value_basis ?? 'unknown',
+      ai_value_suggestion: src.ai_value_suggestion ?? null,
+      ai_value_unknown_reason: src.ai_value_unknown_reason ?? null,
       // Registry's own high-value flag, carried through unchanged on a
       // Registry-to-Registry transfer. The FC boundary is where owner
       // promotion is honored (see

@@ -38,8 +38,11 @@ function describe(item) {
   if (ident.marks) bits.push(`marked ${ident.marks}`);
   if (item.room_name) bits.push(`located in the ${String(item.room_name).toLowerCase()}`);
   if (item.quantity > 1) bits.push(`${item.quantity} in the set`);
-  const val = money(item.value_estimate_cents);
-  if (val) bits.push(`stated value ${val}`);
+  // Value estimates are deliberately excluded from the printed memorandum.
+  // They remain in the database (visible to the owner in the app, transferred
+  // to the fiduciary on export) but are omitted here because many states treat
+  // stated values in estate documents as creating tax or probate complications.
+  // The data is never thrown away — it just never reaches the printed page.
   bits.push('recorded with photograph');
   return bits.join('; ');
 }

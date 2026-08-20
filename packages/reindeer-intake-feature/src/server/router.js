@@ -105,7 +105,7 @@ export function createIntakeRouter(deps) {
     }
     if (body.room_name) body.room_id = registry.resolveRoom(body.room_name, ctx)?.room_id;
     if (body.category_name) body.category_id = registry.resolveCategory(body.category_name, ctx)?.category_id;
-    // The registry documents; it does not value. high_value_flag stays false
+    // The registry captures value estimates to help owners understand their
     // here by design — FairPlay sets it from its own AI estimate against the
     // threshold the captain chooses.
     body.high_value_flag = false;
@@ -320,9 +320,12 @@ export function createIntakeRouter(deps) {
         room_id: d.room_hint ? registry.resolveRoom(d.room_hint, ctx)?.room_id : null,
         quantity: d.quantity ?? 1,
         identifiers: d.identifiers ?? {},
-        // Bulk intake records what a thing IS, never what it is worth. An
-        // 'ai_estimate' basis on an estate record is a fabricated figure wearing
-        // an authoritative label; valuation happens at distribution.
+        // AI value estimates are captured and stored as advisory metadata.
+      // They are visible to the owner in the app and transfer to the fiduciary
+      // on export, but are NOT printed on the memorandum (probate complications
+      // in many states). The owner's own value_estimate_cents, if they set one,
+      // is also kept in the DB but excluded from print. Value_basis stays
+      // 'unknown' for AI estimates — the owner can override with their own.
         value_estimate_cents: null,
         value_basis: 'unknown',
         // The AI's suggested value range is stored as metadata so the owner

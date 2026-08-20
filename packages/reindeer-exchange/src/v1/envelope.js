@@ -66,6 +66,11 @@ export function buildEnvelope({
       identifiers: i.identifiers ?? {},
       value_estimate_cents: i.value_estimate_cents,
       value_basis: i.value_basis,
+      // AI advisory value range (low/high in cents). Transfers to the fiduciary
+      // so they have the owner's AI-assisted estimates alongside the owner's
+      // own stated value. Never printed on the memorandum — probate safety.
+      ai_value_suggestion: i.ai_value_suggestion ?? null,
+      ai_value_unknown_reason: i.ai_value_unknown_reason ?? null,
       high_value_flag: !!i.high_value_flag,
       // The owner's own "this matters" mark, carried in the envelope alongside
       // (never replacing) FairPlay's computed high_value_flag. Reason is one

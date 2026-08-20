@@ -18,6 +18,9 @@ export const CSV_COLUMNS = [
   // that key by fixed column position keep working. See
   // docs/decisions/2026-08-06-important-comment.md.
   'owner_important_comment',
+  // AI advisory value range (low/high in USD). Appended at end for backwards
+  // compat. Never printed on the memorandum — for owner and fiduciary use only.
+  'ai_value_low_usd', 'ai_value_high_usd', 'ai_value_unknown_reason',
 ];
 
 const cell = (v) => {
@@ -39,6 +42,9 @@ export function toCsv(envelope) {
       i.photos.length, i.photos[0]?.file, i.created_at,
       i.owner_high_value ? 'yes' : 'no', i.owner_high_value_reason ?? '',
       i.owner_important_comment ?? '',
+      i.ai_value_suggestion?.low_cents == null ? '' : (i.ai_value_suggestion.low_cents / 100).toFixed(2),
+      i.ai_value_suggestion?.high_cents == null ? '' : (i.ai_value_suggestion.high_cents / 100).toFixed(2),
+      i.ai_value_unknown_reason ?? '',
     ].map(cell).join(','));
   }
   // Trailing note so a printed or emailed CSV carries the disclaimer too.
