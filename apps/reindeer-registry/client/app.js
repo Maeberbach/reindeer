@@ -295,8 +295,6 @@ function go(name, opts = {}) {
   // silently shortened by a mode the owner has already left behind.
   if (name === 'home') {
     promiseMode = false; renderResume(); refreshQueueBadge(); renderCounters(); renderPartnerCard(); showAdminTile();
-    // Update the quick-start tile based on whether items exist
-    updateHomeTile();
     // Render site tiles (second home, vacation, storage)
     renderSites();
     // Apply video capture feature flag
@@ -426,11 +424,6 @@ const qtb = $('#quickTestBtn');
 if (qtb) qtb.onclick = () => { quickTestMode = true; resetCapture(); go('capture'); };
 
 // "Photograph your first item" on the home screen — opens the capture
-// flow in guided intro mode so after the photo saves, the owner sees the
-// "tell its story" prompt before landing back on home.
-const hqs = $('#homeQuickStart');
-if (hqs) hqs.onclick = () => { guidedIntroMode = true; resetCapture(); go('capture'); };
-
 // Recipient welcome — invited partner does one practice item, then lands on
 // the room walkthrough page to start helping with the real inventory.
 const rsb = $('#recipientStartBtn');
@@ -1383,7 +1376,6 @@ async function saveItem() {
     if (recipientPracticeMode) { recipientPracticeMode = false; return go('walk'); }
     if (guidedIntroMode) {
       guidedIntroMode = false;
-      updateHomeTileAfterFirstItem();
       go('guidedmeaning');
       return;
     }
@@ -2826,28 +2818,6 @@ async function renderPartnerCard() {
  *
  * Never combined into a percentage — see the note in the markup.
  */
-// After the first item is saved in guided intro mode, update the home
-// tile to offer "Add another item?" and a hint about the room walkthrough.
-function updateHomeTileAfterFirstItem() {
-  const tile = $('#homeQuickStart');
-  if (!tile) return;
-  const lbl = tile.querySelector('.lbl');
-  const hint = tile.querySelector('.hint');
-  if (lbl) lbl.textContent = 'Add another item?';
-  if (hint) hint.textContent = 'Or try the room-by-room walkthrough to capture a whole room at once.';
-}
-
-// On every home render, check if items already exist and update the tile.
-async function updateHomeTile() {
-  const tile = $('#homeQuickStart');
-  if (!tile) return;
-  try {
-    const { items } = await api('/api/items');
-    if (items.length > 0) {
-      const lbl = tile.querySelector('.lbl');
-      const hint = tile.querySelector('.hint');
-      if (lbl) lbl.textContent = 'Add another item?';
-      if (hint) hint.textContent = 'Or try the room-by-room walkthrough to capture a whole room at once.';
     }
   } catch { /* fail-silent — keep default tile text */ }
 }
