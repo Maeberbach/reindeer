@@ -1395,11 +1395,17 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
-<!-- Floating home button — visible on every screen except home/welcome -->
-<button id="floatingHome" class="floating-home" hidden onclick="document.getElementById('homeBtn').click()">
-  <span class="fh-ico">🏠</span>
-  <span class="fh-lbl">Home</span>
-</button>
+<!-- Floating nav — Back + Home, visible on every screen except landing pages -->
+<div id="floatingNav" class="floating-nav" hidden>
+  <button id="floatingBack" class="floating-nav-btn" onclick="document.getElementById('backBtn').click()">
+    <span class="fh-ico">←</span>
+    <span class="fh-lbl">Back</span>
+  </button>
+  <button id="floatingHome" class="floating-nav-btn primary" onclick="document.getElementById('homeBtn').click()">
+    <span class="fh-ico">🏠</span>
+    <span class="fh-lbl">Home</span>
+  </button>
+</div>
 
 </body>
 </html>

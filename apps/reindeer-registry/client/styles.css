@@ -949,20 +949,26 @@ hr.softrule {
   background: #f0e4b8;
 }
 
-/* Floating home button — persistent navigation on every screen */
-.floating-home{
+/* Floating nav — Back + Home, persistent on every screen */
+.floating-nav{
   position:fixed; bottom:calc(20px + env(safe-area-inset-bottom)); left:50%;
   transform:translateX(-50%); z-index:30;
+  display:flex; align-items:center; gap:10px;
+}
+.floating-nav[hidden]{display:none}
+.floating-nav-btn{
   display:flex; align-items:center; gap:8px;
-  background:var(--accent); color:#fff; border:none; border-radius:999px;
-  padding:12px 28px; font-size:18px; font-weight:650; font-family:inherit;
-  box-shadow:0 4px 16px rgba(0,0,0,0.2); cursor:pointer;
+  background:var(--card-bg); color:var(--text); border:1px solid var(--border);
+  border-radius:999px; padding:12px 22px; font-size:17px; font-weight:650;
+  font-family:inherit; box-shadow:0 4px 16px rgba(0,0,0,0.15); cursor:pointer;
   min-height:52px; transition:transform .15s, opacity .15s;
 }
-.floating-home:hover{transform:translateX(-50%) scale(1.05)}
-.floating-home:active{transform:translateX(-50%) scale(0.95)}
-.floating-home .fh-ico{font-size:22px}
-.floating-home[hidden]{display:none}
+.floating-nav-btn.primary{
+  background:var(--accent); color:#fff; border:none;
+}
+.floating-nav-btn:hover{transform:scale(1.05)}
+.floating-nav-btn:active{transform:scale(0.95)}
+.floating-nav-btn .fh-ico{font-size:20px}
 
 /* GUIDED INTRODUCTION — three-step first-run flow */
 [data-screen="guidedpartner"] .tiles,

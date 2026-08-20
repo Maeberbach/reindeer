@@ -267,9 +267,12 @@ function go(name, opts = {}) {
   $$('.screen').forEach((s) => { s.hidden = s.dataset.screen !== name; });
   $('#backBtn').hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'helperwelcome' || name === 'howto' || name === 'guidedmeaning';
   $('#homeBtn').hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'helperwelcome' || name === 'howto' || name === 'guidedmeaning';
-  // Floating home button — visible on every screen except home/welcome/recipientwelcome
-  const fh = $('#floatingHome');
-  if (fh) fh.hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'helperwelcome' || name === 'howto' || name === 'guidedmeaning';
+  // Floating nav — Back + Home, visible on every screen except landing pages
+  const fn = $('#floatingNav');
+  if (fn) fn.hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'helperwelcome' || name === 'howto' || name === 'guidedmeaning';
+  // Show/hide Back individually — hidden on screens with no back destination
+  const fb = $('#floatingBack');
+  if (fb) fb.hidden = history.length === 0;
   $('#appTitle').textContent = {
     welcome: 'Reindeer: Registry', recipientwelcome: 'Welcome', helperwelcome: 'Welcome', howto: 'How to use', guidedpartner: 'Add someone', guidedphoto: 'Take a photo', guidedmeaning: 'Tell its story', whosdoing: "Who's doing this?", helptype: "Who's helping?", home: 'Reindeer: Registry', capture: 'Add an item', batch: 'Add several',
     list: 'My items', detail: 'Item', print: 'Print', handoff: 'Finishing up', confirmsend: 'Confirm',
