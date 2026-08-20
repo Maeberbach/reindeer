@@ -451,6 +451,16 @@ $('#guidedTakePhoto')?.addEventListener('click', () => {
 let cap = null;
 
 
+// Reveal or hide the Maker and Story sections based on the important flag.
+// These detailed fields only appear for items the owner has marked important —
+// for general inventory they are unnecessary friction.
+function revealImportantDetails() {
+  const isImportant = cap.important === true;
+  document.querySelectorAll('.cap-important-only').forEach((el) => {
+    el.hidden = !isImportant;
+  });
+}
+
 function resetCapture() {
   // Inherit the active site so items captured during a site walk
   // are tagged to that site automatically.
@@ -505,6 +515,11 @@ function showCapDetails() {
   document.querySelectorAll('.step[data-retired]').forEach((el) => {
     el.hidden = true;
   });
+  // Hide Maker and Story — these only appear when the owner marks the item
+  // as important. For general inventory they are unnecessary friction.
+  document.querySelectorAll('.cap-important-only').forEach((el) => {
+    el.hidden = true;
+  });
   // Show "Save & take another" when a room is locked — lets the owner rapid-fire
   // through items in the same room without going through the post-save screen.
   const anotherBtn = $('#stepNextAnother');
@@ -528,6 +543,33 @@ function showCapDetails() {
     if ($('#capCloseupBlock')) $('#capCloseupBlock').hidden = false;
     if ($('#capVoiceBlock')) $('#capVoiceBlock').hidden = false;
     cap.preSetImportant = false; // one-shot
+  }
+  // Wire up the important toggle — syncs with the Save-step checkbox and
+  // reveals/hides the Maker and Story sections.
+  const toggle = $('#capImportantToggle');
+  if (toggle && !toggle._wired) {
+    toggle._wired = true;
+    toggle.addEventListener('change', () => {
+      const box = $('#capImportant');
+      if (box) box.checked = toggle.checked;
+      const chips = $('#capImportantChips');
+      if (chips) chips.hidden = !toggle.checked;
+      const closeup = $('#capCloseupBlock');
+      if (closeup) closeup.hidden = !toggle.checked;
+      const voice = $('#capVoiceBlock');
+      if (voice) voice.hidden = !toggle.checked;
+      cap.important = toggle.checked;
+      if (!toggle.checked) {
+        cap.importantFeeling = false;
+        cap.importantMoney = false;
+        $$('#capImportantChips .chip').forEach((c) => c.setAttribute('aria-pressed', 'false'));
+      }
+      revealImportantDetails();
+    });
+  }
+  // If pre-set important (from Special collections), check the toggle too
+  if (cap.preSetImportant) {
+    if (toggle) { toggle.checked = true; toggle.dispatchEvent(new Event('change')); }
   }
   if (typeof updateGiftBlockVisibility === 'function') updateGiftBlockVisibility();
 }
@@ -1134,6 +1176,15 @@ $('#capPhoto').onchange = async (e) => {
       }
       setNote(noteHtml);
       if (best.category_hint) cap.category = best.category_hint;
+      // Auto-select the matching category chip so the owner sees the AI's
+      // classification without having to scroll to the Kind step. The chips
+      // may not be rendered yet (AI runs before showCapDetails finishes), so
+      // also defer the selection to renderCatChips via cap.category.
+      if (best.category_hint) {
+        const chips = $$('#catChips .chip');
+        const matchChip = chips.find((c) => c.dataset.cat && c.dataset.cat.toLowerCase() === best.category_hint.toLowerCase());
+        if (matchChip) matchChip.setAttribute('aria-pressed', 'true');
+      }
       // Wire up "Save this too" buttons for extra detections found in the photo.
       if (sorted.length > 1) {
         $$('#aiNote [data-save-extra]').forEach((btn) => {
@@ -1142,17 +1193,48 @@ $('#capPhoto').onchange = async (e) => {
             const d = sorted[idx];
             if (!d) return;
             btn.disabled = true;
-            btn.textContent = 'Saving…';
+            const row = btn.closest('.ai-extra-row');
             try {
+              // Crop the photo to just this item, then run a fresh AI
+              // identification on the close-up. A focused crop gives the
+              // model much better maker/material/detail than the whole-
+              // room shot where it was first spotted.
               const crop = await cropTo(cap.dataUrl, d.bbox);
+              btn.textContent = 'Identifying…';
+              let enriched = d;
+              try {
+                const giveUp = new AbortController();
+                const timer = setTimeout(() => giveUp.abort(), 150000);
+                const { detections } = await api('/api/intake/detect', {
+                  method: 'POST', headers: { 'content-type': 'application/json' },
+                  signal: giveUp.signal,
+                  body: JSON.stringify({ images: [{ data_url: crop, frame_index: 0 }] }),
+                });
+                clearTimeout(timer);
+                // Use the enriched detection if AI found something; fall
+                // back to the original whole-photo detection otherwise.
+                if (detections && detections.length > 0) {
+                  enriched = detections.sort((a, b) => b.confidence - a.confidence)[0];
+                }
+              } catch (e) {
+                // Identification on the crop failed — save with what we
+                // already have. Better to save the item than lose it.
+                console.warn('extra-item identification failed, saving with original detection:', e.message);
+              }
+              btn.textContent = 'Saving…';
               await api('/api/intake/commit', {
                 method: 'POST', headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ detections: [{
-                  ...d, crop_data_url: crop, room: cap.room || null,
+                  ...enriched, crop_data_url: crop, room: cap.room || null,
                 }] }),
               });
+              // Update the label if the close-up identification changed it.
+              const labelEl = row.querySelector('.ai-extra-label');
+              if (labelEl && enriched.label !== d.label) {
+                labelEl.textContent = enriched.label + (enriched.category_hint ? ` (${enriched.category_hint})` : '');
+              }
               btn.textContent = 'Saved ✓';
-              btn.closest('.ai-extra-row').style.opacity = '0.5';
+              row.style.opacity = '0.5';
               refreshCount();
             } catch (e) {
               btn.disabled = false;
