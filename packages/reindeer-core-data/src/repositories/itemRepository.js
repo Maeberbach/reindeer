@@ -8,12 +8,8 @@ const toRow = (i) => ({
   ...i,
   identifiers: JSON.stringify(i.identifiers ?? {}),
   high_value_flag: i.high_value_flag ? 1 : 0,
-  // Owner's own "this matters" mark. Distinct from high_value_flag, which is
-  // FairPlay's computed field — Registry never sets that one.
   owner_high_value: i.owner_high_value ? 1 : 0,
   owner_high_value_reason: i.owner_high_value_reason ?? '',
-  // Owner-authored comment. Empty string is the "no comment" state; the
-  // validator has already trimmed and length-checked it before we get here.
   owner_important_comment: i.owner_important_comment ?? '',
   ownership_tag: i.ownership_tag ?? 'mine',
   tentative_high_value: i.tentative_high_value ? 1 : 0,
@@ -24,6 +20,8 @@ const toRow = (i) => ({
   photo_lat: i.photo_lat ?? null,
   photo_lon: i.photo_lon ?? null,
   photo_taken_at: i.photo_taken_at ?? null,
+  ai_value_suggestion: i.ai_value_suggestion ? JSON.stringify(i.ai_value_suggestion) : null,
+  ai_value_unknown_reason: i.ai_value_unknown_reason ?? null,
 });
 
 const fromRow = (r) => r && ({
@@ -42,6 +40,8 @@ const fromRow = (r) => r && ({
   photo_lat: r.photo_lat ?? null,
   photo_lon: r.photo_lon ?? null,
   photo_taken_at: r.photo_taken_at ?? null,
+  ai_value_suggestion: r.ai_value_suggestion ? JSON.parse(r.ai_value_suggestion) : null,
+  ai_value_unknown_reason: r.ai_value_unknown_reason ?? null,
 });
 
 export class SqliteItemRepository extends ItemRepository {
@@ -64,14 +64,16 @@ export class SqliteItemRepository extends ItemRepository {
         ownership_tag,
         tentative_high_value, tentative_high_value_source, tentative_high_value_reason,
         ai_confidence, review_state, print_state, export_state, created_at, updated_at,
-        captured_lat, captured_lon, photo_lat, photo_lon, photo_taken_at)
+        captured_lat, captured_lon, photo_lat, photo_lon, photo_taken_at,
+        ai_value_suggestion, ai_value_unknown_reason)
       VALUES (@item_id, @scope_id, @origin_app, @origin_item_id, @title, @category_id, @room_id,
         @description, @story, @quantity, @condition, @identifiers, @value_estimate_cents, @value_basis,
         @high_value_flag, @owner_high_value, @owner_high_value_reason, @owner_important_comment,
         @ownership_tag,
         @tentative_high_value, @tentative_high_value_source, @tentative_high_value_reason,
         @ai_confidence, @review_state, @print_state, @export_state, @created_at, @updated_at,
-        @captured_lat, @captured_lon, @photo_lat, @photo_lon, @photo_taken_at)
+        @captured_lat, @captured_lon, @photo_lat, @photo_lon, @photo_taken_at,
+        @ai_value_suggestion, @ai_value_unknown_reason)
     `).run({ ...row, scope_id: ctx.scopeId });
 
     if (input.recipient_hint) await this.setRecipientHint(value.item_id, input.recipient_hint, ctx);
@@ -148,7 +150,8 @@ export class SqliteItemRepository extends ItemRepository {
         ai_confidence=@ai_confidence, review_state=@review_state,
         print_state=@print_state, export_state=@export_state, updated_at=@updated_at,
         captured_lat=@captured_lat, captured_lon=@captured_lon,
-        photo_lat=@photo_lat, photo_lon=@photo_lon, photo_taken_at=@photo_taken_at
+        photo_lat=@photo_lat, photo_lon=@photo_lon, photo_taken_at=@photo_taken_at,
+        ai_value_suggestion=@ai_value_suggestion, ai_value_unknown_reason=@ai_value_unknown_reason
       WHERE item_id=@item_id AND scope_id=@scope_id
     `).run({ ...row, scope_id: ctx.scopeId });
 

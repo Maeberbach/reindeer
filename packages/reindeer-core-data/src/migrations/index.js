@@ -984,4 +984,12 @@ export const MIGRATIONS = [
       );
     `,
   },
+  {
+    id: 27,
+    name: 'ai_value_suggestion',
+    sql: `
+      ALTER TABLE items ADD COLUMN ai_value_suggestion TEXT;
+      ALTER TABLE items ADD COLUMN ai_value_unknown_reason TEXT;
+    `,
+  },
 ];

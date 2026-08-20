@@ -325,6 +325,12 @@ export function createIntakeRouter(deps) {
         // an authoritative label; valuation happens at distribution.
         value_estimate_cents: null,
         value_basis: 'unknown',
+        // The AI's suggested value range is stored as metadata so the owner
+        // can see it on the review screen. It is advisory only — the registry
+        // never treats it as authoritative. The owner's own value_estimate_cents
+        // (if they set one) is what prints. See docs/decisions/2026-08-20-ai-value-display.md
+        ai_value_suggestion: d.value_suggestion ?? null,
+        ai_value_unknown_reason: d.value_unknown_reason ?? null,
         // Never set by the registry. FairPlay's job.
         high_value_flag: false,
         // Bulk intake never decides what matters to the owner — that mark is
