@@ -1232,7 +1232,7 @@ $('#capPhoto').onchange = async (e) => {
                   body: JSON.stringify({ detections: [{
                     ...d, crop_data_url: crop, room: cap.room || null,
                     tentative_high_value: isImportant,
-                    tentative_high_value_source: isImportant ? 'ai' : '',
+                    tentative_high_value_source: isImportant ? 'owner' : '',
                   }] }),
                 });
                 row.style.opacity = '0.5';
@@ -1255,6 +1255,8 @@ $('#capPhoto').onchange = async (e) => {
             if (!d) return;
             btn.disabled = true;
             const row = btn.closest('.ai-extra-row');
+            const importantBox = row.querySelector(`[data-important-extra="${idx}"]`);
+            const isImportant = importantBox?.checked === true;
             try {
               // Crop the photo to just this item, then run a fresh AI
               // identification on the close-up. A focused crop gives the
@@ -1287,6 +1289,8 @@ $('#capPhoto').onchange = async (e) => {
                 method: 'POST', headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ detections: [{
                   ...enriched, crop_data_url: crop, room: cap.room || null,
+                  tentative_high_value: isImportant,
+                  tentative_high_value_source: isImportant ? 'owner' : '',
                 }] }),
               });
               // Update the label if the close-up identification changed it.
@@ -1944,7 +1948,7 @@ function renderNamingRows(detections) {
       // dining room is filed in the dining room without being asked again.
       const { created, possible_duplicates } = await api('/api/intake/commit', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ detections: [{ ...d, crop_data_url: crop, room: room?.name ?? d.room ?? null, tentative_high_value: isImportant, tentative_high_value_source: isImportant ? 'ai' : '' }] }),
+        body: JSON.stringify({ detections: [{ ...d, crop_data_url: crop, room: room?.name ?? d.room ?? null, tentative_high_value: isImportant, tentative_high_value_source: isImportant ? 'owner' : '' }] }),
       });
       b.closest('.card').remove();
       refreshCount();
@@ -3484,6 +3488,12 @@ function renderRoomChips() {
       $$('#roomChips .chip').forEach((x) => x.setAttribute('aria-pressed', 'false'));
       b.setAttribute('aria-pressed', 'true');
       cap.room = b.dataset.room;
+      // Clear and hide the Other panel so a stale typed value does not
+      // override the chip selection on save.
+      const otherInput = $('#capRoomOther');
+      if (otherInput) otherInput.value = '';
+      const otherPanel = $('#capRoomOtherPanel');
+      if (otherPanel) otherPanel.hidden = true;
       updateRoomLockUI();
     };
   });
