@@ -1104,7 +1104,8 @@ $('#capPhoto').onchange = async (e) => {
       // it while waiting. Their words outrank the machine's, always.
       const box = $('#capTitle');
       if (box && !box.value.trim()) box.value = best.label;
-      setNote(`This looks like: ${escapeHtml(best.label)}${best.category_hint ? ` (${escapeHtml(best.category_hint)})` : ''}. Change it if that is not right.`);
+      setNote(`This looks like: ${escapeHtml(best.label)}${best.category_hint ? ` (${escapeHtml(best.category_hint)})` : ''}. Change it if that is not right.`
+        + formatAiValue(best));
       if (best.category_hint) cap.category = best.category_hint;
       // In guided intro mode, show the accept bar so the owner can confirm
       // the AI label and save in one tap without scrolling through details.
@@ -1231,6 +1232,25 @@ function fmtMoney(cents) {
     minimumFractionDigits: whole ? 0 : 2,
     maximumFractionDigits: 2,
   });
+}
+
+function formatAiValue(d) {
+  if (!d) return '';
+  const vs = d.value_suggestion;
+  if (vs && vs.low_cents != null && vs.high_cents != null) {
+    const range = vs.low_cents === vs.high_cents
+      ? fmtMoney(vs.low_cents)
+      : `${fmtMoney(vs.low_cents)} – ${fmtMoney(vs.high_cents)}`;
+    return `<div class="ai-value">AI estimate: ${range}</div>`
+      + (vs.reasoning ? `<div class="ai-value-reason">${escapeHtml(vs.reasoning)}</div>` : '');
+  }
+  if (d.appraisal_suggested) {
+    return `<div class="ai-value">AI: may be worth a professional appraisal</div>`;
+  }
+  if (d.value_unknown_reason) {
+    return `<div class="ai-value">AI: ${escapeHtml(d.value_unknown_reason)}</div>`;
+  }
+  return '';
 }
 
 const BASIS_WORDS = {
@@ -1644,6 +1664,7 @@ function renderNamingRows(detections) {
           <h3>${escapeHtml(d.label)}</h3>
           <div class="sub">${escapeHtml(d.category_hint ?? '')} ${d.quantity > 1 ? `· ${d.quantity} of them` : ''}</div>
           ${d.appraisal_suggested ? '<span class="badge hv">ASK SOMEONE ABOUT THIS ONE</span>' : ''}
+          ${formatAiValue(d)}
           <div class="detrow">
             <button class="primary" data-keep="${i}">Keep</button>
             <button class="ghost" data-reject="${i}">Not a thing</button>
@@ -3825,6 +3846,9 @@ async function commitEverything(detections) {
       item_id: c.item_id,
       label: d.label ?? 'Item',
       thumb: payload[c.detection_index]?.crop_data_url || batchFiles[d.frame_index ?? 0]?._dataUrl || '',
+      value_suggestion: d.value_suggestion ?? null,
+      value_unknown_reason: d.value_unknown_reason ?? null,
+      appraisal_suggested: d.appraisal_suggested ?? false,
     };
   });
 }
@@ -3865,10 +3889,19 @@ function showRoomNextAsk() {
  */
 function renderRoomGiftAsk(added, again = false) {
   const n = added.length;
+  const itemList = again ? '' : added.map((a) => `
+      <div class="card room-item">
+        ${a.thumb ? `<img src="${a.thumb}" alt="">` : ''}
+        <div>
+          <h3>${escapeHtml(a.label)}</h3>
+          ${formatAiValue(a)}
+        </div>
+      </div>`).join('');
   $('#batchResults').innerHTML = `
     ${again ? '' : `<h2>${n} thing${n === 1 ? '' : 's'} in the ${escapeHtml(room?.name ?? 'room')}
       ${n === 1 ? 'is' : 'are'} on your list</h2>
-    <p class="reassure">That part is done. They are written down and they will print.</p>`}
+    <p class="reassure">That part is done. They are written down and they will print.</p>
+    <div class="room-item-list">${itemList}</div>`}
     <div class="ask">
       <p class="askq">${again
         ? 'Did anything else catch your eye as important in this room?'
