@@ -54,6 +54,7 @@ import {
   Gem,
   Grid2X2,
   List,
+  Mic,
   Plus,
   Search,
   Sparkles,
@@ -94,6 +95,25 @@ export function useCsvExport() {
       URL.revokeObjectURL(url);
     },
     onSuccess: () => toast({ title: "Inventory exported", description: "estate-inventory.csv" }),
+  });
+}
+
+function usePrintReport() {
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("GET", "/api/print/report");
+      const html = await res.text();
+      const w = window.open("", "_blank");
+      if (!w) {
+        toast({ title: "Pop-up blocked", description: "Allow pop-ups to view the print report.", variant: "destructive" });
+        return;
+      }
+      w.document.write(html);
+      w.document.close();
+    },
+    onError: (e: Error) =>
+      toast({ title: "Could not generate report", description: e.message, variant: "destructive" }),
   });
 }
 
@@ -937,6 +957,38 @@ export default function InventoryPage() {
                         </span>
                       )}
                     </div>
+                    {/* Owner's story and voice memo indicators — these come
+                        from the Registry import and are visible to all
+                        participants. They surface what the deceased owner
+                        said about the item before death. */}
+                    {i.inventoryStory && (
+                      <div className="mt-1 text-xs text-muted-foreground italic" data-testid={`text-item-story-${i.id}`}>
+                        <span className="font-medium not-italic">Owner's story: </span>
+                        {i.inventoryStory}
+                      </div>
+                    )}
+                    {i.ownerImportantComment && (
+                      <div className="mt-1 text-xs text-muted-foreground italic" data-testid={`text-item-important-comment-${i.id}`}>
+                        <span className="font-medium not-italic">Why it matters: </span>
+                        {i.ownerImportantComment}
+                      </div>
+                    )}
+                    {(i.audioCount > 0 || i.photoCount > 1) && (
+                      <div className="mt-1 flex flex-wrap gap-1.5">
+                        {i.audioCount > 0 && (
+                          <Badge variant="outline" className="gap-1 text-xs" data-testid={`badge-voice-memo-${i.id}`}>
+                            <Mic className="h-3 w-3" />
+                            {i.audioCount} voice memo{i.audioCount > 1 ? "s" : ""}
+                          </Badge>
+                        )}
+                        {i.photoCount > 1 && (
+                          <Badge variant="outline" className="gap-1 text-xs" data-testid={`badge-photos-${i.id}`}>
+                            <Camera className="h-3 w-3" />
+                            {i.photoCount} photos
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                     {activeEscalation && (activeEscalation.reason || activeEscalation.flaggedBySource === "ai") && (
                       <div
                         className="mt-1 text-xs text-muted-foreground"

@@ -5,6 +5,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { storage } from "./storage";
+import { itemMedia } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import { enforcePause } from "./middleware/enforcePause";
 import { requireLicenseForWrite } from "./middleware/licenseMiddleware";
 import {
@@ -2800,6 +2802,130 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       body.participantId ?? null,
     );
     res.json({ ok: true });
+  });
+
+  /* ---------- item media (audio recordings, photos) ---------- */
+  app.get("/api/items/:id/media", async (req, res) => {
+    const itemId = Number(req.params.id);
+    const media = db.select().from(itemMedia).where(eq(itemMedia.itemId, itemId)).all();
+    res.json(media.map((m) => ({
+      id: m.id,
+      kind: m.kind,
+      url: m.url,
+      label: m.label,
+      durationMs: m.durationMs,
+      transcript: m.transcript,
+      isPrimary: !!m.isPrimary,
+    })));
+  });
+
+  /**
+   * Memorandum audit — verifies that no items locked by a frozen
+   * memorandum appear in the available (ranked-draft) pool. Memorandum
+   * items should always be owner_assigned, never available. This endpoint
+   * reports any violations so the captain can correct them before
+   * distribution begins.
+   */
+  app.get("/api/memorandum-audit", async (_req, res) => {
+    const allItems = await storage.listItems();
+    const memoLocked = allItems.filter((i) => i.lockedByMemorandum);
+    const violations = memoLocked.filter((i) => i.status === "available");
+    res.json({
+      totalMemoItems: memoLocked.length,
+      violations: violations.map((i) => ({
+        id: i.id,
+        name: i.name,
+        room: i.room,
+        status: i.status,
+        memorandumOwnerName: i.memorandumOwnerName,
+      })),
+      violationCount: violations.length,
+      ok: violations.length === 0,
+    });
+  });
+
+  /* ---------- Print report (fiduciary distribution summary) ---------- */
+  /**
+   * Generates an HTML report of the estate distribution: item name, room,
+   * heir assigned, value (if visible), status, and location.
+   * Captain/fiduciary only — this is the estate's final accounting.
+   */
+  app.get("/api/print/report", async (req, res) => {
+    const actor = await actorOf(req);
+    if (!actor?.isAdmin) {
+      res.status(403).json({ message: "The print report is the captain's to run." });
+      return;
+    }
+    const [allItems, allParticipants] = await Promise.all([
+      storage.listItems(),
+      storage.listParticipants(),
+    ]);
+    const realItems = allItems.filter((i) => !i.isPractice);
+    const participantName = (id: number | null) =>
+      id ? allParticipants.find((p) => p.id === id)?.name ?? "Unknown" : "";
+
+    const esc = (s: string) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    const rows = realItems.map((i) => {
+      const assignedTo = i.status === "awarded" && i.awardedToParticipantId
+        ? participantName(i.awardedToParticipantId)
+        : i.status === "owner_assigned"
+          ? i.ownerAssignedName || (i.lockedByMemorandum ? `Handled by ${i.memorandumOwnerName || "memorandum"}'s will` : "Owner assigned")
+          : "—";
+      const value = i.approvedValue != null
+        ? `$${i.approvedValue.toLocaleString()}`
+        : i.estimatedValue != null
+          ? `$${i.estimatedValue.toLocaleString()}`
+          : "—";
+      const location = [i.room, i.lat != null && i.lon != null ? `${i.lat.toFixed(4)}, ${i.lon.toFixed(4)}` : ""]
+        .filter(Boolean).join(" · ") || "—";
+      const statusLabel = i.status === "available" ? "Available" :
+        i.status === "awarded" ? "Awarded" :
+        i.status === "owner_assigned" ? "Owner Assigned" :
+        i.status === "needs_appraisal" ? "Needs Appraisal" :
+        i.status === "in_grouping" ? "In Grouping" :
+        i.status === "duplicate_dismissed" ? "Duplicate" : i.status;
+      return `<tr>
+        <td>${esc(i.name)}</td>
+        <td>${esc(i.room || "—")}</td>
+        <td>${esc(assignedTo)}</td>
+        <td>${esc(i.category || "—")}</td>
+        <td>${esc(value)}</td>
+        <td>${esc(statusLabel)}</td>
+        <td>${esc(location)}</td>
+      </tr>`;
+    }).join("\n");
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estate Distribution Report</title>
+<style>
+  body { font-family: Georgia, serif; max-width: 900px; margin: 40px auto; padding: 0 20px; color: #222; }
+  h1 { font-size: 24px; border-bottom: 2px solid #5b7c5e; padding-bottom: 8px; }
+  .meta { color: #666; font-size: 14px; margin-bottom: 24px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; background: #f5f5f0; padding: 8px 10px; border-bottom: 2px solid #ddd; font-family: sans-serif; }
+  td { padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+  tr:nth-child(even) { background: #fafaf7; }
+  @media print { body { margin: 0; } }
+</style>
+</head>
+<body>
+  <h1>Estate Distribution Report</h1>
+  <div class="meta">Generated ${new Date().toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" })} · ${realItems.length} items</div>
+  <table>
+    <thead><tr>
+      <th>Item</th><th>Room</th><th>Assigned To</th><th>Category</th><th>Value</th><th>Status</th><th>Location</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+</body>
+</html>`;
+    res.setHeader("Content-Type", "text/html");
+    res.send(html);
   });
 
   /* ---------- CSV export ---------- */

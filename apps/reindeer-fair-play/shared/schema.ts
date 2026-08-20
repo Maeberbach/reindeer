@@ -413,6 +413,10 @@ export const items = sqliteTable("items", {
   photoLon: real("photo_lon"),
   /** Epoch ms from EXIF DateTimeOriginal — when the photo was taken. */
   photoTakenAt: integer("photo_taken_at"),
+  /** Number of voice memos / audio recordings attached to this item. */
+  audioCount: integer("audio_count").notNull().default(0),
+  /** Number of photos attached to this item (primary + close-ups). */
+  photoCount: integer("photo_count").notNull().default(0),
 });
 
 /* ------------------------------------------------------------------ */

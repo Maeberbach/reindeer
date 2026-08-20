@@ -888,6 +888,8 @@ export async function approveStaged(
         // travelling, a re-import flips those items into the locked group.
         lockedByMemorandum: !!staged.lockedByMemorandum,
         memorandumOwnerName: staged.memorandumOwnerName || "",
+        audioCount: staged.audioCount,
+        photoCount: staged.photoCount,
         ...(shouldMarkOwnerAssigned && existingByOrigin.status === "available"
           ? { status: "owner_assigned" as const }
           : {}),
@@ -926,6 +928,8 @@ export async function approveStaged(
       ownerAssignedEvidence,
       lockedByMemorandum: !!staged.lockedByMemorandum,
       memorandumOwnerName: staged.memorandumOwnerName || "",
+      audioCount: staged.audioCount,
+      photoCount: staged.photoCount,
       photoUrl: primaryPhoto?.url ?? null,
       thumbnailUrl: primaryPhoto?.url ?? null,
     } as any);

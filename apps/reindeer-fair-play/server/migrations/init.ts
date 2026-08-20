@@ -210,7 +210,9 @@ CREATE TABLE IF NOT EXISTS items (
   lon REAL,
   photo_lat REAL,
   photo_lon REAL,
-  photo_taken_at INTEGER
+  photo_taken_at INTEGER,
+  audio_count INTEGER NOT NULL DEFAULT 0,
+  photo_count INTEGER NOT NULL DEFAULT 0
 );
 
 /* ------------------------------------------------------------------ */
