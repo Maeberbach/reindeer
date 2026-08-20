@@ -215,6 +215,7 @@ button.listening{
 
 /* ---- welcome ------------------------------------------------------------ */
 .bighead{font-size:32px; line-height:1.25; margin:6px 0 16px; letter-spacing:-0.01em}
+.section-head{font-size:22px; font-weight:700; color:var(--ink); margin:28px 0 10px; letter-spacing:-0.01em}
 .welcome .lede{font-size:19px; line-height:1.55}
 
 /* "What this does" — same visual rhythm as the numbered steps below, but
