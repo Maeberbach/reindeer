@@ -72,7 +72,7 @@ export const REGISTRY_CATEGORY_MAP = Object.freeze({
     crossing: CATEGORY_CROSSING.EXACT,
     category: 'Photographs',
   },
-  'Everything else': {
+  'Just stuff': {
     crossing: CATEGORY_CROSSING.SHORTHAND,
     candidates: [
       'Kitchenware', 'Electronics', 'Tools', 'Books', 'Sporting Goods',

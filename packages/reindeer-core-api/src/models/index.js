@@ -144,7 +144,7 @@ export const NON_BINDING_DISCLAIMER =
 export const DEFAULT_ROOMS = Object.freeze([
   'Living Room', 'Kitchen', 'Dining Room', 'Family Room',
   'Primary Bedroom', 'Bedroom 2', 'Bedroom 3',
-  'Office/Study', 'Garage', 'Safe Deposit Box', 'Other',
+  'Office/Study', 'Garage', 'Safe Deposit Box',
 ]);
 
 /**
@@ -155,17 +155,21 @@ export const DEFAULT_ROOMS = Object.freeze([
  */
 export const MORE_ROOMS = Object.freeze([
   'Attic', 'Basement', 'Bathroom', 'Closet',
-  'Outdoor/Yard', 'Shed', 'Storage', 'Miscellaneous',
+  'Outdoor/Yard', 'Shed', 'Storage',
+  'Pool Deck', 'Patio', 'Porch', 'Laundry Room',
+  'Pantry', 'Hallway', 'Foyer', 'Wine Cellar',
+  'Workshop', 'Studio', 'Library', 'Sunroom',
+  'Mudroom', 'Playroom', 'Nursery', 'Guest Room',
 ]);
 
 /*
  * Nine categories on screen, and twenty more kept silent behind a dropdown.
  *
  * This list is not a filing system. It is a prompt. Every visible name except
- * "Everything else" is a kind of thing families are known to fall out over, so
+ * "Just stuff" is a kind of thing families are known to fall out over, so
  * seeing it asks the owner a question: is there someone particular you want to
  * have this? If the answer is yes the item belongs in the memorandum by name.
- * If it is no, "Everything else" takes it and the app handles the rest.
+ * If it is no, "Just stuff" takes it and the app handles the rest.
  *
  * That is why the words are the owner's rather than the law's. FairPlay
  * carries twenty-five legally aware categories because a personal
@@ -181,7 +185,7 @@ export const MORE_ROOMS = Object.freeze([
  * the owner named is never touched. See REGISTRY_CATEGORY_MAP in
  * @reindeer-legacy/exchange for the mapping.
  *
- * Guns and Vehicles sit below "Everything else" rather than above it. They are
+ * Guns and Vehicles sit below "Just stuff" rather than above it. They are
  * not household goods to be argued over so much as regulated and titled
  * property that has to be handled on its own terms, and the break in the list
  * says so without a word of explanation.
@@ -189,13 +193,13 @@ export const MORE_ROOMS = Object.freeze([
  * Nothing here is required. An item saves with no category at all.
  */
 export const DEFAULT_CATEGORIES = Object.freeze([
+  'Just stuff',
   'Sentimental items',
   'Jewelry',
   'Holiday ornaments',
   'Heirloom and special furniture',
   'Collectibles — artwork, rare wine or spirits',
   'Photographs',
-  'Everything else',
   'Guns',
   'Vehicles',
 ]);
@@ -209,7 +213,7 @@ export const DEFAULT_CATEGORIES = Object.freeze([
  * category, and it arrives locked with no AI involved. Choosing precisely is
  * always allowed; it is simply never demanded.
  *
- * Miscellaneous is absent on purpose: "Everything else" already fills that
+ * Miscellaneous is absent on purpose: "Just stuff" already fills that
  * role, in plainer words, and maps onto it.
  */
 export const MORE_CATEGORIES = Object.freeze([

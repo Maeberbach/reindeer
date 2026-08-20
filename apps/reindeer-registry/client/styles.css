@@ -1303,3 +1303,15 @@ hr.softrule {
 .cap-accept p{font-size:16px;margin:0 0 10px;color:var(--ink)}
 .cap-accept .bigin{margin-bottom:12px}
 .cap-accept button{margin-top:6px}
+
+/* Multi-item AI detection: important checkbox + Save all */
+.ai-extras-hint{font-size:13px;color:var(--muted);margin-bottom:8px}
+.ai-extra-check{display:flex;align-items:center;gap:8px;cursor:pointer;flex:1}
+.ai-extra-check input{width:20px;height:20px;accent-color:var(--accent)}
+.ai-extra-label{font-size:14px}
+#saveAllExtras{margin-top:10px;width:100%}
+.cap-add-details-btn{margin-top:8px}
+.cap-important-toggle-wrap{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.room-other-panel{margin-top:8px;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface)}
+.room-other-panel .room-more{margin-top:8px}
+.chip-other{border-style:dashed}

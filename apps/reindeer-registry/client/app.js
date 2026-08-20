@@ -480,7 +480,7 @@ function resetCapture() {
   ['#capTitle', '#capMaker', '#capMarks', '#capStory', '#capValue', '#capRecipient', '#capRelationship', '#capOwnerNote', '#capRoomOther']
     .forEach((s) => { $(s).value = ''; });
   $('#capValueBasis').value = 'unknown';
-  $('#capPreview').hidden = true; $('#aiNote').hidden = true; $('#capRoomOther').hidden = true;
+  $('#capPreview').hidden = true; $('#aiNote').hidden = true; const _roomPanel = $('#capRoomOtherPanel'); if (_roomPanel) _roomPanel.hidden = true;
   ($('#capPhotoLabel') || {}).hidden = false;
   ($('#capRetake') || {}).hidden = true;
   ($('#capPhotoHint') || {}).hidden = false;
@@ -558,6 +558,8 @@ function showCapDetails() {
       if (closeup) closeup.hidden = !toggle.checked;
       const voice = $('#capVoiceBlock');
       if (voice) voice.hidden = !toggle.checked;
+      const detailsBtn = $('#capAddDetailsBtn');
+      if (detailsBtn) detailsBtn.hidden = !toggle.checked;
       cap.important = toggle.checked;
       if (!toggle.checked) {
         cap.importantFeeling = false;
@@ -566,6 +568,20 @@ function showCapDetails() {
       }
       revealImportantDetails();
     });
+  }
+  // Wire the "Add details" button to scroll to the Story section
+  const detailsBtn = $('#capAddDetailsBtn');
+  if (detailsBtn && !detailsBtn._wired) {
+    detailsBtn._wired = true;
+    detailsBtn.onclick = () => {
+      const storyStep = document.querySelector('.cap-important-only[data-stepname="Story"]');
+      if (storyStep) {
+        storyStep.hidden = false;
+        storyStep.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Also reveal the other important-only sections
+        revealImportantDetails();
+      }
+    };
   }
   // If pre-set important (from Special collections), check the toggle too
   if (cap.preSetImportant) {
@@ -1166,12 +1182,17 @@ $('#capPhoto').onchange = async (e) => {
       if (sorted.length > 1) {
         const extras = sorted.slice(1);
         noteHtml += `<div class="ai-extras"><p class="ai-extras-head">Also in this photo:</p>`;
+        noteHtml += `<p class="ai-extras-hint">Mark the ones that matter, then save them all. You can add details to important ones.</p>`;
         extras.forEach((d, i) => {
           noteHtml += `<div class="ai-extra-row" data-extra-idx="${i + 1}">
-            <span class="ai-extra-label">${escapeHtml(d.label)}${d.category_hint ? ` (${escapeHtml(d.category_hint)})` : ''}</span>
+            <label class="ai-extra-check">
+              <input type="checkbox" data-important-extra="${i + 1}">
+              <span class="ai-extra-label">${escapeHtml(d.label)}${d.category_hint ? ` (${escapeHtml(d.category_hint)})` : ''}</span>
+            </label>
             <button class="ghost small" data-save-extra="${i + 1}">Save this too</button>
           </div>`;
         });
+        noteHtml += `<button class="primary wide" id="saveAllExtras">Save all items from this photo</button>`;
         noteHtml += `</div>`;
       }
       setNote(noteHtml);
@@ -1187,6 +1208,46 @@ $('#capPhoto').onchange = async (e) => {
       }
       // Wire up "Save this too" buttons for extra detections found in the photo.
       if (sorted.length > 1) {
+        // "Save all" button — saves all remaining (unsaved) extras at once.
+        // Items checked as important get saved with the important flag set;
+        // the owner can add details to them later from the item list.
+        const saveAllBtn = $('#saveAllExtras');
+        if (saveAllBtn) {
+          saveAllBtn.onclick = async () => {
+            saveAllBtn.disabled = true;
+            saveAllBtn.textContent = 'Saving…';
+            const rows = $$('#aiNote .ai-extra-row');
+            let saved = 0;
+            for (const row of rows) {
+              if (row.style.opacity === '0.5') continue; // already saved
+              const idx = Number(row.dataset.extraIdx);
+              const d = sorted[idx];
+              if (!d) continue;
+              const importantBox = row.querySelector(`[data-important-extra="${idx}"]`);
+              const isImportant = importantBox?.checked === true;
+              try {
+                const crop = d.bbox ? await cropTo(cap.dataUrl, d.bbox) : cap.dataUrl;
+                await api('/api/intake/commit', {
+                  method: 'POST', headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({ detections: [{
+                    ...d, crop_data_url: crop, room: cap.room || null,
+                    tentative_high_value: isImportant,
+                    tentative_high_value_source: isImportant ? 'ai' : '',
+                  }] }),
+                });
+                row.style.opacity = '0.5';
+                const btn = row.querySelector('[data-save-extra]');
+                if (btn) { btn.disabled = true; btn.textContent = 'Saved ✓'; }
+                saved++;
+              } catch (e) {
+                console.warn('Failed to save extra item:', e.message);
+              }
+            }
+            refreshCount();
+            saveAllBtn.textContent = `Saved ${saved} items ✓`;
+            toast(`${saved} items saved from this photo.`);
+          };
+        }
         $$('#aiNote [data-save-extra]').forEach((btn) => {
           btn.onclick = async () => {
             const idx = Number(btn.dataset.saveExtra);
@@ -3370,11 +3431,13 @@ function updateRoomLockUI() {
       + '<button class="linky" id="capChangeRoom" style="font-size:0.85rem">Change room</button>'
       + '<button class="linky" id="capRoomDone" style="font-size:0.85rem;margin-left:8px">This room is finished</button>';
     chips.hidden = true;
-    if (other) other.hidden = true;
+    const panel = $('#capRoomOtherPanel');
+    if (panel) panel.hidden = true;
     if (moreWrap) moreWrap.hidden = true;
     $('#capChangeRoom')?.addEventListener('click', () => {
       cap.room = '';
       chips.hidden = false;
+    // Don't auto-show the other panel — it opens on demand
       if (other) other.hidden = false;
       renderRoomChips();
     });
@@ -3433,12 +3496,12 @@ function renderRoomChips() {
  * dropdown holding nothing is a thing to read and be puzzled by.
  */
 function renderRoomMore() {
-  const wrap = $('#roomMoreWrap');
   const sel = $('#roomMore');
-  if (!wrap || !sel) return;
+  if (!sel) return;
   const left = registry.more_rooms ?? [];
-  wrap.hidden = left.length === 0;
-  sel.innerHTML = '<option value="">Add another room…</option>'
+  // The dropdown is inside the "Other" panel — always populate it,
+  // even if empty (shows just the placeholder).
+  sel.innerHTML = '<option value="">Pick a room…</option>'
     + left.map((n) => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
   sel.onchange = () => {
     const name = sel.value;
