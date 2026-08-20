@@ -2306,6 +2306,183 @@ async function verifyRecord() {
   } catch { $('#verifyBox').textContent = ''; }
 }
 
+// ----------------------------------------------------------- final review
+// Phone-style "all photos" grid — the owner scrolls through everything
+// they've catalogued before committing to print. Single-tap expands a
+// detail card; double-tap opens a full-screen close-up. Items above the
+// value threshold get a gold border + arrow badge; important items get a
+// green border + star. A "Show important only" filter toggle narrows the
+// grid. The "Continue to print →" button proceeds to the print screen.
+let _reviewItems = [];
+let _reviewFilterImportant = false;
+
+async function loadReview() {
+  const grid = $('#reviewGrid');
+  const empty = $('#reviewEmpty');
+  const stats = $('#reviewStats');
+  if (!grid) return;
+  grid.innerHTML = '<p class="lede">Loading your items…</p>';
+  try {
+    const { items } = await api('/api/items');
+    _reviewItems = items;
+    renderReviewGrid();
+  } catch (e) {
+    grid.innerHTML = `<p class="lede">Could not load items: ${escapeHtml(e.message)}</p>`;
+  }
+}
+
+function renderReviewGrid() {
+  const grid = $('#reviewGrid');
+  const empty = $('#reviewEmpty');
+  const stats = $('#reviewStats');
+  if (!grid) return;
+
+  let items = _reviewItems;
+  if (_reviewFilterImportant) {
+    items = items.filter((i) => i.owner_high_value || i.tentative_high_value);
+  }
+
+  if (!items.length) {
+    grid.innerHTML = '';
+    empty.hidden = false;
+    stats.textContent = '';
+    return;
+  }
+  empty.hidden = true;
+
+  const importantCount = _reviewItems.filter((i) => i.owner_high_value).length;
+  const overThreshold = itemsAboveThreshold(_reviewItems);
+  stats.innerHTML = `${_reviewItems.length} item${_reviewItems.length === 1 ? '' : 's'}`
+    + (importantCount ? ` · ${importantCount} important` : '')
+    + (overThreshold.length ? ` · ${overThreshold.length} above ${fmtMoney(valueThresholdCents)}` : '');
+
+  grid.innerHTML = items.map(reviewTileHtml).join('');
+
+  // Wire up tile interactions
+  $$('#reviewGrid .freview-tile').forEach((tile) => {
+    let clickTimer = null;
+    tile.addEventListener('click', () => {
+      if (clickTimer) {
+        // double-click → closeup
+        clearTimeout(clickTimer);
+        clickTimer = null;
+        openReviewCloseup(tile.dataset.id);
+      } else {
+        clickTimer = setTimeout(() => {
+          clickTimer = null;
+          openReviewExpand(tile.dataset.id);
+        }, 220);
+      }
+    });
+  });
+}
+
+function reviewTileHtml(i) {
+  const photo = i.photos?.[0];
+  const thumb = photo ? `${API}/api/photos/${photo.photo_id}` : '';
+  const vs = i.value_suggestion;
+  const overThresh = vs && vs.high_cents != null && vs.high_cents >= valueThresholdCents;
+  const important = !!i.owner_high_value;
+  const classes = ['freview-tile'];
+  if (overThresh) classes.push('over-threshold');
+  if (important) classes.push('important');
+  const assigned = i.recipient_hint?.recipient_name;
+  const valStr = vs && vs.low_cents != null && vs.high_cents != null
+    ? (vs.low_cents === vs.high_cents ? fmtMoney(vs.low_cents) : `${fmtMoney(vs.low_cents)}–${fmtMoney(vs.high_cents)}`)
+    : '';
+
+  return `
+    <div class="${classes.join(' ')}" data-id="${i.item_id}">
+      ${thumb ? `<img src="${thumb}" alt="${escapeHtml(i.title)}" loading="lazy">` : '<div class="noimg">no photo</div>'}
+      <div class="freview-info">
+        <div class="freview-name">${escapeHtml(i.title || 'Unnamed item')}</div>
+        <div class="freview-meta">
+          ${valStr ? `<span class="freview-value">${valStr}</span>` : ''}
+          ${assigned ? `<span class="freview-assigned">→ ${escapeHtml(assigned)}</span>` : ''}
+          ${!valStr && !assigned ? `<span>${escapeHtml(i.room?.name ?? 'No room')}</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function openReviewExpand(id) {
+  const i = _reviewItems.find((x) => x.item_id === id);
+  if (!i) return;
+  const photo = i.photos?.[0];
+  const heroUrl = photo ? `${API}/api/photos/${photo.photo_id}` : '';
+  const vs = i.value_suggestion;
+  const overThresh = vs && vs.high_cents != null && vs.high_cents >= valueThresholdCents;
+  const valStr = vs && vs.low_cents != null && vs.high_cents != null
+    ? (vs.low_cents === vs.high_cents ? fmtMoney(vs.low_cents) : `${fmtMoney(vs.low_cents)} – ${fmtMoney(vs.high_cents)}`)
+    : (i.ai_value_unknown_reason ? escapeHtml(i.ai_value_unknown_reason) : 'Not estimated');
+  const assigned = i.recipient_hint?.recipient_name || '—';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'freview-expand';
+  overlay.innerHTML = `
+    <div class="freview-expand-card">
+      ${heroUrl ? `<img class="freview-hero" src="${heroUrl}" alt="${escapeHtml(i.title)}">` : ''}
+      <h3 class="freview-ec-name">${escapeHtml(i.title || 'Unnamed item')}</h3>
+      ${i.description ? `<p style="font-size:14px; color:var(--muted-ink,#888); margin:0 0 12px">${escapeHtml(i.description)}</p>` : ''}
+      ${overThresh ? `<div class="freview-ec-alert">⬆ Above your ${fmtMoney(valueThresholdCents)} alert threshold — consider flagging as important or assigning to an heir.</div>` : ''}
+      <div class="freview-ec-row"><span class="freview-ec-label">Room</span><span class="freview-ec-val">${escapeHtml(i.room?.name ?? '—')}</span></div>
+      <div class="freview-ec-row"><span class="freview-ec-label">Category</span><span class="freview-ec-val">${escapeHtml(i.category?.name ?? '—')}</span></div>
+      <div class="freview-ec-row"><span class="freview-ec-label">AI value</span><span class="freview-ec-val">${valStr}</span></div>
+      <div class="freview-ec-row"><span class="freview-ec-label">Assigned to</span><span class="freview-ec-val">${escapeHtml(assigned)}</span></div>
+      <div class="freview-ec-row"><span class="freview-ec-label">Important</span><span class="freview-ec-val">${i.owner_high_value ? '★ Yes' : 'No'}</span></div>
+      ${i.owner_important_comment ? `<div class="freview-ec-row"><span class="freview-ec-label">In your words</span><span class="freview-ec-val" style="max-width:60%">${escapeHtml(i.owner_important_comment)}</span></div>` : ''}
+      <div class="freview-ec-actions">
+        <button class="ghost" onclick="this.closest('.freview-expand').remove()">Close</button>
+        <button class="primary" onclick="this.closest('.freview-expand').remove(); openDetail('${id}')">Edit details →</button>
+      </div>
+    </div>`;
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+  document.body.appendChild(overlay);
+}
+
+function openReviewCloseup(id) {
+  const i = _reviewItems.find((x) => x.item_id === id);
+  if (!i) return;
+  const photo = i.photos?.[0];
+  if (!photo) return; // no photo, nothing to closeup
+  const url = `${API}/api/photos/${photo.photo_id}`;
+  const overlay = document.createElement('div');
+  overlay.className = 'freview-closeup';
+  overlay.innerHTML = `
+    <button class="freview-closeup-close">✕</button>
+    <img src="${url}" alt="${escapeHtml(i.title)}">
+    <div class="freview-closeup-bar">
+      <div class="freview-closeup-name">${escapeHtml(i.title || 'Unnamed item')}</div>
+      <div class="freview-closeup-hint">Tap anywhere to close</div>
+    </div>`;
+  overlay.addEventListener('click', () => overlay.remove());
+  document.body.appendChild(overlay);
+}
+
+// Wire up review screen buttons
+(function() {
+  const filterBtn = $('#reviewFilterImportant');
+  if (filterBtn) {
+    filterBtn.addEventListener('click', () => {
+      _reviewFilterImportant = !_reviewFilterImportant;
+      filterBtn.textContent = _reviewFilterImportant ? 'Show all items' : 'Show important only';
+      filterBtn.classList.toggle('primary', _reviewFilterImportant);
+      filterBtn.classList.toggle('ghost', !_reviewFilterImportant);
+      renderReviewGrid();
+    });
+  }
+  const continueBtn = $('#reviewContinue');
+  if (continueBtn) {
+    continueBtn.addEventListener('click', () => go('print'));
+  }
+  const backBtn = $('#reviewBack');
+  if (backBtn) {
+    backBtn.addEventListener('click', () => go('home'));
+  }
+})();
+
 // -------------------------------------------------------------------- utils
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
