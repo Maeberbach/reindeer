@@ -352,47 +352,13 @@
     <!--
       Three quick links — right under the co-owner card so the owner
       can reach their items, people, and print without scrolling to the
-      bottom. These were partner-card tiles in an earlier layout and
-      got accidentally demoted to the quiet row.
+      bottom.
     -->
     <div class="quick-links">
       <button class="linky" data-go="list">My items</button>
       <button class="linky" data-go="people">My people</button>
       <button class="linky" data-go="review">Print</button>
     </div>
-
-    <!--
-      Two counts, never one bar.
-
-      A progress bar needs a denominator and an estate does not have one — the
-      app can never know how many things are in a house, so any percentage it
-      showed would be a lie, and a lie that either flatters or frightens. Two
-      honest numbers instead: the warm one grows as wishes are recorded, the
-      neutral one states what is still not assigned. Neither can ever be
-      "finished", and neither shames anyone.
-    -->
-    <div class="counters" id="homeCounters" hidden>
-      <div class="counter spoken">
-        <span class="cnum" id="cntSpoken">0</span>
-        <span class="clbl">Assigned to a person</span>
-      </div>
-      <div class="counter open">
-        <span class="cnum" id="cntOpen">0</span>
-        <span class="clbl">written down, nobody named</span>
-      </div>
-      <p class="counter-note" id="counterNote" hidden></p>
-    </div>
-
-    <!--
-      Step 5 — memorandum conflict counter on Home.
-      Shown only when the two partners have unresolved conflicts.
-      Gold to match the writer's conflict banner. Tapping it opens
-      the memorandum writer where the conflicts can be resolved.
-    -->
-    <button class="counter conflict-counter" id="homeConflictCounter" data-go="memo" hidden>
-      <span class="cnum" id="cntConflict">0</span>
-      <span class="clbl">things to sort out with your partner</span>
-    </button>
 
     <!--
       Where you left off.
@@ -415,35 +381,85 @@
     <div class="queuebadge" id="queueBadge" hidden></div>
 
     <!--
-      Two doors and two endings, in order.
+      Tiles grouped by stage of work, not a flat grid.
 
-      2. Things meant for someone — the only part nobody else can do.
-      3. Everything else in the house — the second door.
-      4. Jewelry and small valuables — a strong recommendation, do this
-         yourself in private. Placed after the two doors so it does not
-         jump the queue, but before the secondary tiles so it stands out.
-      5. Things families fight over — secondary, organised by category.
-      6. Holiday reminders — secondary, time-based nudges.
-      7. Specific gifts by name — the memorandum writer.
-      8. Sign it — the first ending.
-      9. Send it to FairPlay — the second ending.
+      The old layout was six equal tiles mixing three different stages of
+      work (do the memo, document the house, finish up) plus a settings
+      toggle. An owner seeing six equal choices has to work out which one
+      they want before they can start. Grouped with headers so the journey
+      is obvious: start here, document more, when you're ready.
 
-      Everything else — the item list, the roster, the printer — is
-      still reachable in the quiet row underneath. Demoted rather than
-      deleted: too many equal choices on a first screen asks an elderly
-      owner to work out which one they want before they can start.
+      Holiday reminders demoted to the quiet row — it's a preference, not
+      a primary action.
+
+      Updated 2026-08-20.
     -->
+
+    <!-- Start here -->
+    <h3 class="section-head">Start here</h3>
     <div class="tiles">
       <button class="tile primary" data-go="memo"><span class="ico">🎁</span><span class="lbl">Specific gifts by name</span><span class="hint" id="giftsTileHint">Your memorandum — say who a particular thing is for. This is the most important thing you can do here.</span></button>
+    </div>
+
+    <!-- Document more -->
+    <h3 class="section-head">Document more</h3>
+    <div class="tiles">
       <button class="tile" data-go="walk"><span class="ico">🏠</span><span class="lbl">Everything else in the house</span><span class="hint">One room at a time. Point the camera, and it writes down what it sees. You do not have to do this all at once.</span></button>
       <button class="tile" data-go="contested"><span class="ico">🤝</span><span class="lbl">Things families find hardest to divide</span><span class="hint">Jewelry, firearms, and the items that cause the most trouble. Get ahead of them one category at a time.</span></button>
-      <button class="tile" data-go="reminders"><span class="ico">📅</span><span class="lbl">Holiday reminders</span><span class="hint">Get a nudge before holidays to capture things while family is together.</span></button>
+    </div>
+
+    <!-- When you're ready -->
+    <h3 class="section-head">When you&rsquo;re ready</h3>
+    <div class="tiles">
       <button class="tile" data-go="signing"><span class="ico">✍️</span><span class="lbl">Make it official</span><span class="hint">Print the page, sign it by hand, photograph the signed page</span></button>
       <button class="tile" data-go="handoff"><span class="ico">✅</span><span class="lbl">Send it to your trustee</span><span class="hint">Email it, save a copy, or send it to FairPlay</span></button>
     </div>
 
+    <!--
+      Two counts, never one bar — now toward the bottom.
+
+      A progress bar needs a denominator and an estate does not have one — the
+      app can never know how many things are in a house, so any percentage it
+      showed would be a lie. Two honest numbers instead: the warm one grows
+      as wishes are recorded, the neutral one states what is still not
+      assigned. Neither can ever be "finished", and neither shames anyone.
+
+      Moved below the tiles so the owner sees what to DO first, then how
+      much they've done — not the other way around.
+    -->
+    <div class="counters" id="homeCounters" hidden>
+      <div class="counter spoken">
+        <span class="cnum" id="cntSpoken">0</span>
+        <span class="clbl">Assigned to a person</span>
+      </div>
+      <div class="counter open">
+        <span class="cnum" id="cntOpen">0</span>
+        <span class="clbl">written down, nobody named</span>
+      </div>
+      <p class="counter-note" id="counterNote" hidden></p>
+    </div>
+
+    <!--
+      Memorandum conflict counter.
+      Shown only when the two partners have unresolved conflicts.
+      Gold to match the writer's conflict banner. Tapping it opens
+      the memorandum writer where the conflicts can be resolved.
+    -->
+    <button class="counter conflict-counter" id="homeConflictCounter" data-go="memo" hidden>
+      <span class="cnum" id="cntConflict">0</span>
+      <span class="clbl">things to sort out with your partner</span>
+    </button>
+
+    <!--
+      Quiet row — secondary links demoted rather than deleted.
+      Too many equal choices on a first screen asks an elderly owner
+      to work out which one they want before they can start.
+    -->
     <p class="reassure">Nothing here is a will. It records your wishes so your family is not guessing.</p>
-    <button class="linky" data-go="welcome">Why am I doing this?</button>
+    <div class="quietrow">
+      <button class="linky" data-go="reminders">Holiday reminders</button>
+      <button class="linky" data-go="welcome">Why am I doing this?</button>
+    </div>
   </section>
 
   <!--
