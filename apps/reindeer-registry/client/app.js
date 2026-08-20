@@ -1104,8 +1104,11 @@ $('#capPhoto').onchange = async (e) => {
       // it while waiting. Their words outrank the machine's, always.
       const box = $('#capTitle');
       if (box && !box.value.trim()) box.value = best.label;
+      const vs1 = best.value_suggestion;
+      const overThreshold = vs1 && vs1.high_cents != null && vs1.high_cents >= valueThresholdCents;
       setNote(`This looks like: ${escapeHtml(best.label)}${best.category_hint ? ` (${escapeHtml(best.category_hint)})` : ''}. Change it if that is not right.`
-        + formatAiValue(best));
+        + formatAiValue(best)
+        + (overThreshold ? `<div class="ai-value-alert">⬆ Above your ${fmtMoney(valueThresholdCents)} alert — consider flagging this as important.</div>` : ''));
       if (best.category_hint) cap.category = best.category_hint;
       // In guided intro mode, show the accept bar so the owner can confirm
       // the AI label and save in one tap without scrolling through details.
@@ -1251,6 +1254,61 @@ function formatAiValue(d) {
     return `<div class="ai-value">AI: ${escapeHtml(d.value_unknown_reason)}</div>`;
   }
   return '';
+}
+
+/* ------------------------------------------------------------------ */
+/* AI value threshold notification                                     */
+/*                                                                     */
+/* After AI identifies items from photos, any item estimated above     */
+/* the owner's threshold gets called out so they can decide if it     */
+/* deserves a closer look or designation to an heir. Default $250,    */
+/* adjustable from $50 to $3,000. Stored in localStorage.              */
+/* ------------------------------------------------------------------ */
+let valueThresholdCents = (() => {
+  try {
+    const v = parseInt(localStorage.getItem('reindeer_value_threshold'), 10);
+    if (!isNaN(v) && v >= 5000 && v <= 300000) return v;
+  } catch {}
+  return 25000; // $250 default
+})();
+
+function setValueThreshold(cents) {
+  cents = Math.max(5000, Math.min(300000, cents));
+  valueThresholdCents = cents;
+  try { localStorage.setItem('reindeer_value_threshold', String(cents)); } catch {}
+  return cents;
+}
+
+function itemsAboveThreshold(items) {
+  return items.filter((a) => {
+    const vs = a.value_suggestion;
+    if (!vs || vs.high_cents == null) return false;
+    return vs.high_cents >= valueThresholdCents;
+  });
+}
+
+function renderThresholdNotice(aboveItems) {
+  if (!aboveItems.length) return '';
+  const cards = aboveItems.map((a) => `
+      <div class="threshold-card">
+        ${a.thumb ? `<img src="${a.thumb}" alt="">` : ''}
+        <div class="threshold-info">
+          <h4>${escapeHtml(a.label)}</h4>
+          ${formatAiValue(a)}
+        </div>
+      </div>`).join('');
+  const n = aboveItems.length;
+  return `
+    <div class="threshold-banner">
+      <div class="threshold-head">
+        <span class="threshold-icon">⬆</span>
+        <div>
+          <h3>${n} item${n === 1 ? '' : 's'} estimated above ${fmtMoney(valueThresholdCents)}</h3>
+          <p>AI thinks these may be worth a closer look. Consider flagging one as important and assigning it to someone.</p>
+        </div>
+      </div>
+      <div class="threshold-list">${cards}</div>
+    </div>`;
 }
 
 const BASIS_WORDS = {
@@ -3889,27 +3947,60 @@ function showRoomNextAsk() {
  */
 function renderRoomGiftAsk(added, again = false) {
   const n = added.length;
-  const itemList = again ? '' : added.map((a) => `
-      <div class="card room-item">
+  const above = again ? [] : itemsAboveThreshold(added);
+  const thresholdNotice = above.length ? renderThresholdNotice(above) : '';
+  const itemList = again ? '' : added.map((a) => {
+    const isOver = a.value_suggestion && a.value_suggestion.high_cents != null
+      && a.value_suggestion.high_cents >= valueThresholdCents;
+    return `
+      <div class="card room-item${isOver ? ' over-threshold' : ''}">
         ${a.thumb ? `<img src="${a.thumb}" alt="">` : ''}
         <div>
           <h3>${escapeHtml(a.label)}</h3>
           ${formatAiValue(a)}
         </div>
-      </div>`).join('');
+      </div>`;
+  }).join('');
   $('#batchResults').innerHTML = `
     ${again ? '' : `<h2>${n} thing${n === 1 ? '' : 's'} in the ${escapeHtml(room?.name ?? 'room')}
       ${n === 1 ? 'is' : 'are'} on your list</h2>
     <p class="reassure">That part is done. They are written down and they will print.</p>
-    <div class="room-item-list">${itemList}</div>`}
+    ${thresholdNotice}
+    <div class="room-item-list">${itemList}</div>
+    <details class="threshold-settings">
+      <summary>AI value alert threshold: ${fmtMoney(valueThresholdCents)}</summary>
+      <p class="reassure" style="font-size:0.85rem;margin:8px 0">Get notified when AI estimates an item above this amount. Drag or type to change.</p>
+      <div class="threshold-control">
+        <input type="range" id="thresholdSlider" min="50" max="3000" step="50" value="${valueThresholdCents / 100}">
+        <span id="thresholdLabel">${fmtMoney(valueThresholdCents)}</span>
+      </div>
+    </details>`}
     <div class="ask">
       <p class="askq">${again
         ? 'Did anything else catch your eye as important in this room?'
-        : 'Did anything catch your eye as important in this room?'}</p>
+        : (above.length
+          ? 'Anything above worth assigning to an heir — or did something else catch your eye?'
+          : 'Did anything catch your eye as important in this room?')}</p>
       <p class="reassure" style="font-size:0.85rem;margin-top:4px">Take a close-up photo of it. That marks it as important, asks for details, and AI will help identify what it is.</p>
       <button class="primary wide" id="giftYes">Yes — something caught my eye</button>
       <button class="ghost wide" id="giftNo">${again ? 'No — that is everything' : 'No — on to the next room'}</button>
     </div>`;
+  // Wire up threshold slider
+  const slider = $('#thresholdSlider');
+  const tlabel = $('#thresholdLabel');
+  if (slider) {
+    slider.oninput = () => {
+      const cents = parseInt(slider.value, 10) * 100;
+      tlabel.textContent = fmtMoney(cents);
+    };
+    slider.onchange = () => {
+      const cents = parseInt(slider.value, 10) * 100;
+      setValueThreshold(cents);
+      tlabel.textContent = fmtMoney(cents);
+      // Re-render to reflect the new threshold
+      renderRoomGiftAsk(added, again);
+    };
+  }
   $('#giftNo').onclick = async () => { await leaveNaming(); setRoomFinished('done'); };
   $('#giftYes').onclick = () => {
     leaveNaming();

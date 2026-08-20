@@ -146,6 +146,33 @@ button{font:inherit}
 .room-item-list .card.room-item img{width:56px; height:56px; object-fit:cover; border-radius:6px; flex-shrink:0}
 .room-item-list .card.room-item h3{font-size:16px; margin:0 0 2px}
 
+/* AI value threshold notification banner */
+.threshold-banner{border:2px solid #d4a017; border-radius:12px; padding:16px; margin:12px 0; background:#fffbf0}
+.threshold-head{display:flex; gap:10px; align-items:flex-start}
+.threshold-icon{font-size:24px; color:#d4a017; line-height:1; flex-shrink:0; margin-top:2px}
+.threshold-head h3{font-size:17px; margin:0 0 4px; color:#5a4500}
+.threshold-head p{font-size:14px; margin:0; color:#6b5a3a; line-height:1.4}
+.threshold-list{margin-top:12px; display:flex; flex-direction:column; gap:8px}
+.threshold-card{display:flex; gap:12px; align-items:flex-start; padding:10px 12px; background:var(--card, #fff); border:1px solid var(--border, #e0dcd4); border-radius:8px}
+.threshold-card img{width:56px; height:56px; object-fit:cover; border-radius:6px; flex-shrink:0}
+.threshold-card .threshold-info h4{font-size:15px; margin:0 0 2px}
+.threshold-card .ai-value{font-size:14px; font-weight:700; color:#d4a017}
+.threshold-card .ai-value-reason{font-size:12px; color:var(--ink-2)}
+/* Highlight over-threshold items in the room item list */
+.room-item.over-threshold{border:2px solid #d4a017; background:#fffbf0}
+/* Threshold settings control */
+.threshold-settings{margin:8px 0 16px; padding:0; border:none}
+.threshold-settings summary{font-size:14px; color:var(--ink-2); cursor:pointer; padding:8px 0; user-select:none}
+.threshold-settings summary:hover{color:var(--ink)}
+.threshold-control{display:flex; align-items:center; gap:12px}
+.threshold-control input[type="range"]{flex:1; accent-color:#d4a017; cursor:pointer}
+.threshold-control #thresholdLabel{font-size:15px; font-weight:700; min-width:70px; text-align:right}
+
+/* Single-item threshold alert */
+.ai-value-alert{font-size:14px; font-weight:700; color:#d4a017; margin:6px 0 0; padding:6px 10px; background:#fffbf0; border:1px solid #d4a017; border-radius:6px; line-height:1.4}
+
+
+
 .important-block{margin-top:18px; padding:14px; background:#faf7ee; border:1px solid #ece4c8; border-radius:10px}
 .important-check{display:flex; align-items:center; gap:12px; font-size:20px; font-weight:600; cursor:pointer; padding:6px 0}
 .important-check input[type="checkbox"]{width:26px; height:26px; margin:0; accent-color:var(--accent)}
