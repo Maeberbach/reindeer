@@ -1918,6 +1918,10 @@ function renderNamingRows(detections) {
           <div class="sub">${escapeHtml(d.category_hint ?? '')} ${d.quantity > 1 ? `· ${d.quantity} of them` : ''}</div>
           ${d.appraisal_suggested ? '<span class="badge hv">ASK SOMEONE ABOUT THIS ONE</span>' : ''}
           ${formatAiValue(d)}
+          <label class="batch-important-check">
+            <input type="checkbox" data-batch-important="${i}">
+            <span>This one is important</span>
+          </label>
           <div class="detrow">
             <button class="primary" data-keep="${i}">Keep</button>
             <button class="ghost" data-reject="${i}">Not a thing</button>
@@ -1929,14 +1933,18 @@ function renderNamingRows(detections) {
   $$('#batchResults [data-reject]').forEach((b) => { b.onclick = () => b.closest('.card').remove(); });
   $$('#batchResults [data-keep]').forEach((b) => {
     b.onclick = async () => {
-      const d = detections[Number(b.dataset.keep)];
+      const i = Number(b.dataset.keep);
+      const d = detections[i];
       const src = batchFiles[d.frame_index ?? 0];
       const crop = src ? await cropTo(src._dataUrl, d.bbox) : null;
+      // Check if the owner marked this item as important
+      const importantBox = document.querySelector(`[data-batch-important="${i}"]`);
+      const isImportant = importantBox?.checked === true;
       // Carry the room through, so a thing named during a walkthrough of the
       // dining room is filed in the dining room without being asked again.
       const { created, possible_duplicates } = await api('/api/intake/commit', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ detections: [{ ...d, crop_data_url: crop, room: room?.name ?? d.room ?? null }] }),
+        body: JSON.stringify({ detections: [{ ...d, crop_data_url: crop, room: room?.name ?? d.room ?? null, tentative_high_value: isImportant, tentative_high_value_source: isImportant ? 'ai' : '' }] }),
       });
       b.closest('.card').remove();
       refreshCount();
@@ -1956,8 +1964,14 @@ function renderNamingRows(detections) {
     $('#keepAll').onclick = async () => {
       $('#keepAll').disabled = true;
       const buttons = $$('#batchResults [data-keep]');
-      for (const b of buttons) { await b.onclick(); }
-      toast(`${buttons.length} things added to your list.`);
+      let importantCount = 0;
+      for (const b of buttons) {
+        const i = Number(b.dataset.keep);
+        const importantBox = document.querySelector(`[data-batch-important="${i}"]`);
+        if (importantBox?.checked) importantCount++;
+        await b.onclick();
+      }
+      toast(`${buttons.length} things added to your list${importantCount ? ` (${importantCount} marked important)` : ''}.`);
     };
   }
 }

@@ -5,7 +5,7 @@ import { ulid } from './db/index.js';
  * Bumped whenever DEFAULT_ROOMS or DEFAULT_CATEGORIES gains an entry that
  * existing inventories should be offered. See migration 6.
  */
-export const DEFAULTS_VERSION = 2;
+export const DEFAULTS_VERSION = 3;
 
 /**
  * Room and category registry, shared so an exported inventory can be mapped
@@ -123,6 +123,15 @@ export class Registry {
     const cat = this.db.prepare('INSERT INTO categories (category_id, scope_id, name, is_custom, sort_order) VALUES (?,?,?,0,?)');
     let added = 0;
     const tx = this.db.transaction(() => {
+      // v3 migration: rename "Everything else" → "Just stuff" so existing
+      // inventories get the new label without losing their category reference.
+      if (scope.defaults_version < 3) {
+        this.db.prepare('UPDATE categories SET name = ? WHERE scope_id = ? AND LOWER(name) = ?')
+          .run('Just stuff', scopeId, 'everything else');
+        // Refresh the have set after the rename so we don't double-insert.
+        haveCat.delete('everything else');
+        haveCat.add('just stuff');
+      }
       DEFAULT_ROOMS.forEach((n, i) => {
         if (haveRoom.has(n.toLowerCase())) return;
         room.run(ulid(), scopeId, n, i);

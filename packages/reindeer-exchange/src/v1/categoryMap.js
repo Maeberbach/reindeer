@@ -80,6 +80,16 @@ export const REGISTRY_CATEGORY_MAP = Object.freeze({
       'Miscellaneous',
     ],
   },
+  // Backwards compat: old inventories may still have "Everything else" as the
+  // category name. Map it the same way as the renamed "Just stuff".
+  'Everything else': {
+    crossing: CATEGORY_CROSSING.SHORTHAND,
+    candidates: [
+      'Kitchenware', 'Electronics', 'Tools', 'Books', 'Sporting Goods',
+      'Clothing', 'Documents', 'Digital Assets', 'Real Property Contents',
+      'Miscellaneous',
+    ],
+  },
   Guns: {
     crossing: CATEGORY_CROSSING.ALIAS,
     category: 'Firearms',
