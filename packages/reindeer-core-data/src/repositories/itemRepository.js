@@ -22,6 +22,7 @@ const toRow = (i) => ({
   photo_taken_at: i.photo_taken_at ?? null,
   ai_value_suggestion: i.ai_value_suggestion ? JSON.stringify(i.ai_value_suggestion) : null,
   ai_value_unknown_reason: i.ai_value_unknown_reason ?? null,
+  site_id: i.site_id ?? null,
 });
 
 const fromRow = (r) => r && ({
@@ -42,6 +43,7 @@ const fromRow = (r) => r && ({
   photo_taken_at: r.photo_taken_at ?? null,
   ai_value_suggestion: r.ai_value_suggestion ? JSON.parse(r.ai_value_suggestion) : null,
   ai_value_unknown_reason: r.ai_value_unknown_reason ?? null,
+  site_id: r.site_id ?? null,
 });
 
 export class SqliteItemRepository extends ItemRepository {
@@ -65,7 +67,7 @@ export class SqliteItemRepository extends ItemRepository {
         tentative_high_value, tentative_high_value_source, tentative_high_value_reason,
         ai_confidence, review_state, print_state, export_state, created_at, updated_at,
         captured_lat, captured_lon, photo_lat, photo_lon, photo_taken_at,
-        ai_value_suggestion, ai_value_unknown_reason)
+        ai_value_suggestion, ai_value_unknown_reason, site_id)
       VALUES (@item_id, @scope_id, @origin_app, @origin_item_id, @title, @category_id, @room_id,
         @description, @story, @quantity, @condition, @identifiers, @value_estimate_cents, @value_basis,
         @high_value_flag, @owner_high_value, @owner_high_value_reason, @owner_important_comment,
@@ -73,7 +75,7 @@ export class SqliteItemRepository extends ItemRepository {
         @tentative_high_value, @tentative_high_value_source, @tentative_high_value_reason,
         @ai_confidence, @review_state, @print_state, @export_state, @created_at, @updated_at,
         @captured_lat, @captured_lon, @photo_lat, @photo_lon, @photo_taken_at,
-        @ai_value_suggestion, @ai_value_unknown_reason)
+        @ai_value_suggestion, @ai_value_unknown_reason, @site_id)
     `).run({ ...row, scope_id: ctx.scopeId });
 
     if (input.recipient_hint) await this.setRecipientHint(value.item_id, input.recipient_hint, ctx);
@@ -151,7 +153,8 @@ export class SqliteItemRepository extends ItemRepository {
         print_state=@print_state, export_state=@export_state, updated_at=@updated_at,
         captured_lat=@captured_lat, captured_lon=@captured_lon,
         photo_lat=@photo_lat, photo_lon=@photo_lon, photo_taken_at=@photo_taken_at,
-        ai_value_suggestion=@ai_value_suggestion, ai_value_unknown_reason=@ai_value_unknown_reason
+        ai_value_suggestion=@ai_value_suggestion, ai_value_unknown_reason=@ai_value_unknown_reason,
+        site_id=@site_id
       WHERE item_id=@item_id AND scope_id=@scope_id
     `).run({ ...row, scope_id: ctx.scopeId });
 

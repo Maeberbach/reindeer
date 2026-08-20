@@ -352,6 +352,10 @@ export function createIntakeRouter(deps) {
         owner_important_comment: '',
         ai_confidence: d.confidence ?? null,
         review_state: REVIEW_STATE.DRAFT,
+        // Tag the item with the active site so reports can group by location.
+        // The client passes this from the geosyncing state (cap.siteId or
+        // activeSiteId). Falls back to null for legacy items without a site.
+        site_id: d.site_id ?? null,
       }, ctx);
       if (d.crop_data_url) {
         await mediaStore.put(Buffer.from(d.crop_data_url.split(',').pop(), 'base64'), {

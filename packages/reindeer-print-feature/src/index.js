@@ -45,6 +45,7 @@ export function createPrintRouter({ itemRepo, resolveScope, ownerName = '' }) {
       room: 'Reindeer: Registry by Room',
       category: 'Reindeer: Registry by Category',
       recipient: 'Reindeer: Registry by Intended Recipient',
+      site: 'Reindeer: Registry by Location',
     };
     if (req.query.mark === 'true' && items.length) await itemRepo.markPrinted(items.map((i) => i.item_id), ctx);
 

@@ -781,7 +781,7 @@ function wireSiteControls() {
           body: JSON.stringify({
             name, kind,
             lat: cap.capturedLat, lon: cap.capturedLon,
-            radius_m: 150,
+            radius_m: 274,
           }),
         });
         sitesList.push(site);
@@ -950,7 +950,7 @@ function wireHomeSiteControls() {
         if (gpsCoords) {
           body.lat = gpsCoords.lat;
           body.lon = gpsCoords.lon;
-          body.radius_m = 150;
+          body.radius_m = 274;
         }
         if (address) body.address = address;
         await api('/api/sites', {
@@ -1245,6 +1245,7 @@ $('#capPhoto').onchange = async (e) => {
                     ...d, crop_data_url: crop, room: cap.room || null,
                     tentative_high_value: isImportant,
                     tentative_high_value_source: isImportant ? 'owner' : '',
+                    site_id: cap.siteId || activeSiteId || null,
                   }] }),
                 });
                 row.style.opacity = '0.5';
@@ -1303,6 +1304,7 @@ $('#capPhoto').onchange = async (e) => {
                   ...enriched, crop_data_url: crop, room: cap.room || null,
                   tentative_high_value: isImportant,
                   tentative_high_value_source: isImportant ? 'owner' : '',
+                  site_id: cap.siteId || activeSiteId || null,
                 }] }),
               });
               // Update the label if the close-up identification changed it.
@@ -1960,7 +1962,7 @@ function renderNamingRows(detections) {
       // dining room is filed in the dining room without being asked again.
       const { created, possible_duplicates } = await api('/api/intake/commit', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ detections: [{ ...d, crop_data_url: crop, room: room?.name ?? d.room ?? null, tentative_high_value: isImportant, tentative_high_value_source: isImportant ? 'owner' : '' }] }),
+        body: JSON.stringify({ detections: [{ ...d, crop_data_url: crop, room: room?.name ?? d.room ?? null, tentative_high_value: isImportant, tentative_high_value_source: isImportant ? 'owner' : '', site_id: cap.siteId || activeSiteId || null }] }),
       });
       b.closest('.card').remove();
       refreshCount();
