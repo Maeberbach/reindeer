@@ -992,4 +992,28 @@ export const MIGRATIONS = [
       ALTER TABLE items ADD COLUMN ai_value_unknown_reason TEXT;
     `,
   },
+  {
+    id: 28,
+    name: 'sites',
+    sql: `
+      CREATE TABLE IF NOT EXISTS sites (
+        site_id     TEXT PRIMARY KEY,
+        scope_id    TEXT NOT NULL,
+        name        TEXT NOT NULL,
+        kind        TEXT NOT NULL DEFAULT 'other',
+        address     TEXT NOT NULL DEFAULT '',
+        lat         REAL,
+        lon         REAL,
+        radius_m    REAL NOT NULL DEFAULT 274,
+        is_primary  INTEGER NOT NULL DEFAULT 0,
+        created_at  TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_sites_scope ON sites(scope_id);
+
+      -- Tag items with their capture site so reports can group by location.
+      -- Nullable: items captured before multi-site support have no site.
+      ALTER TABLE items ADD COLUMN site_id TEXT REFERENCES sites(site_id);
+      CREATE INDEX IF NOT EXISTS idx_items_site ON items(scope_id, site_id);
+    `,
+  },
 ];

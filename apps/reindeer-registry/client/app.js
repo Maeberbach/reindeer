@@ -683,6 +683,14 @@ async function matchSite() {
       cap.siteId = null;
       cap.siteName = '';
       cap.offsite = true;
+      // If the server says this is likely a new site, show distance info
+      if (res.is_new_site && res.nearest) {
+        cap.nearestSiteName = res.nearest.name;
+        cap.nearestDistanceYards = res.nearest.distance_yards;
+      } else {
+        cap.nearestSiteName = null;
+        cap.nearestDistanceYards = null;
+      }
     }
   } catch (e) {
     console.warn('Site match failed:', e.message);
@@ -732,7 +740,11 @@ function syncSiteUI() {
     warning.hidden = false;
     const warnEl = warning.querySelector('.offsite-msg');
     if (warnEl) {
-      warnEl.textContent = 'You are not at a registered location. You can still add items, but they will be tagged with your GPS coordinates. Register this location to group items by site.';
+      let msg = 'You are not at a registered location. You can still add items, but they will be tagged with your GPS coordinates.';
+      if (cap.nearestSiteName && cap.nearestDistanceYards) {
+        msg = `You are about <b>${cap.nearestDistanceYards} yards</b> from <b>${escapeHtml(cap.nearestSiteName)}</b> — this looks like a different location. Register it to group items by site, or add items here anyway.`;
+      }
+      warnEl.innerHTML = msg;
     }
   } else {
     // Geo not available or denied — don't block, just tag as unknown

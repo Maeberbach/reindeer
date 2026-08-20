@@ -6,7 +6,9 @@ import { ulid } from './db/index.js';
  * The home/primary site is auto-created with the scope. Additional sites
  * (storage unit, second home, vacation home) are added by the owner
  * through the settings or the offsite warning flow. Each site has
- * optional GPS coordinates for geosyncing.
+ * optional GPS coordinates for geosyncing. The default match radius
+ * is 274 meters (300 yards) — locations farther apart than this are
+ * treated as likely different sites.
  */
 export class SitesRegistry {
   constructor(db, audit) {
@@ -26,7 +28,7 @@ export class SitesRegistry {
     ).get(siteId, ctx.scopeId);
   }
 
-  create(ctx, { name, kind = 'other', address = '', lat = null, lon = null, radius_m = 100 }) {
+  create(ctx, { name, kind = 'other', address = '', lat = null, lon = null, radius_m = 274 }) {
     const siteId = ulid();
     const now = new Date().toISOString();
     this.db.prepare(
@@ -58,7 +60,7 @@ export class SitesRegistry {
 
   delete(ctx, siteId) {
     const existing = this.get(ctx, siteId);
-    if (!existing || existing.is_primary) return false; // cannot delete primary
+    if (!existing || existing.is_primary) return false;
     this.db.prepare(
       'DELETE FROM sites WHERE site_id = ? AND scope_id = ?',
     ).run(siteId, ctx.scopeId);
@@ -69,11 +71,6 @@ export class SitesRegistry {
     return true;
   }
 
-  /**
-   * Match a GPS coordinate to the nearest site within its radius.
-   * Uses the haversine formula for distance. Returns null if no site
-   * is within range.
-   */
   matchByCoords(ctx, lat, lon) {
     const sites = this.list(ctx);
     for (const s of sites) {
@@ -84,10 +81,38 @@ export class SitesRegistry {
     return null;
   }
 
-  /**
-   * Ensure the scope has a primary "Home" site. Called on scope creation
-   * or on first access if missing.
-   */
+  nearestByCoords(ctx, lat, lon) {
+    const sites = this.list(ctx);
+    let nearest = null;
+    let nearestDist = Infinity;
+    for (const s of sites) {
+      if (s.lat == null || s.lon == null) continue;
+      const dist = haversineMeters(lat, lon, s.lat, s.lon);
+      if (dist < nearestDist) { nearest = s; nearestDist = dist; }
+    }
+    return nearest ? { site: nearest, distance_m: nearestDist } : null;
+  }
+
+  isLikelyNewSite(ctx, lat, lon) {
+    const match = this.matchByCoords(ctx, lat, lon);
+    if (match) return false;
+    const near = this.nearestByCoords(ctx, lat, lon);
+    if (!near) return true;
+    return near.distance_m > 274;
+  }
+
+  retagItems(ctx, fromSiteId) {
+    const primary = this.ensurePrimary(ctx);
+    this.db.prepare(
+      'UPDATE items SET site_id = ? WHERE site_id = ? AND scope_id = ?',
+    ).run(primary.site_id, fromSiteId, ctx.scopeId);
+    this.audit?.append?.({
+      action: 'site.retag', entity: 'site', entity_id: fromSiteId,
+      payload: { retagged_to: primary.site_id },
+    }, ctx);
+    return primary;
+  }
+
   ensurePrimary(ctx) {
     const existing = this.db.prepare(
       'SELECT * FROM sites WHERE scope_id = ? AND is_primary = 1',
@@ -97,17 +122,14 @@ export class SitesRegistry {
     const now = new Date().toISOString();
     this.db.prepare(
       `INSERT INTO sites (site_id, scope_id, name, kind, lat, lon, radius_m, is_primary, created_at)
-       VALUES (?, ?, 'Home', 'home', NULL, NULL, 200, 1, ?)`,
+       VALUES (?, ?, 'Home', 'home', NULL, NULL, 274, 1, ?)`,
     ).run(siteId, ctx.scopeId, now);
     return this.get(ctx, siteId);
   }
 }
 
-/**
- * Haversine formula — distance between two lat/lon points in meters.
- */
 function haversineMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371000; // earth radius in meters
+  const R = 6371000;
   const toRad = (d) => d * Math.PI / 180;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);

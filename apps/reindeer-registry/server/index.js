@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SCOPE_TYPE } from '@reindeer-legacy/core-api';
-import { openDb, defaultDataDir, ulid, SqliteAuditLog, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry, PeopleRepo, HeirsRepo, WillsCaretakersRepo, AddendumVersionsRepo, ParticipantsRepo, MagicLinksRepo, SessionsRepo, MemorandumRepo, ReminderPrefsRepo, createCorporateSettings } from '@reindeer-legacy/core-data';
+import { openDb, defaultDataDir, ulid, SqliteAuditLog, SqliteItemRepository, FsMediaStore, ScopeMediaStore, Registry, PeopleRepo, HeirsRepo, WillsCaretakersRepo, AddendumVersionsRepo, ParticipantsRepo, MagicLinksRepo, SessionsRepo, MemorandumRepo, ReminderPrefsRepo, SitesRegistry, createCorporateSettings } from '@reindeer-legacy/core-data';
 import { AuthService } from './auth/service.js';
 import { attachSession, authRequired } from './auth/middleware.js';
 import { adminBackdoor, backdoorEnabled, isBackdoorAdmin, isBackdoorSupport, supportEnabled } from './adminBackdoor.js';
@@ -11,6 +11,7 @@ import { createScopeSummaryRouter } from './routes/scopeSummary.js';
 import { createHouseholdLinkRouter } from './routes/householdLink.js';
 import { createMemorandumRouter } from './routes/memorandum.js';
 import { createRemindersRouter } from './routes/reminders.js';
+import { createSitesRouter } from './routes/sites.js';
 import crypto from 'node:crypto';
 import { createIntakeRouter, createExecutionRouter, createPeopleRouter, legacyErrorHandler, MockVisionProvider, HttpVisionProvider, AnthropicVisionProvider, OpenAIVisionProvider, SimpleDuplicateDetector } from '@reindeer-legacy/intake-feature';
 import { createPrintRouter } from '@reindeer-legacy/print-feature';
@@ -140,6 +141,7 @@ const willsCaretakers = new WillsCaretakersRepo(db, audit);
 const addendumVersions = new AddendumVersionsRepo(db, audit);
 const memorandum = new MemorandumRepo(db, audit);
 const reminderPrefs = new ReminderPrefsRepo(db);
+const sites = new SitesRegistry(db, audit);
 
 const delivery = new DeliveryService({
   db, audit, itemRepo, mediaStore, scopeMediaStore, registry, trustees, mailer,
@@ -211,10 +213,19 @@ app.use(requireLicenseForWrite);
 // When ON, blocks write methods (POST/PUT/PATCH/DELETE) for expired/locked estates (HTTP 402).
 app.use(requireSubscriptionForWrite(db, SCOPE_ID));
 
+// Ensure the estate has a primary "Home" site before any route handles the request
+app.use('/api', (req, res, next) => {
+  try {
+    const ctx = resolveScope(req);
+    if (ctx?.scopeId) sites.ensurePrimary(ctx);
+  } catch { /* not authenticated yet — skip */ }
+  next();
+});
 app.use('/api', createScopeSummaryRouter({ registry, participants, resolveScope }));
 app.use('/api', createHouseholdLinkRouter({ registry, participants, auth, resolveScope }));
 app.use('/api', createMemorandumRouter({ memorandum, registry, participants, resolveScope }));
 app.use('/api', createRemindersRouter({ reminderPrefs, resolveScope }));
+app.use('/api', createSitesRouter({ sites, resolveScope }));
 // maxFramesSetting is defined above (admin-configurable, default 4, hard max 8).
 // Passed into the intake router so the detect endpoint clamps incoming frames.
 app.use('/api', createIntakeRouter({ itemRepo, mediaStore, scopeMediaStore, registry, vision, duplicates, audit, resolveScope, maxFrames: () => maxFramesSetting }));
