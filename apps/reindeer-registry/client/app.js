@@ -275,7 +275,7 @@ function go(name, opts = {}) {
   if (fb) fb.hidden = history.length === 0;
   $('#appTitle').textContent = {
     welcome: 'Reindeer: Registry', recipientwelcome: 'Welcome', helperwelcome: 'Welcome', howto: 'How to use', guidedpartner: 'Add someone', guidedphoto: 'Take a photo', whosdoing: "Who's doing this?", helptype: "Who's helping?", home: 'Reindeer: Registry', capture: 'Add an item', batch: 'Add several',
-    list: 'My items', detail: 'Item', print: 'Print', handoff: 'Finishing up', confirmsend: 'Confirm',
+    list: 'My items', detail: 'Item', review: 'Review items', print: 'Print', handoff: 'Finishing up', confirmsend: 'Confirm',
     signing: 'Making it official', people: 'My people',
     walk: 'Room by room', room: 'This room', promise: 'Items already designated to a specific person',
     // The addendum \u2014 named recipients + memorandum + signed versions.
@@ -305,6 +305,7 @@ function go(name, opts = {}) {
   }
 
   if (name === 'list') loadList();
+  if (name === 'review') loadReview();
   if (name === 'admin') loadFeatureFlags();
   if (name === 'signing') {
     api('/api/household-link').then((hl) => {

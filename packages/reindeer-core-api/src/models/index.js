@@ -275,6 +275,11 @@ export function makeItemRecord(input = {}) {
     photo_lat: input.photo_lat ?? null,
     photo_lon: input.photo_lon ?? null,
     photo_taken_at: input.photo_taken_at ?? null,
+    // AI-suggested value range stored as metadata. Advisory only — the
+    // registry never treats it as authoritative. Persisted so the owner
+    // can see it on the final review screen before printing.
+    ai_value_suggestion: input.ai_value_suggestion ?? null,
+    ai_value_unknown_reason: input.ai_value_unknown_reason ?? null,
     review_state: input.review_state ?? REVIEW_STATE.DRAFT,
     print_state: input.print_state ?? PRINT_STATE.UNPRINTED,
     export_state: input.export_state ?? EXPORT_STATE.NEVER,

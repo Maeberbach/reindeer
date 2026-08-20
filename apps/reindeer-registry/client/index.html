@@ -330,7 +330,7 @@
     <div class="quick-links">
       <button class="linky" data-go="list">My items</button>
       <button class="linky" data-go="people">My people</button>
-      <button class="linky" data-go="print">Print</button>
+      <button class="linky" data-go="review">Print</button>
     </div>
 
     <!--
@@ -870,6 +870,24 @@
       </div>
     </div>
   </div>
+
+  <!-- ITEM REVIEW — phone-style "all photos" grid for final review before print -->
+  <section class="screen" data-screen="review" hidden>
+    <h2>Review your items</h2>
+    <p class="reassure">Tap any item to expand it. Double-tap for a close-up. Everything you see here is what will appear on your printed memorandum.</p>
+    <div class="review-toolbar">
+      <div class="review-stats" id="reviewStats"></div>
+      <button class="ghost" id="reviewFilterImportant">Show important only</button>
+    </div>
+    <div id="reviewGrid" class="review-grid"></div>
+    <div id="reviewEmpty" class="review-empty" hidden>
+      <p class="lede">No items to review yet. Add things to your inventory first.</p>
+    </div>
+    <div class="detrow review-actions">
+      <button class="primary wide" id="reviewContinue">Continue to print →</button>
+      <button class="ghost" id="reviewBack">← Back</button>
+    </div>
+  </section>
 
   <!-- PRINT -->
   <section class="screen" data-screen="print" hidden>
