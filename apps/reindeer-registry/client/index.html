@@ -994,12 +994,13 @@
   <!-- PRINT -->
   <section class="screen" data-screen="print" hidden>
     <h2>Print center</h2>
+    <p class="reassure" style="margin-bottom: 12pt">Your full inventory includes value estimates — for your own reference and for your fiduciary. If you want to share a copy with family, use the "without values" option.</p>
     <div class="tiles">
-      <a class="tile" target="_blank" data-api-href="/api/print/report?group_by=room&mark=true" href="#"><span class="ico">🏠</span><span class="lbl">List by room</span><span class="hint">Good for walking the house</span></a>
-      <a class="tile" target="_blank" data-api-href="/api/print/report?group_by=category&mark=true" href="#"><span class="ico">🗂️</span><span class="lbl">List by category</span><span class="hint">Jewelry, tools, art, and so on</span></a>
-      <a class="tile" target="_blank" data-api-href="/api/print/report?group_by=recipient&mark=true" href="#"><span class="ico">👪</span><span class="lbl">List by intended person</span><span class="hint">Who you hope receives what</span></a>
-      <a class="tile" target="_blank" data-api-href="/api/print/report?group_by=room&layout=blocks&profile=letter_photo" href="#"><span class="ico">📖</span><span class="lbl">Full book with photos</span><span class="hint">One block per item</span></a>
-      <a class="tile" target="_blank" data-api-href="/api/print/report?group_by=room&values=hide" href="#"><span class="ico">🙈</span><span class="lbl">Copy without values</span><span class="hint">Share with family</span></a>
+      <a class="tile" target="_blank" data-api-href="/api/print/report?group_by=room&values=show&mark=true" href="#"><span class="ico">🏠</span><span class="lbl">List by room</span><span class="hint">With value estimates</span></a>
+      <a class="tile" target="_blank" data-api-href="/api/print/report?group_by=category&values=show&mark=true" href="#"><span class="ico">🗂️</span><span class="lbl">List by category</span><span class="hint">With value estimates</span></a>
+      <a class="tile" target="_blank" data-api-href="/api/print/report?group_by=recipient&values=show&mark=true" href="#"><span class="ico">👪</span><span class="lbl">List by intended person</span><span class="hint">With value estimates</span></a>
+      <a class="tile" target="_blank" data-api-href="/api/print/report?group_by=room&layout=blocks&profile=letter_photo&values=show" href="#"><span class="ico">📖</span><span class="lbl">Full book with photos</span><span class="hint">With value estimates</span></a>
+      <a class="tile" target="_blank" data-api-href="/api/print/report?group_by=room&values=hide" href="#"><span class="ico">🙈</span><span class="lbl">Copy without values</span><span class="hint">Safe to share with family</span></a>
       <!--
         The "High-value only" tile was removed with the Important-flag work:
         Registry never sets high_value_flag (that is FairPlay's computed

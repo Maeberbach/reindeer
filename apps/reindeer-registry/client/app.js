@@ -965,7 +965,7 @@ wireHomeSiteControls();
 // or sharing to Discovery. The full sign-and-send flow is only on the
 // all-done (walk finished) page.
 $('#homePrintTile')?.addEventListener('click', () => {
-  window.open(`${API}/api/print/report`, '_blank');
+  window.open(`${API}/api/print/report?values=show`, '_blank');
   toast('Opening your printable list, organized by room.');
 });
 

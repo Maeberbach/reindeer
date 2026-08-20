@@ -16,10 +16,11 @@ const stamp = (d = new Date()) => d.toLocaleString('en-US', {
   year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit',
 });
 
-// showValues defaults to FALSE: Reindeer: Registry records what exists and
-// makes no value claim. Valuation belongs to Reindeer: FairPlay, which has
-// value estimates and a threshold the captain sets. A caller can
-// still opt in for its own purposes, but nothing in the registry does.
+// showValues defaults to FALSE for backward compat, but the owner's print
+// center passes values=show so the owner sees their full inventory with
+// estimates. Values do NOT appear on the signed memorandum (probate safety)
+// but are available on the inventory report for the owner and fiduciary.
+// AI value suggestions (low/high range) also appear when showValues is true.
 function shell({ title, profile, body, subtitle = '', showValues = false }) {
   const p = PRINT_PROFILES[profile] ?? PRINT_PROFILES.letter_photo;
   return `<!doctype html>
@@ -105,6 +106,8 @@ function itemBlock(item, { base, showValues, sheet = false }) {
       <span><b>Qty:</b> ${item.quantity}</span>
       <span><b>Condition:</b> ${esc(item.condition)}</span>
       ${showValues ? `<span><b>Est. value:</b> ${money(item.value_estimate_cents)}</span>` : ''}
+      ${showValues && item.ai_value_suggestion ? `<span><b>AI range:</b> ${money(item.ai_value_suggestion.low_cents)}–${money(item.ai_value_suggestion.high_cents)}</span>` : ''}
+      ${showValues && !item.value_estimate_cents && item.ai_value_suggestion ? `<span style="color:#888;font-size:9pt">(AI estimate only — owner has not set a value)</span>` : ''}
     </div>
     ${item.photos?.length ? `<div class="photos">${item.photos.map((p) => photoTag(p, base)).join('')}</div>` : ''}
     ${item.description ? `<div>${esc(item.description)}</div>` : ''}
@@ -134,12 +137,15 @@ export function renderReport(items, { title = 'Reindeer: Registry', groupBy = 'r
   }
 
   const total = items.reduce((s, i) => s + (i.value_estimate_cents ?? 0), 0);
+  const aiLow = items.reduce((s, i) => s + (i.ai_value_suggestion?.low_cents ?? 0), 0);
+  const aiHigh = items.reduce((s, i) => s + (i.ai_value_suggestion?.high_cents ?? 0), 0);
   const unassigned = items.filter((i) => !i.recipient_hint?.recipient_name).length;
   const noPhoto = items.filter((i) => !i.photos?.length).length;
 
   const summary = `<div class="meta" style="font-size:11pt">
     <span><b>${items.length}</b> items</span>
-    ${showValues ? `<span><b>${money(total)}</b> estimated total</span>` : ''}
+    ${showValues ? `<span><b>${money(total)}</b> owner-estimated total</span>` : ''}
+    ${showValues && aiHigh > 0 ? `<span><b>${money(aiLow)}–${money(aiHigh)}</b> AI-estimated range</span>` : ''}
     <span><b>${unassigned}</b> with no intended recipient</span>
     <span><b>${noPhoto}</b> with no photo</span>
   </div>`;
@@ -150,14 +156,15 @@ export function renderReport(items, { title = 'Reindeer: Registry', groupBy = 'r
     }
     return `<h2 class="group-title">${esc(name)} (${list.length})</h2>
       <table class="list"><thead><tr>
-        <th></th><th>Item</th><th>Qty</th><th>${groupBy === 'recipient' ? 'Room' : 'Intended for'}</th>${showValues ? '<th>Est. value</th>' : ''}<th>Recorded</th>
+        <th></th><th>Item</th><th>Qty</th><th>${groupBy === 'recipient' ? 'Room' : 'Intended for'}</th>${showValues ? '<th>Est. value</th><th>AI range</th>' : ''}<th>Recorded</th>
       </tr></thead><tbody>
       ${list.map((i) => `<tr>
         <td class="thumb">${i.photos?.[0] ? `<img src="${base}/photos/${esc(i.photos[0].photo_id)}" alt="">` : ''}</td>
         <td>${i.owner_high_value ? '<span class="important-mark">Important · </span>' : ''}<b>${esc(i.title)}</b>${i.story ? `<br><span style="font-size:9pt;color:#666">${esc(i.story.slice(0, 90))}${i.story.length > 90 ? '…' : ''}</span>` : ''}${i.owner_important_comment ? `<div class="important-comment"><strong>Important</strong>${esc(i.owner_important_comment)}</div>` : ''}</td>
         <td>${i.quantity}</td>
         <td>${esc(groupBy === 'recipient' ? (i.room?.name ?? '—') : (i.recipient_hint?.recipient_name || '—'))}</td>
-        ${showValues ? `<td>${money(i.value_estimate_cents)}</td>` : ''}
+        ${showValues ? `<td>${money(i.value_estimate_cents)}${i.value_estimate_cents && i.ai_value_suggestion ? '' : ''}</td>` : ''}
+        ${showValues ? `<td style="font-size:9pt;color:#666">${i.ai_value_suggestion ? `${money(i.ai_value_suggestion.low_cents)}–${money(i.ai_value_suggestion.high_cents)}` : '—'}</td>` : ''}
         <td style="font-size:9pt">${esc(new Date(i.created_at).toLocaleDateString('en-US'))}</td>
       </tr>`).join('')}
       </tbody></table>`;
