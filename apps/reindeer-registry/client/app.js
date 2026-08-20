@@ -308,6 +308,12 @@ function go(name, opts = {}) {
   if (name === 'review') loadReview();
   if (name === 'admin') loadFeatureFlags();
   if (name === 'signing') {
+    // Auto-fill today's date on page load — the owner shouldn't have to
+    // type the date they're signing something they're signing right now.
+    const signDateInput = $('#signDate');
+    if (signDateInput && !signDateInput.value) {
+      signDateInput.value = new Date().toISOString().slice(0, 10);
+    }
     api('/api/household-link').then((hl) => {
       const me = (hl?.participants || []).find((p) => p.is_me);
       if (me?.role === 'assistant') {
@@ -350,13 +356,9 @@ function go(name, opts = {}) {
     syncSiteUI();
   }
   if (name === 'handoff') {
-    api('/api/household-link').then((hl) => {
-      const me = (hl?.participants || []).find((p) => p.is_me);
-      if (me?.role === 'assistant') {
-        toast('Only the owners can send the final list.', true);
-        go('home');
-      } else { verifyRecord(); refreshFinishScreen(); }
-    }).catch(() => { verifyRecord(); refreshFinishScreen(); });
+    // The handoff page is now part of the signing page — redirect there.
+    go('signing');
+    return;
   }
   if (name === 'admin') loadAdminLicenses();
   // The gifts family. Each mount refreshes its data so the roster/preview
@@ -2489,8 +2491,8 @@ $('#finishGo').onclick = async () => {
   await runFinishActions({ email: false });
 };
 
-$('#confirmSendCancel').onclick = () => go('handoff', { back: true });
-$('#confirmSendGo').onclick = async () => { go('handoff', { back: true }); await runFinishActions({ email: true }); };
+$('#confirmSendCancel').onclick = () => go('signing', { back: true });
+$('#confirmSendGo').onclick = async () => { go('signing', { back: true }); await runFinishActions({ email: true }); };
 
 async function runFinishActions({ email }) {
   const done = [];
@@ -2837,6 +2839,8 @@ let execution = null;
 let signBlob = null;
 
 async function loadExecution() {
+  // Also refresh the sending section so item count is current.
+  try { refreshFinishScreen(); } catch { /* may not be ready yet */ }
   try {
     execution = await api('/api/execution');
   } catch { execution = null; return; }
@@ -2870,7 +2874,7 @@ function updateSignButton() {
   btn.disabled = !has && !already;
   btn.textContent = has
     ? 'Save the signed page'
-    : already ? 'Update where the original is kept' : 'Photograph the page first';
+    : already ? 'Update where the original is kept' : 'Save';
 }
 
 $('#signPrint').onclick = () => {

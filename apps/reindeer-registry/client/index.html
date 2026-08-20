@@ -412,8 +412,7 @@
     <!-- When you're ready -->
     <h3 class="section-head">When you&rsquo;re ready</h3>
     <div class="tiles">
-      <button class="tile" data-go="signing"><span class="ico">✍️</span><span class="lbl">Make it official</span><span class="hint">Print the page, sign it by hand, photograph the signed page</span></button>
-      <button class="tile" data-go="handoff"><span class="ico">✅</span><span class="lbl">Send it to your trustee</span><span class="hint">Email it, save a copy, or send it to FairPlay</span></button>
+      <button class="tile" data-go="signing"><span class="ico">✍️</span><span class="lbl">Make it official</span><span class="hint">Print, sign, photograph the page, then send it to your trustee</span></button>
     </div>
 
     <!--
@@ -540,7 +539,7 @@
     <div id="walkDone" class="alldone" hidden>
       <p class="alldone-title">Every room is finished.</p>
       <p>You have been through the whole house. You can still go back into any room and add more.</p>
-      <button class="primary wide" data-go="handoff">See what to do next</button>
+      <button class="primary wide" data-go="signing">See what to do next</button>
     </div>
   </section>
 
@@ -1043,13 +1042,6 @@
       <li>
         <span class="stepnum">3</span>
         <div class="stepbody">
-          <h3>Put the signed page with your will</h3>
-          <p>Keep it wherever the will itself is kept. This matters: if the signed page cannot be found later, a court can assume you tore it up on purpose.</p>
-        </div>
-      </li>
-      <li>
-        <span class="stepnum">4</span>
-        <div class="stepbody">
           <h3>Take a photo of the signed page</h3>
           <p>Then your trustee can see that it exists and what it says, without anyone having to move the original.</p>
           <label class="bigfile">
@@ -1057,6 +1049,13 @@
             <span>Photograph or scan the signed page</span>
           </label>
           <img id="signPreview" class="preview" hidden alt="The signed page">
+        </div>
+      </li>
+      <li>
+        <span class="stepnum">4</span>
+        <div class="stepbody">
+          <h3>Put the signed page with your will</h3>
+          <p>Keep it wherever the will itself is kept. This matters: if the signed page cannot be found later, a court can assume you tore it up on purpose.</p>
         </div>
       </li>
     </ol>
@@ -1069,7 +1068,7 @@
       <p class="reassure">Say it plainly enough that someone who has never been in your house could find it.</p>
     </div>
 
-    <button class="primary wide" id="signSave" disabled>Photograph the page first</button>
+    <button class="primary wide" id="signSave" disabled>Save</button>
     <div id="signResult" class="note" hidden></div>
 
     <button class="linky" id="signVersionsBtn" style="margin-top:16px">Past signed versions</button>
@@ -1118,6 +1117,68 @@
 
     <div id="attList" class="note" hidden></div>
     <p class="reassure">Rules differ from state to state, and a few states give a list like this no effect at all. Your own attorney can tell you in one sentence which you are in.</p>
+
+    <!-- Send it to your trustee -->
+    <div class="proheader" id="sendSection">
+      <h3>Send it to your trustee</h3>
+      <p class="reassure">Once the page is signed and photographed, send the full list and the signed page to the person looking after your affairs.</p>
+      <ul class="choices">
+        <li class="choice">
+          <label>
+            <input type="checkbox" id="optEmail">
+            <span class="choicebody">
+              <span class="choicelbl">Email it to my trustee</span>
+              <span class="choicehint">Sends the full list and photos to the person looking after your affairs</span>
+            </span>
+          </label>
+          <div class="subfields" id="emailFields" hidden>
+            <label class="fieldlabel" for="trusteeName">Their name</label>
+            <input type="text" id="trusteeName" class="bigin" placeholder="For example: Sarah Whitfield">
+            <label class="fieldlabel" for="trusteeEmail">Their email address</label>
+            <input type="email" id="trusteeEmail" class="bigin" inputmode="email" placeholder="name@example.com">
+          </div>
+        </li>
+        <li class="choice">
+          <label>
+            <input type="checkbox" id="optSave">
+            <span class="choicebody">
+              <span class="choicelbl">Save a copy</span>
+              <span class="choicehint">Downloads the list and a spreadsheet to this device</span>
+            </span>
+          </label>
+        </li>
+        <li class="choice">
+          <label>
+            <input type="checkbox" id="optSigned">
+            <span class="choicebody">
+              <span class="choicelbl">Include the signed page</span>
+              <span class="choicehint" id="optSignedHint">Sends the photograph of the page you signed by hand, and where the original is kept</span>
+            </span>
+          </label>
+        </li>
+        <li class="choice">
+          <label>
+            <input type="checkbox" id="optFairChoice">
+            <span class="choicebody">
+              <span class="choicelbl">Send it to Reindeer: FairPlay</span>
+              <span class="choicehint">Only needed when the family is ready to divide things up</span>
+            </span>
+          </label>
+        </li>
+        <li class="choice">
+          <label>
+            <input type="checkbox" id="optDiscovery">
+            <span class="choicebody">
+              <span class="choicelbl">Send it to Reindeer: Discovery</span>
+              <span class="choicehint">Invite your family to browse the collection and mark what matters to them</span>
+            </span>
+          </label>
+        </li>
+      </ul>
+      <button class="primary wide" id="finishGo" disabled>Choose at least one</button>
+      <div id="finishResult" class="note" hidden></div>
+      <div id="verifyBox" class="note"></div>
+    </div>
   </section>
 
   <section class="screen" data-screen="handoff" hidden>
