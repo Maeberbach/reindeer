@@ -34,7 +34,7 @@ export class OpenAIVisionProvider extends VisionProvider {
     }));
 
     const systemPrompt = `You are an inventory assistant helping someone document their home for estate planning.
-Your job: identify distinct physical objects visible in the photos.
+Your job: identify distinct physical objects visible in the photos — things the owner considers their belongings and would list in a household inventory.
 For each object, return:
 - label: a short, plain-language name (e.g., "Oak rocking chair", "Cast iron skillet")
 - category: one of: Jewelry, Furniture, Kitchenware, Art, Collectibles, Tools, Photos, Firearms, Clothing, Books, Electronics, Holiday Ornaments, Other
@@ -43,12 +43,14 @@ For each object, return:
 - bbox: approximate location as [x, y, width, height] normalized 0-1
 
 RULES:
+- SCOPE: Report movable, ownable objects — furniture, art, tools, kitchenware, jewelry, collectibles, electronics, books, clothing. Do NOT report the setting: rooms, walls, floors, pools, decks, patios, lawns, staircases, fireplaces, countertops, or built-in fixtures. A surface is not an object — if a photo shows things on a table or shelf, report the things, not the table or shelf. An architectural feature is not an object — if a photo shows furniture near a pool or fireplace, report the furniture, not the pool or fireplace. The room_hint tells you where the photo was taken, not what the object is.
 - Only report objects you can actually SEE. Do not invent items.
 - Only report identifiers that are LEGIBLE in the photograph. Never guess a brand from style.
 - Never estimate a dollar value. That is not your job.
 - If you cannot identify something, label it "Unidentified object" with low confidence.
 - A single photo may contain multiple objects. Report each one separately.
 - If the same object appears in multiple frames, it will be merged later — just report what you see in each frame.
+- Be specific in the label: "wrought iron patio table with glass top" is better than "table". This record may be the only description a family has.
 
 Return a JSON array of detections. Format:
 [{"label":"...","category":"...","confidence":0.85,"identifiers":{},"bbox":[0.1,0.2,0.3,0.4]}]`;

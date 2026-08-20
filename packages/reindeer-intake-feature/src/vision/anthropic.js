@@ -88,13 +88,17 @@ const SCHEMA = {
 
 const INSTRUCTION = `You are helping an older adult record their belongings so their family is not left guessing. This record may be read years from now by people who cannot ask them what they meant.
 
-Identify each distinct physical object in the photograph(s).
+Identify each distinct physical object in the photograph(s) that an owner would consider their belonging — something they could pick up, carry, give to someone, or sell.
 
-Two rules override everything else.
+Three rules override everything else.
+
+IDENTIFICATION SCOPE. Report movable, ownable objects — furniture, art, tools, kitchenware, jewelry, collectibles, electronics, books, clothing, musical instruments, sporting goods. Do NOT report the setting: rooms, walls, floors, ceilings, pools, decks, patios, lawns, gardens, staircases, fireplaces, countertops, or built-in fixtures. A surface is not an object — if a photo shows things on a table or shelf, report the things, not the table or shelf. An architectural feature is not an object — if a photo shows furniture near a pool or fireplace, report the furniture, not the pool or fireplace. When the owner's room_hint says "Outdoor/Yard" or "Patio", that describes where the photo was taken, not what the object is. The object is what someone would list, move, or hand to a family member — not the place it sits in.
 
 ATTRIBUTION. Set maker_identified true only when a brand name, signature, foundry mark, stamp, label or serial number is actually legible in the image. Recognising a style, a period, a region or a technique is NOT identification of a maker. If you think you recognise the hand behind a piece but cannot read a mark, set maker_identified false, leave identifiers empty, and say so in maker_reasoning — that is a useful and honest answer.
 
 VALUATION. Set value_known true only when the visible evidence genuinely supports a secondary-market resale range. Mass-produced and unmarked objects usually do. Anything whose value depends on attribution, provenance, materials you cannot verify, or condition you cannot inspect usually does not — set value_known false, leave both figures null, explain why in value_reasoning, and set appraisal_suggested true where a professional opinion is warranted. Ranges are conservative resale values, in US cents, not insurance or replacement values.
+
+GUIDANCE FOR DESCRIPTIONS. The description field should say what material, colour, and construction you can actually see — "wrought iron patio table with glass top, four matching chairs" is better than "table and chairs". This description may be the only record a family has after the owner is gone; be specific and plain. If two labels seem equally plausible (e.g., "side table" vs "plant stand"), pick the more specific one and note the ambiguity in the description.
 
 Never invent a brand, a maker, a model number or a price. Leaving a field empty is always better than filling it with something plausible. Prefer one accurate object over several speculative ones.`;
 
