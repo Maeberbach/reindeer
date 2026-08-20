@@ -1104,7 +1104,8 @@ $('#capPhoto').onchange = async (e) => {
     // In guided intro mode, even without AI detection, show the accept bar
     // so the owner can type a name and save in one go.
     if (guidedIntroMode) showAcceptBar('', null);
-    const best = detections.sort((a, b) => b.confidence - a.confidence)[0];
+    const sorted = detections.sort((a, b) => b.confidence - a.confidence);
+    const best = sorted[0];
     if (best) {
       cap.ai = best;
       // Only fill the box if the owner has not already typed their own name for
@@ -1113,10 +1114,54 @@ $('#capPhoto').onchange = async (e) => {
       if (box && !box.value.trim()) box.value = best.label;
       const vs1 = best.value_suggestion;
       const overThreshold = vs1 && vs1.high_cents != null && vs1.high_cents >= valueThresholdCents;
-      setNote(`This looks like: ${escapeHtml(best.label)}${best.category_hint ? ` (${escapeHtml(best.category_hint)})` : ''}. Change it if that is not right.`
+      let noteHtml = `This looks like: ${escapeHtml(best.label)}${best.category_hint ? ` (${escapeHtml(best.category_hint)})` : ''}. Change it if that is not right.`
         + formatAiValue(best)
-        + (overThreshold ? `<div class="ai-value-alert">⬆ Above your ${fmtMoney(valueThresholdCents)} alert — consider flagging this as important.</div>` : ''));
+        + (overThreshold ? `<div class="ai-value-alert">⬆ Above your ${fmtMoney(valueThresholdCents)} alert — consider flagging this as important.</div>` : '');
+      // When the AI finds more than one item in a single photo, show the others
+      // below the main suggestion. Each gets a "Save this too" button that
+      // creates a separate item with the AI label, the same photo, and the
+      // same room. The owner can fill in details later from the item list.
+      if (sorted.length > 1) {
+        const extras = sorted.slice(1);
+        noteHtml += `<div class="ai-extras"><p class="ai-extras-head">Also in this photo:</p>`;
+        extras.forEach((d, i) => {
+          noteHtml += `<div class="ai-extra-row" data-extra-idx="${i + 1}">
+            <span class="ai-extra-label">${escapeHtml(d.label)}${d.category_hint ? ` (${escapeHtml(d.category_hint)})` : ''}</span>
+            <button class="ghost small" data-save-extra="${i + 1}">Save this too</button>
+          </div>`;
+        });
+        noteHtml += `</div>`;
+      }
+      setNote(noteHtml);
       if (best.category_hint) cap.category = best.category_hint;
+      // Wire up "Save this too" buttons for extra detections found in the photo.
+      if (sorted.length > 1) {
+        $$('#aiNote [data-save-extra]').forEach((btn) => {
+          btn.onclick = async () => {
+            const idx = Number(btn.dataset.saveExtra);
+            const d = sorted[idx];
+            if (!d) return;
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
+            try {
+              const crop = await cropTo(cap.dataUrl, d.bbox);
+              await api('/api/intake/commit', {
+                method: 'POST', headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ detections: [{
+                  ...d, crop_data_url: crop, room: cap.room || null,
+                }] }),
+              });
+              btn.textContent = 'Saved ✓';
+              btn.closest('.ai-extra-row').style.opacity = '0.5';
+              refreshCount();
+            } catch (e) {
+              btn.disabled = false;
+              btn.textContent = 'Save this too';
+              toast('Could not save that one — try again.', true);
+            }
+          };
+        });
+      }
       // In guided intro mode, show the accept bar so the owner can confirm
       // the AI label and save in one tap without scrolling through details.
       if (guidedIntroMode) showAcceptBar(best.label, best.category_hint);

@@ -197,6 +197,13 @@ button{font:inherit}
 .summary div{padding:7px 0; border-bottom:1px solid #eee9dd}
 .summary div:last-child{border:0}
 .aiNote{background:var(--accent-soft); border-left:5px solid var(--accent); padding:12px 14px; border-radius:8px; font-size:17px}
+.ai-extras{margin-top:10px; padding-top:10px; border-top:1px solid var(--border)}
+.ai-extras-head{font-weight:600; font-size:15px; color:var(--muted); margin-bottom:6px}
+.ai-extra-row{display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px solid var(--border)}
+.ai-extra-label{font-size:15px; flex:1}
+.ai-extra-row:last-child{border-bottom:none}
+.ghost.small{font-size:14px; padding:4px 12px; border:1px solid var(--border); border-radius:6px; background:transparent; color:var(--text); cursor:pointer; white-space:nowrap}
+.ghost.small:hover{background:var(--accent-soft)}
 
 .detrow{display:flex; gap:12px; flex-wrap:wrap; margin-top:18px}
 .detrow a,.detrow button{flex:1 1 46%; text-align:center; text-decoration:none; display:inline-block}
