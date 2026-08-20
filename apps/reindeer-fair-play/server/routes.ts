@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { storage } from "./storage";
+import { storage, db } from "./storage";
 import { itemMedia } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { enforcePause } from "./middleware/enforcePause";

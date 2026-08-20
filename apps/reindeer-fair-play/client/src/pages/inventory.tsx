@@ -159,6 +159,9 @@ export default function InventoryPage() {
   const [draftNotes, setDraftNotes] = useState("");
   const [photoForId, setPhotoForId] = useState<number | null>(null);
   const photoRef = useRef<HTMLInputElement>(null);
+  const [voiceMemoForItem, setVoiceMemoForItem] = useState<Item | null>(null);
+  const [voiceMemos, setVoiceMemos] = useState<Array<{ id: number; kind: string; url: string; label: string; durationMs: number | null; transcript: string }>>([]);
+  const [loadingMemos, setLoadingMemos] = useState(false);
   const canCategorize = useCanCategorize();
 
   /* --- v6: the add form looks at the photograph before you save --- */
@@ -170,6 +173,17 @@ export default function InventoryPage() {
   const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
   const [aiHighValue, setAiHighValue] = useState<{ reason?: string } | null>(null);
   const [acceptHighValue, setAcceptHighValue] = useState(false);
+
+  async function loadVoiceMemos(itemId: number) {
+    setLoadingMemos(true);
+    try {
+      const res = await apiRequest("GET", `/api/items/${itemId}/media`);
+      const all = await res.json();
+      setVoiceMemos(all.filter((m: any) => m.kind === "audio"));
+    } finally {
+      setLoadingMemos(false);
+    }
+  }
 
   function resetAddAi() {
     setAddPhotoUrl(null);
@@ -976,10 +990,18 @@ export default function InventoryPage() {
                     {(i.audioCount > 0 || i.photoCount > 1) && (
                       <div className="mt-1 flex flex-wrap gap-1.5">
                         {i.audioCount > 0 && (
-                          <Badge variant="outline" className="gap-1 text-xs" data-testid={`badge-voice-memo-${i.id}`}>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium hover:bg-accent cursor-pointer"
+                            data-testid={`badge-voice-memo-${i.id}`}
+                            onClick={() => {
+                              setVoiceMemoForItem(i);
+                              loadVoiceMemos(i.id);
+                            }}
+                          >
                             <Mic className="h-3 w-3" />
                             {i.audioCount} voice memo{i.audioCount > 1 ? "s" : ""}
-                          </Badge>
+                          </button>
                         )}
                         {i.photoCount > 1 && (
                           <Badge variant="outline" className="gap-1 text-xs" data-testid={`badge-photos-${i.id}`}>
@@ -1277,6 +1299,44 @@ export default function InventoryPage() {
               {setText.isPending ? "Saving…" : "Save changes"}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Voice memo playback — heirs can listen to the deceased owner's
+          voice memos that traveled from Registry. These are irreplaceable. */}
+      <Dialog open={!!voiceMemoForItem} onOpenChange={(open) => { if (!open) { setVoiceMemoForItem(null); setVoiceMemos([]); } }}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-serif">Voice memos</DialogTitle>
+            <DialogDescription>
+              {voiceMemoForItem ? `Recorded notes for "${voiceMemoForItem.name}"` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {loadingMemos ? (
+            <div className="py-8 text-center text-muted-foreground">Loading recordings…</div>
+          ) : voiceMemos.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground">No voice memos for this item.</div>
+          ) : (
+            <div className="space-y-4">
+              {voiceMemos.map((m) => (
+                <div key={m.id} className="rounded-lg border p-4">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+                    <Mic className="h-4 w-4 text-muted-foreground" />
+                    {m.label || `Recording ${m.id}`}
+                    {m.durationMs != null && (
+                      <span className="text-xs text-muted-foreground">
+                        ({Math.floor(m.durationMs / 1000)}s)
+                      </span>
+                    )}
+                  </div>
+                  <audio controls className="w-full" src={m.url} />
+                  {m.transcript && (
+                    <p className="mt-2 text-xs italic text-muted-foreground">{m.transcript}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
