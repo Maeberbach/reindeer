@@ -60,9 +60,19 @@ registry.ensureScope({
  * shape but is not reachable by accident: it requires REINDEER_VISION_PROTOCOL.
  */
 function createVisionProvider() {
-  const key = process.env.REINDEER_VISION_KEY || process.env.OPENAI_API_KEY;
+  // Key resolution: check ANTHROPIC_API_KEY (what Mark purchased) alongside
+  // the generic REINDEER_VISION_KEY and OPENAI_API_KEY fallbacks.
+  const anthropicKey = process.env.REINDEER_VISION_KEY || process.env.ANTHROPIC_API_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY;
+  const key = anthropicKey || openaiKey;
   if (!key) return new MockVisionProvider();
-  const protocol = process.env.REINDEER_VISION_PROTOCOL || 'openai';
+  // Protocol: default to anthropic when an Anthropic key is present and no
+  // explicit REINDEER_VISION_PROTOCOL is set. This matches the key Mark
+  // purchased. OpenAI is still used if only OPENAI_API_KEY is set, or if
+  // REINDEER_VISION_PROTOCOL=openai is explicitly chosen.
+  const hasAnthropicKey = Boolean(anthropicKey);
+  const protocol = process.env.REINDEER_VISION_PROTOCOL
+    || (hasAnthropicKey ? 'anthropic' : 'openai');
   if (protocol === 'custom') {
     return new HttpVisionProvider({
       endpoint: process.env.REINDEER_VISION_ENDPOINT,
@@ -73,13 +83,13 @@ function createVisionProvider() {
   if (protocol === 'anthropic') {
     return new AnthropicVisionProvider({
       endpoint: process.env.REINDEER_VISION_ENDPOINT || undefined,
-      apiKey: key,
+      apiKey: anthropicKey || key,
       model: process.env.REINDEER_VISION_MODEL || undefined,
     });
   }
   // Default: OpenAI
   return new OpenAIVisionProvider({
-    apiKey: key,
+    apiKey: openaiKey || key,
     model: process.env.REINDEER_VISION_MODEL || 'gpt-4o',
     endpoint: process.env.REINDEER_VISION_ENDPOINT || 'https://api.openai.com/v1/chat/completions',
   });
