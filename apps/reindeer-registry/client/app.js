@@ -274,7 +274,7 @@ function go(name, opts = {}) {
   const fb = $('#floatingBack');
   if (fb) fb.hidden = history.length === 0;
   $('#appTitle').textContent = {
-    welcome: 'Reindeer: Registry', recipientwelcome: 'Welcome', helperwelcome: 'Welcome', howto: 'How to use', guidedpartner: 'Add someone', guidedphoto: 'Take a photo', guidedmeaning: 'Tell its story', whosdoing: "Who's doing this?", helptype: "Who's helping?", home: 'Reindeer: Registry', capture: 'Add an item', batch: 'Add several',
+    welcome: 'Reindeer: Registry', recipientwelcome: 'Welcome', helperwelcome: 'Welcome', howto: 'How to use', guidedpartner: 'Add someone', guidedphoto: 'Take a photo', whosdoing: "Who's doing this?", helptype: "Who's helping?", home: 'Reindeer: Registry', capture: 'Add an item', batch: 'Add several',
     list: 'My items', detail: 'Item', print: 'Print', handoff: 'Finishing up', confirmsend: 'Confirm',
     signing: 'Making it official', people: 'My people',
     walk: 'Room by room', room: 'This room', promise: 'Items already designated to a specific person',
@@ -436,7 +436,7 @@ $('#onboardAssistant')?.addEventListener('click', () => go('helperinvite'));
 // -------------------------------------------------- GUIDED INTRODUCTION
 // Three-step first-run flow: partner → photo → meaning → home.
 // Each step can be skipped. The guidedPhoto button opens the standard
-// capture flow; after the item saves, the owner lands on guidedmeaning
+// capture flow; after the item saves, the owner lands on home
 // (not home) so they see the "tell its story" prompt before landing.
 let guidedIntroMode = false;
 let roomImportantFlow = false;  // when set, post-save asks about assignment then returns to room
@@ -445,7 +445,6 @@ $('#guidedTakePhoto')?.addEventListener('click', () => {
   resetCapture();
   go('capture');
 });
-$('#guidedToHome')?.addEventListener('click', () => { guidedIntroMode = false; go('home'); });
 
 // ------------------------------------------------------------ guided capture
 let cap = null;
@@ -1375,7 +1374,7 @@ async function saveItem() {
     if (recipientPracticeMode) { recipientPracticeMode = false; return go('walk'); }
     if (guidedIntroMode) {
       guidedIntroMode = false;
-      go('guidedmeaning');
+      go('home');
       return;
     }
     if (roomImportantFlow) {
