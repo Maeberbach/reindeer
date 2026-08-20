@@ -62,19 +62,20 @@
       Reindeer Registry is designed to be simple and gentle to use.
     </p>
     <p class="lede">
-      Start by taking a photo of an item, a group of items, or even an entire
-      room. Reindeer helps identify what it sees and organizes it into your
-      inventory. You can add notes or stories whenever something feels
-      meaningful.
+      Start with the items you already know matter. Take a photo, name it,
+      and say who it is for. That becomes your <strong>personal property
+      memorandum</strong> &mdash; the most important part of this.
     </p>
     <p class="lede">
-      When something matters to you, you can assign it to a person. It is
-      then added to your personal property memorandum.
+      You do not need to catalog your whole house. Most people include
+      fewer than thirty specific items. If you do nothing else, document
+      those.
     </p>
     <p class="lede">
-      You do not need to decide everything at once. Most people include fewer
-      than thirty specific items. Even starting with a single room is enough
-      to begin.
+      When you are ready, you can also walk through the rest of the house
+      room by room. Reindeer helps identify what it sees and organizes it
+      into your inventory. This is valuable, but it is secondary &mdash;
+      the memorandum comes first.
     </p>
     <p class="lede">
       When the time comes, <strong>your wishes come first</strong>. Anything
@@ -109,6 +110,12 @@
     Screen 3 — The quiet gift. What this prevents. Introduces FairPlay
     as the companion for everything else. Legal framing: the signed
     memorandum governs, not the app.
+
+    Updated 2026-08-20: Added statement of instruction clarifying that the
+    memorandum is the main goal. The whole-house inventory is valuable but
+    optional and can feel overwhelming. Owners who already know which items
+    matter most can skip straight to documenting those without walking
+    every room.
   -->
   <section class="screen" data-screen="quietgift" hidden>
     <h2 class="bighead">Its quiet gift is peace.</h2>
@@ -118,17 +125,38 @@
       they could ask about. Setting your stories down is a way of staying
       close.
     </p>
+
+    <h3 class="section-head">The most important thing you can do</h3>
     <p class="lede">
-      You take a photo, Reindeer identifies it, and you add a story if you
-      want. That&rsquo;s the whole thing &mdash; one item at a time, room by
-      room, until you&rsquo;re done.
+      Your <strong>personal property memorandum</strong> is the heart of
+      this. It does not need your whole house &mdash; it needs the items
+      you already know matter. A watch, a ring, a painting, a tool, a
+      keepsake. If you document nothing else, document those.
     </p>
     <p class="lede">
-      When you&rsquo;re ready to start for real, pick a room and begin.
+      You can always come back and walk through the rest of the house
+      later. The inventory of everything else is valuable, but it is
+      secondary. The memorandum comes first.
+    </p>
+
+    <h3 class="section-head">How would you like to start?</h3>
+    <div class="tiles onboarding-tiles">
+      <button class="tile primary" data-go="guidedpartner">
+        <span class="ico">💎</span>
+        <span class="lbl">Just my most important items</span>
+        <span class="hint">The things you already know matter. Name them, assign them, and your memorandum is underway.</span>
+      </button>
+      <button class="tile" data-go="guidedpartner">
+        <span class="ico">🏠</span>
+        <span class="lbl">Walk through my whole house</span>
+        <span class="hint">One room at a time, and it writes down what it sees. This can feel like a lot &mdash; that is fine, you do not have to do it all.</span>
+      </button>
+    </div>
+    <p class="reassure">
       Nothing here is a will &mdash; it records your wishes so your family
-      is not guessing.
+      is not guessing. You can change your mind and switch approaches any
+      time.
     </p>
-    <button class="primary wide" data-go="guidedpartner">Begin</button>
   </section>
 
   
@@ -406,10 +434,10 @@
       owner to work out which one they want before they can start.
     -->
     <div class="tiles">
-      <button class="tile" data-go="walk"><span class="ico">🏠</span><span class="lbl">Everything else in the house</span><span class="hint">One room at a time. Point the camera, and it writes down what it sees</span></button>
+      <button class="tile primary" data-go="memo"><span class="ico">🎁</span><span class="lbl">Specific gifts by name</span><span class="hint" id="giftsTileHint">Your memorandum — say who a particular thing is for. This is the most important thing you can do here.</span></button>
+      <button class="tile" data-go="walk"><span class="ico">🏠</span><span class="lbl">Everything else in the house</span><span class="hint">One room at a time. Point the camera, and it writes down what it sees. You do not have to do this all at once.</span></button>
       <button class="tile" data-go="contested"><span class="ico">🤝</span><span class="lbl">Things families find hardest to divide</span><span class="hint">Jewelry, firearms, and the items that cause the most trouble. Get ahead of them one category at a time.</span></button>
       <button class="tile" data-go="reminders"><span class="ico">📅</span><span class="lbl">Holiday reminders</span><span class="hint">Get a nudge before holidays to capture things while family is together.</span></button>
-      <button class="tile" data-go="memo"><span class="ico">🎁</span><span class="lbl">Specific gifts by name</span><span class="hint" id="giftsTileHint">Say who a particular thing is for. Friends and charities count too, not only family</span></button>
       <button class="tile" data-go="signing"><span class="ico">✍️</span><span class="lbl">Make it official</span><span class="hint">Print the page, sign it by hand, photograph the signed page</span></button>
       <button class="tile" data-go="handoff"><span class="ico">✅</span><span class="lbl">Send it to your trustee</span><span class="hint">Email it, save a copy, or send it to FairPlay</span></button>
     </div>
