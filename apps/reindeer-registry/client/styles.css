@@ -958,7 +958,7 @@ hr.softrule {
 .floating-nav[hidden]{display:none}
 .floating-nav-btn{
   display:flex; align-items:center; gap:8px;
-  background:var(--card-bg); color:var(--text); border:1px solid var(--border);
+  background:var(--card); color:var(--ink); border:1px solid var(--line);
   border-radius:999px; padding:12px 22px; font-size:17px; font-weight:650;
   font-family:inherit; box-shadow:0 4px 16px rgba(0,0,0,0.15); cursor:pointer;
   min-height:52px; transition:transform .15s, opacity .15s;

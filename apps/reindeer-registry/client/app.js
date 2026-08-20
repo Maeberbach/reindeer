@@ -2816,15 +2816,6 @@ async function renderPartnerCard() {
   }
 }
 
-/**
- * Two counts on the menu, refreshed whenever the owner lands there.
- *
- * Never combined into a percentage — see the note in the markup.
- */
-    }
-  } catch { /* fail-silent — keep default tile text */ }
-}
-
 async function renderCounters() {
   let items = [];
   try { ({ items } = await api('/api/items')); } catch { return; }
