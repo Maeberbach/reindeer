@@ -421,10 +421,7 @@ document.addEventListener('click', (e) => {
 
 // Quick test — the "Start here" tile on the welcome screen. Takes a photo
 // immediately as a low-friction entry point, then routes to onboarding.
-let quickTestMode = false;
 let recipientPracticeMode = false;
-const qtb = $('#quickTestBtn');
-if (qtb) qtb.onclick = () => { quickTestMode = true; resetCapture(); go('capture'); };
 
 // "Photograph your first item" on the home screen — opens the capture
 // Recipient welcome — invited partner does one practice item, then lands on
@@ -1375,7 +1372,6 @@ async function saveItem() {
     // carry in their head. Dropping them back on the menu after each one breaks
     // that thread; asking "anything else you already know?" keeps it.
     if (promiseMode) { promiseKept += 1; return go('memo'); }
-    if (quickTestMode) { quickTestMode = false; return go('whosdoing'); }
     if (recipientPracticeMode) { recipientPracticeMode = false; return go('walk'); }
     if (guidedIntroMode) {
       guidedIntroMode = false;
