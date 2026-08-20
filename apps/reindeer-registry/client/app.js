@@ -265,11 +265,11 @@ const effectiveTitle = () =>
 function go(name, opts = {}) {
   if (!opts.back) history.push(currentScreen());
   $$('.screen').forEach((s) => { s.hidden = s.dataset.screen !== name; });
-  $('#backBtn').hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'helperwelcome' || name === 'howto' || name === 'guidedmeaning';
-  $('#homeBtn').hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'helperwelcome' || name === 'howto' || name === 'guidedmeaning';
+  $('#backBtn').hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'helperwelcome' || name === 'howto';
+  $('#homeBtn').hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'helperwelcome' || name === 'howto';
   // Floating nav — Back + Home, visible on every screen except landing pages
   const fn = $('#floatingNav');
-  if (fn) fn.hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'helperwelcome' || name === 'howto' || name === 'guidedmeaning';
+  if (fn) fn.hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'helperwelcome' || name === 'howto';
   // Show/hide Back individually — hidden on screens with no back destination
   const fb = $('#floatingBack');
   if (fb) fb.hidden = history.length === 0;
