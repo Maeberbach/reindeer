@@ -201,7 +201,7 @@ async function identifyWithGoogle(
       const descParts: string[] = [];
       if (entities.length > 0) descParts.push(`Identified as: ${entities.slice(0, 3).join(", ")}`);
       if (matchingPages.length > 0) {
-        const titles = matchingPages.map((p) => p.title).filter(Boolean).slice(0, 2);
+        const titles = matchingPages.map((p: { url: string; title: string }) => p.title).filter(Boolean).slice(0, 2);
         if (titles.length > 0) descParts.push(`Found on: ${titles.join(" | ")}`);
       }
       if (labels.length > 0 && descParts.length === 0) {
@@ -257,7 +257,7 @@ async function identifyWithGoogle(
     if (labels.length > 0) {
       const top = labels[0];
       return {
-        title: (top.description ?? hint || "Item").charAt(0).toUpperCase() + (top.description ?? hint || "Item").slice(1),
+        title: ((top.description ?? hint) || "Item").charAt(0).toUpperCase() + ((top.description ?? hint) || "Item").slice(1),
         description: `No exact match found. Visual labels: ${labels.slice(0, 5).map((l: { description?: string }) => l.description).filter(Boolean).join(", ")}.`,
         confidence: Math.min(1, Math.max(0, top.score ?? 0.4)),
         web_match: false,
@@ -2510,7 +2510,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
     const engine = process.env.GOOGLE_CLOUD_API_KEY
       ? "google-vision"
-      : process.env.OPENAI_API_KEY || getAnthropicApiKey()
+      : (process.env.OPENAI_API_KEY || getAnthropicApiKey())
         ? "llm-vision"
         : "stub";
     res.json({ engine, detections });
