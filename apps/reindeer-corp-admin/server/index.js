@@ -3,7 +3,17 @@
  *
  * Serves the admin UI and proxies API calls to the three Reindeer apps
  * (Registry, FairPlay, Discovery) so there are zero CORS issues. The admin
- * key lives server-side in REINDEER_ADMIN_KEY — the browser never sees it.
+ * and support keys live server-side in environment variables — the browser
+ * never sees them.
+ *
+ * Two-tier security:
+ *   Tier 1 — Corporate Admin (REINDEER_ADMIN_KEY): feature flags, estate
+ *            metadata (counts only), full estate reset. NO access to
+ *            estate content data (items, participants, audit logs).
+ *   Tier 2 — Support Admin (REINDEER_SUPPORT_KEY): full data access —
+ *            items, participants, heirs, audit logs. Every call is
+ *            audit-logged on the target app. Not configured by default
+ *            on sold installs.
  */
 import express from 'express';
 import path from 'path';
@@ -35,6 +45,9 @@ async function proxy(appKey, method, apiPath, body, res) {
     'Content-Type': 'application/json',
     'x-admin-key': ADMIN_KEY,
   };
+  // Support key is sent alongside admin key so apps that support the
+  // support tier will grant data access. Apps without a support key
+  // configured will simply ignore it.
   if (SUPPORT_KEY) headers['x-support-key'] = SUPPORT_KEY;
 
   try {
@@ -64,21 +77,18 @@ app.get('/api/status', (req, res) => {
 });
 
 /* ─── Proxy routes ─────────────────────────────────────────── */
-// GET /api/proxy/:app/*
 app.get('/api/proxy/:app/*', (req, res) => {
   const { app: appKey } = req.params;
   const apiPath = '/' + req.params[0];
   proxy(appKey, 'GET', apiPath, null, res);
 });
 
-// POST /api/proxy/:app/*
 app.post('/api/proxy/:app/*', (req, res) => {
   const { app: appKey } = req.params;
   const apiPath = '/' + req.params[0];
   proxy(appKey, 'POST', apiPath, req.body, res);
 });
 
-// DELETE /api/proxy/:app/*
 app.delete('/api/proxy/:app/*', (req, res) => {
   const { app: appKey } = req.params;
   const apiPath = '/' + req.params[0];
