@@ -13,7 +13,7 @@ import { createMemorandumRouter } from './routes/memorandum.js';
 import { createRemindersRouter } from './routes/reminders.js';
 import { createSitesRouter } from './routes/sites.js';
 import crypto from 'node:crypto';
-import { createIntakeRouter, createExecutionRouter, createPeopleRouter, legacyErrorHandler, MockVisionProvider, HttpVisionProvider, AnthropicVisionProvider, OpenAIVisionProvider, SimpleDuplicateDetector } from '@reindeer-legacy/intake-feature';
+import { createIntakeRouter, createExecutionRouter, createPeopleRouter, legacyErrorHandler, MockVisionProvider, HttpVisionProvider, AnthropicVisionProvider, OpenAIVisionProvider, SimpleDuplicateDetector, GoogleVisionProvider } from '@reindeer-legacy/intake-feature';
 import { createPrintRouter } from '@reindeer-legacy/print-feature';
 import { writeBundle } from '@reindeer-legacy/exchange';
 import { TrusteeRepository, DeliveryService, createDeliveryRouter, createLinkRouter, mailerFromEnv, TwoOutputsService, createTwoOutputsRouter } from '@reindeer-legacy/delivery';
@@ -61,6 +61,11 @@ registry.ensureScope({
  * shape but is not reachable by accident: it requires REINDEER_VISION_PROTOCOL.
  */
 function createVisionProvider() {
+  // Google Cloud Vision — two-phase: Object Localization (Phase 1) +
+  // Web Detection (Phase 2). This is the "Google Lens" provider.
+  const googleKey = process.env.GOOGLE_CLOUD_API_KEY;
+  if (googleKey) return new GoogleVisionProvider({ apiKey: googleKey });
+
   // Key resolution: check ANTHROPIC_API_KEY (what Mark purchased) alongside
   // the generic REINDEER_VISION_KEY and OPENAI_API_KEY fallbacks.
   const anthropicKey = process.env.REINDEER_VISION_KEY || process.env.ANTHROPIC_API_KEY;
@@ -70,10 +75,18 @@ function createVisionProvider() {
   // Protocol: default to anthropic when an Anthropic key is present and no
   // explicit REINDEER_VISION_PROTOCOL is set. This matches the key Mark
   // purchased. OpenAI is still used if only OPENAI_API_KEY is set, or if
-  // REINDEER_VISION_PROTOCOL=openai is explicitly chosen.
+  // REINDEER_VISION_PROTOCOL=openai is explicitly chosen. Google is used
+  // when REINDEER_VISION_PROTOCOL=google (requires GOOGLE_CLOUD_API_KEY).
   const hasAnthropicKey = Boolean(anthropicKey);
   const protocol = process.env.REINDEER_VISION_PROTOCOL
     || (hasAnthropicKey ? 'anthropic' : 'openai');
+  if (protocol === 'google') {
+    if (!googleKey) {
+      console.warn('REINDEER_VISION_PROTOCOL=google but no GOOGLE_CLOUD_API_KEY set — falling back to mock');
+      return new MockVisionProvider();
+    }
+    return new GoogleVisionProvider({ apiKey: googleKey });
+  }
   if (protocol === 'custom') {
     return new HttpVisionProvider({
       endpoint: process.env.REINDEER_VISION_ENDPOINT,
@@ -501,7 +514,7 @@ const PORT = process.env.PORT || 3210;
 app.listen(PORT, () => {
   console.log(`Reindeer Registry running on http://localhost:${PORT}`);
   console.log(`Data: ${DATA_DIR}`);
-  console.log(`Vision: ${vision.constructor.name === 'MockVisionProvider' ? 'mock provider (no REINDEER_VISION_KEY or OPENAI_API_KEY set)' : `live — ${vision.constructor.name}`}`);
+  console.log(`Vision: ${vision.constructor.name === 'MockVisionProvider' ? 'mock provider (set GOOGLE_CLOUD_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY to enable)' : `live — ${vision.constructor.name}`}`);
   console.log(`Email: ${mailer.describe}`);
 });
 

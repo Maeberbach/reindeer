@@ -284,6 +284,36 @@ export function createIntakeRouter(deps) {
     res.json({ detections, vision_mode: vision?.constructor?.name === 'MockVisionProvider' ? 'mock' : 'live' });
   }));
 
+  // ---- Phase 2: Exact identification (Google Cloud Vision Web Detection) ----
+  // Takes a cropped close-up of a single item and runs Web Detection to find
+  // exact product matches. This is the "Google Lens" experience — it returns
+  // best-guess labels, matching pages, and similar images from Google's web
+  // index. Only available with the GoogleVisionProvider.
+  r.post('/intake/identify', express.json({ limit: '60mb' }), wrap(async (req, res) => {
+    const ctx = ctxOf(req);
+    const dataUrl = req.body.data_url ?? req.body.data ?? '';
+    const buffer = Buffer.from(dataUrl.split(',').pop() ?? '', 'base64');
+    if (!buffer.length) throw new LegacyError('No image was received.', 'NO_IMAGE', 400);
+
+    const result = await vision.describeItem(
+      { buffer, media_id: req.body.media_id ?? null },
+      { hint: req.body.hint ?? null, room_hint: req.body.room_hint ?? null }
+    );
+
+    await audit.append({
+      action: 'intake.identify',
+      entity: 'item',
+      entity_id: req.body.item_id ?? null,
+      payload: {
+        web_match: result.web_match ?? false,
+        best_guess: result.title ?? null,
+        confidence: result.confidence ?? 0,
+      },
+    }, ctx);
+
+    res.json(result);
+  }));
+
   // Commit accepted detections as draft items for review.
   r.post('/intake/commit', express.json({ limit: '60mb' }), wrap(async (req, res) => {
     const ctx = ctxOf(req);

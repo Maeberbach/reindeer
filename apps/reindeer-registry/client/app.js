@@ -1187,6 +1187,7 @@ $('#capPhoto').onchange = async (e) => {
       const vs1 = best.value_suggestion;
       const overThreshold = vs1 && vs1.high_cents != null && vs1.high_cents >= valueThresholdCents;
       let noteHtml = `This looks like: ${escapeHtml(best.label)}${best.category_hint ? ` (${escapeHtml(best.category_hint)})` : ''}. Change it if that is not right.`
+        + `<button class="ghost small" id="identifyExact" style="margin-top:8px">🔍 Identify exactly with Google</button>`
         + formatAiValue(best)
         + (overThreshold ? `<div class="ai-value-alert">⬆ Above your ${fmtMoney(valueThresholdCents)} alert — consider flagging this as important.</div>` : '');
       // When the AI finds more than one item in a single photo, show the others
@@ -1221,6 +1222,48 @@ $('#capPhoto').onchange = async (e) => {
         noteHtml += `</div>`;
       }
       setNote(noteHtml);
+      // Wire up "Identify exactly" — Phase 2 Google Web Detection
+      const identifyBtn = $('#identifyExact');
+      if (identifyBtn) {
+        identifyBtn.onclick = async () => {
+          identifyBtn.disabled = true;
+          identifyBtn.textContent = '🔍 Searching Google…';
+          try {
+            const crop = best.bbox ? await cropTo(cap.dataUrl, best.bbox) : cap.dataUrl;
+            const result = await api('/api/intake/identify', {
+              method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ data_url: crop, hint: best.label, room_hint: cap.room || null })
+            });
+            if (result.web_match && result.title) {
+              // Google found an exact match — update the label
+              const box2 = $('#capTitle');
+              if (box2) box2.value = result.title;
+              let idNote = `<b>Google identified:</b> ${escapeHtml(result.title)}`;
+              if (result.description) idNote += `<br><span class="ai-extras-hint">${escapeHtml(result.description)}</span>`;
+              if (result.matching_pages && result.matching_pages.length > 0) {
+                idNote += `<br><span class="ai-extras-hint">Found on: ${result.matching_pages.slice(0, 2).map(p => escapeHtml(p.title || p.url)).join(' | ')}</span>`;
+              }
+              if (result.value_suggestion) {
+                const vs = result.value_suggestion;
+                const low = (vs.low_cents / 100).toFixed(0);
+                const high = (vs.high_cents / 100).toFixed(0);
+                idNote += `<br><span class="ai-value-hint">Listing price range: $${low}–$${high}</span>`;
+              }
+              identifyBtn.replaceWith(Object.assign(document.createElement('span'), { innerHTML: idNote, className: 'ai-identify-result' }));
+              if (result.category_hint) cap.category = result.category_hint;
+            } else if (result.title) {
+              identifyBtn.textContent = 'No exact match — ' + escapeHtml(result.title);
+              identifyBtn.disabled = false;
+            } else {
+              identifyBtn.textContent = '🔍 No match found';
+              identifyBtn.disabled = false;
+            }
+          } catch (e) {
+            identifyBtn.textContent = '🔍 Identify failed';
+            identifyBtn.disabled = false;
+          }
+        };
+      }
       if (best.category_hint) cap.category = best.category_hint;
       // Auto-select the matching category chip so the owner sees the AI's
       // classification without having to scroll to the Kind step. The chips
