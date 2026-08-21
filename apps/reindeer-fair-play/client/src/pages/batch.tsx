@@ -23,7 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useGeolocation } from "@/hooks/use-geolocation";
 import { extractExifGps } from "@/lib/exif-gps";
 
-import { Sparkles, Upload } from "lucide-react";
+import { Sparkles, Search, Upload } from "lucide-react";
 
 type Detection = {
   tempId: string;
@@ -118,6 +118,47 @@ export default function BatchIntakePage() {
       toast({ title: `${ids.length} item(s) added to the catalog` });
     },
   });
+
+  const [identifying, setIdentifying] = useState<string | null>(null);
+
+  const identify = async (d: Detection) => {
+    setIdentifying(d.tempId);
+    try {
+      const res = await apiRequest("POST", "/api/intake/identify", {
+        data_url: d.photoUrl
+          ? await fetch(d.photoUrl).then((r) => r.blob()).then(
+              (b) => new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(String(reader.result));
+                reader.readAsDataURL(b);
+              }),
+            ).catch(() => "")
+          : "",
+        hint: d.name,
+        room_hint: d.room || null,
+      });
+      const result = await res.json();
+      if (result.web_match && result.title) {
+        patch(d.tempId, {
+          name: result.title,
+          ...(result.category_hint ? { category: result.category_hint } : {}),
+        });
+        toast({
+          title: `Google identified: ${result.title}`,
+          description: result.description?.slice(0, 120) || undefined,
+        });
+      } else if (result.title && result.title !== d.name) {
+        patch(d.tempId, { name: result.title });
+        toast({ title: `Closest match: ${result.title}`, description: "No exact web match found." });
+      } else {
+        toast({ title: "No match found", description: "Google couldn't identify this item exactly." });
+      }
+    } catch (e) {
+      toast({ title: "Identification failed", description: String(e), variant: "destructive" });
+    } finally {
+      setIdentifying(null);
+    }
+  };
 
   const patch = (tempId: string, p: Partial<Detection>) =>
     setDetections((prev) => prev.map((d) => (d.tempId === tempId ? { ...d, ...p } : d)));
@@ -301,6 +342,16 @@ export default function BatchIntakePage() {
                 </div>
 
                 <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    data-testid={`button-identify-${d.tempId}`}
+                    disabled={identifying === d.tempId}
+                    onClick={() => identify(d)}
+                  >
+                    <Search className="mr-1.5 h-3.5 w-3.5" />
+                    {identifying === d.tempId ? "Searching…" : "Identify exactly"}
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"

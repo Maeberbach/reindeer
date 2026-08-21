@@ -67,6 +67,328 @@ export const UPLOAD_DIR = process.env.REINDEER_FAIR_PLAY_UPLOAD_DIR ?? path.reso
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 /* ------------------------------------------------------------------ */
+/* Google Cloud Vision — two-phase identification                     */
+/*                                                                  */
+/* Phase 1 (detectItems): Object Localization finds distinct        */
+/* objects in a photo with bounding boxes + generic labels.         */
+/* Phase 2 (identifyItem): Web Detection on a cropped close-up      */
+/* searches Google's web index for exact visual matches.            */
+/*                                                                  */
+/* Provider selection: GOOGLE_CLOUD_API_KEY → Google Vision          */
+/* Falls back to Anthropic/OpenAI/mock.                             */
+/* ------------------------------------------------------------------ */
+
+const GOOGLE_VISION_BASE = "https://vision.googleapis.com/v1/images:annotate";
+
+function googleLabelToCategory(label: string | null): string | null {
+  if (!label) return null;
+  const l = label.toLowerCase();
+  const map: [RegExp, string][] = [
+    [/chair|sofa|couch|recliner|ottoman|bench|stool/, "Furniture"],
+    [/table|desk|dresser|cabinet|shelf|bookcase|wardrobe|nightstand/, "Furniture"],
+    [/bed|frame|mattress/, "Furniture"],
+    [/painting|canvas|oil|watercolor|lithograph|print|etching/, "Art"],
+    [/sculpture|statue|bust|figurine/, "Art"],
+    [/photograph|photo|album/, "Photos"],
+    [/jewel|ring|necklace|bracelet|earring|watch|pendant|brooch/, "Jewelry"],
+    [/diamond|gem|sapphire|ruby|emerald|pearl/, "Jewelry"],
+    [/coin|currency|bill|token/, "Coins"],
+    [/book|manuscript|journal|diary/, "Books"],
+    [/vinyl|record|instrument|guitar|piano|violin/, "Collectibles"],
+    [/antique|collectible|memorabilia/, "Collectibles"],
+    [/gun|rifle|pistol|shotgun|firearm/, "Firearms"],
+    [/tool|drill|saw|hammer|wrench|screwdriver|sander/, "Tools"],
+    [/pot|pan|skillet|kettle|dish|plate|bowl|cup|mug|glass|silverware|utensil/, "Kitchenware"],
+    [/appliance|blender|mixer|toaster|microwave/, "Kitchenware"],
+    [/tv|television|monitor|speaker|camera|laptop|phone|tablet|computer/, "Electronics"],
+    [/clothing|shirt|jacket|coat|dress|suit|pants|shoe|boot|hat/, "Clothing"],
+    [/ornament|decoration|holiday|christmas/, "Holiday Ornaments"],
+    [/rug|carpet|tapestry|blanket|quilt/, "Collectibles"],
+  ];
+  for (const [pattern, category] of map) {
+    if (pattern.test(l)) return category;
+  }
+  return null;
+}
+
+/** Phase 2 — Google Web Detection for exact item identification. */
+async function identifyWithGoogle(
+  photoBuffer: Buffer,
+  hint: string,
+  roomHint?: string | null,
+): Promise<{
+  title: string;
+  description: string;
+  confidence: number;
+  web_match: boolean;
+  best_guess_labels?: string[];
+  web_entities?: string[];
+  matching_pages?: { url: string; title: string }[];
+  similar_images?: string[];
+  category_hint?: string | null;
+  value_suggestion?: { low_cents: number; high_cents: number; reasoning: string } | null;
+}> {
+  const googleKey = process.env.GOOGLE_CLOUD_API_KEY;
+  if (!googleKey) {
+    return {
+      title: hint || "Item",
+      description: "Google Cloud Vision not configured.",
+      confidence: 0,
+      web_match: false,
+    };
+  }
+
+  const request = {
+    image: { content: photoBuffer.toString("base64") },
+    features: [
+      { type: "WEB_DETECTION", maxResults: 10 },
+      { type: "LABEL_DETECTION", maxResults: 10 },
+    ],
+  };
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30_000);
+    const res = await fetch(
+      `${GOOGLE_VISION_BASE}?key=${googleKey}`,
+      {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ requests: [request] }),
+      },
+    );
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.warn(`[google-vision] identify HTTP ${res.status}: ${text.slice(0, 200)}`);
+      return {
+        title: hint || "Item",
+        description: `Google Cloud Vision error (${res.status}).`,
+        confidence: 0,
+        web_match: false,
+      };
+    }
+
+    const json = await res.json();
+    const resp = json.responses?.[0] ?? {};
+    const web = resp.webDetection ?? {};
+    const labels = resp.labelAnnotations ?? [];
+
+    const bestGuess = (web.bestGuessLabels ?? [])
+      .map((g: { label?: string }) => g.label)
+      .filter(Boolean);
+
+    const entities = (web.webEntities ?? [])
+      .filter((e: { entityName?: string; score?: number }) => e.entityName && (e.score ?? 0) > 0.3)
+      .sort((a: { score?: number }, b: { score?: number }) => (b.score ?? 0) - (a.score ?? 0))
+      .map((e: { entityName?: string }) => e.entityName);
+
+    const matchingPages = (web.pagesWithMatchingImages ?? [])
+      .slice(0, 5)
+      .map((p: { url?: string; pageTitle?: string }) => ({ url: p.url ?? "", title: p.pageTitle ?? "" }))
+      .filter((p: { url: string }) => p.url);
+
+    const similarImages = (web.visuallySimilarImages ?? [])
+      .slice(0, 5)
+      .map((s: { url?: string }) => s.url)
+      .filter(Boolean);
+
+    // Best guess = the "Google Lens hit exactly" moment
+    if (bestGuess.length > 0) {
+      const title = bestGuess[0];
+      const descParts: string[] = [];
+      if (entities.length > 0) descParts.push(`Identified as: ${entities.slice(0, 3).join(", ")}`);
+      if (matchingPages.length > 0) {
+        const titles = matchingPages.map((p) => p.title).filter(Boolean).slice(0, 2);
+        if (titles.length > 0) descParts.push(`Found on: ${titles.join(" | ")}`);
+      }
+      if (labels.length > 0 && descParts.length === 0) {
+        descParts.push(`Visual labels: ${labels.slice(0, 5).map((l: { description?: string }) => l.description).filter(Boolean).join(", ")}`);
+      }
+
+      // Extract price hint from matching pages
+      let valueSuggestion: { low_cents: number; high_cents: number; reasoning: string } | null = null;
+      for (const page of matchingPages) {
+        const m = (page.title || "").match(/\$(\d+(?:,\d{3})*(?:\.\d{2})?)/);
+        if (m) {
+          const dollars = parseFloat(m[1].replace(/,/g, ""));
+          if (dollars > 0 && dollars < 1_000_000) {
+            valueSuggestion = {
+              low_cents: Math.round(dollars * 0.7 * 100),
+              high_cents: Math.round(dollars * 1.3 * 100),
+              reasoning: `Price hint from matching listing: $${dollars.toFixed(2)}`,
+            };
+            break;
+          }
+        }
+      }
+
+      return {
+        title,
+        description: descParts.join(". ") || "No description available.",
+        confidence: matchingPages.length > 0 ? 0.9 : 0.7,
+        web_match: true,
+        best_guess_labels: bestGuess,
+        web_entities: entities,
+        matching_pages: matchingPages,
+        similar_images: similarImages,
+        category_hint: googleLabelToCategory(title),
+        value_suggestion: valueSuggestion,
+      };
+    }
+
+    // No best-guess but have web entities
+    if (entities.length > 0) {
+      return {
+        title: entities[0],
+        description: `Identified as: ${entities.slice(0, 3).join(", ")}`,
+        confidence: 0.6,
+        web_match: true,
+        web_entities: entities,
+        matching_pages: matchingPages,
+        similar_images: similarImages,
+        category_hint: googleLabelToCategory(entities[0]),
+      };
+    }
+
+    // No web match — fall back to labels
+    if (labels.length > 0) {
+      const top = labels[0];
+      return {
+        title: (top.description ?? hint || "Item").charAt(0).toUpperCase() + (top.description ?? hint || "Item").slice(1),
+        description: `No exact match found. Visual labels: ${labels.slice(0, 5).map((l: { description?: string }) => l.description).filter(Boolean).join(", ")}.`,
+        confidence: Math.min(1, Math.max(0, top.score ?? 0.4)),
+        web_match: false,
+        category_hint: googleLabelToCategory(top.description ?? null),
+      };
+    }
+
+    return {
+      title: hint || "Item",
+      description: "No identification available.",
+      confidence: 0,
+      web_match: false,
+    };
+  } catch (e) {
+    console.warn("[google-vision] identify failed:", (e as Error)?.message ?? e);
+    return {
+      title: hint || "Item",
+      description: "Could not reach Google Cloud Vision.",
+      confidence: 0,
+      web_match: false,
+    };
+  }
+}
+
+/** Phase 1 — Google Object Localization for multi-item detection. */
+async function detectWithGoogleVision(
+  photoBuffer: Buffer,
+  existingItems: { name: string; identifiers?: unknown; originApp?: string | null }[],
+  seed: number,
+  photoUrl: string,
+): Promise<Detection[] | null> {
+  const googleKey = process.env.GOOGLE_CLOUD_API_KEY;
+  if (!googleKey) return null;
+
+  try {
+    const request = {
+      image: { content: photoBuffer.toString("base64") },
+      features: [
+        { type: "OBJECT_LOCALIZATION", maxResults: 20 },
+        { type: "LABEL_DETECTION", maxResults: 10 },
+      ],
+    };
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30_000);
+    const res = await fetch(
+      `${GOOGLE_VISION_BASE}?key=${googleKey}`,
+      {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ requests: [request] }),
+      },
+    );
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.warn(`[google-vision] detectItems HTTP ${res.status}: ${text.slice(0, 200)}`);
+      return null;
+    }
+
+    const json = await res.json();
+    const resp = json.responses?.[0] ?? {};
+    const objects = resp.localizedObjectAnnotations ?? [];
+    const labels = resp.labelAnnotations ?? [];
+
+    const detections: Detection[] = [];
+
+    if (objects.length > 0) {
+      for (const obj of objects) {
+        const name = (obj.name ?? "Unidentified object").charAt(0).toUpperCase() + (obj.name ?? "Unidentified object").slice(1);
+        const dupMatch = findDuplicateName(name, existingItems);
+
+        const verts = obj.boundingPoly?.normalizedVertices ?? [];
+        let bx = 0, by = 0, bw = 20, bh = 20;
+        if (verts.length >= 2) {
+          const xs = verts.map((v: { x?: number }) => v.x ?? 0);
+          const ys = verts.map((v: { y?: number }) => v.y ?? 0);
+          bx = Math.max(0, Math.min(100, Math.min(...xs) * 100));
+          by = Math.max(0, Math.min(100, Math.min(...ys) * 100));
+          bw = Math.max(1, Math.min(100 - bx, (Math.max(...xs) - Math.min(...xs)) * 100));
+          bh = Math.max(1, Math.min(100 - by, (Math.max(...ys) - Math.min(...ys)) * 100));
+        }
+
+        const category = googleLabelToCategory(obj.name) ?? "Miscellaneous";
+
+        detections.push({
+          tempId: randomUUID(),
+          name,
+          room: "Unspecified",
+          category,
+          aiEstimatedValue: 0,
+          isHeirloomCandidate: false,
+          duplicateOf: dupMatch ?? null,
+          boundingBox: { x: bx, y: by, w: bw, h: bh },
+          thumbnailUrl: placeholderThumb(name, seed + detections.length),
+          photoUrl,
+          confidence: Math.max(0, Math.min(1, obj.score ?? 0.5)),
+        });
+      }
+    } else if (labels.length > 0) {
+      // No objects detected, but labels exist
+      const top = labels[0];
+      const name = (top.description ?? "Unidentified object").charAt(0).toUpperCase() + (top.description ?? "Unidentified object").slice(1);
+      const dupMatch = findDuplicateName(name, existingItems);
+      const descLabels = labels.slice(0, 5).map((l: { description?: string }) => l.description).filter(Boolean).join(", ");
+
+      detections.push({
+        tempId: randomUUID(),
+        name,
+        room: "Unspecified",
+        category: googleLabelToCategory(top.description) ?? "Miscellaneous",
+        aiEstimatedValue: 0,
+        isHeirloomCandidate: false,
+        duplicateOf: dupMatch ?? null,
+        boundingBox: { x: 0, y: 0, w: 100, h: 100 },
+        thumbnailUrl: placeholderThumb(name, seed),
+        photoUrl,
+        confidence: Math.max(0, Math.min(1, top.score ?? 0.5)),
+      });
+    }
+
+    return detections;
+  } catch (e) {
+    console.warn("[google-vision] detectItems failed:", (e as Error)?.message ?? e);
+    return null;
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* AI batch intake                                                */
 /* ------------------------------------------------------------------ */
 type Detection = {
@@ -150,6 +472,23 @@ function placeholderThumb(label: string, idx: number): string {
 }
 
 async function detectItems(photoUrl: string, seed: number, existingItems: { name: string; identifiers?: unknown; originApp?: string | null }[]): Promise<Detection[]> {
+  // ── Phase 1: Google Cloud Vision Object Localization (preferred) ──
+  if (process.env.GOOGLE_CLOUD_API_KEY) {
+    try {
+      const photoPath = path.resolve(UPLOAD_DIR, photoUrl.replace(/^\/uploads\//, ""));
+      if (fs.existsSync(photoPath)) {
+        const photoBuffer = fs.readFileSync(photoPath);
+        const googleDetections = await detectWithGoogleVision(photoBuffer, existingItems, seed, photoUrl);
+        if (googleDetections !== null && googleDetections.length > 0) {
+          return googleDetections;
+        }
+        // If Google returned null (error/unconfigured), fall through to LLM
+      }
+    } catch (e) {
+      console.warn("[vision] Google detect failed, falling back:", (e as Error)?.message ?? e);
+    }
+  }
+
   // Check DB-stored key first, then env var
   const apiKey = getAnthropicApiKey() || (require("./ai/openaiSettings").getOpenAIApiKey());
 
@@ -2169,10 +2508,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       }
       detections.push(...(await detectItems(photoUrl, i + existing.length + 1, existing)));
     }
-    res.json({
-      engine: process.env.OPENAI_API_KEY ? "openai-vision" : "stub",
-      detections,
-    });
+    const engine = process.env.GOOGLE_CLOUD_API_KEY
+      ? "google-vision"
+      : process.env.OPENAI_API_KEY || getAnthropicApiKey()
+        ? "llm-vision"
+        : "stub";
+    res.json({ engine, detections });
   });
 
   /** Single-photo upload (quick add). Accepts a base64 dataURL. */
@@ -2196,6 +2537,26 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const file = `${randomUUID()}.${ext}`;
     fs.writeFileSync(path.join(UPLOAD_DIR, file), Buffer.from(m[2], "base64"));
     res.json({ url: `/uploads/${file}` });
+  });
+
+  /* ---------- Phase 2: Google Web Detection (exact identification) ---------- */
+  app.post("/api/intake/identify", async (req, res) => {
+    if (!req.actor) {
+      return res.status(401).json({ error: "Sign in required" });
+    }
+    const body = z.object({
+      data_url: z.string(),
+      hint: z.string().optional().default(""),
+      room_hint: z.string().nullable().optional(),
+    }).parse(req.body);
+
+    const m = /^data:(image\/[a-zA-Z+]+);base64,(.*)$/.exec(body.data_url);
+    if (!m) {
+      return res.status(400).json({ error: "Expected an image data URL" });
+    }
+    const photoBuffer = Buffer.from(m[2], "base64");
+    const result = await identifyWithGoogle(photoBuffer, body.hint, body.room_hint ?? null);
+    res.json(result);
   });
 
   /* ---------- high value ---------- */
