@@ -452,6 +452,10 @@ $('#guidedTakePhoto')?.addEventListener('click', () => {
 });
 
 // ------------------------------------------------------------ guided capture
+// Location permission should only be asked once per session — after the first
+// photo, the browser has already granted or denied, and re-prompting is annoying.
+let geoPermissionAsked = false;
+
 let cap = null;
 
 
