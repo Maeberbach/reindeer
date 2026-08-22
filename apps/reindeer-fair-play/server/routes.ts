@@ -3178,6 +3178,92 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       transcript: m.transcript,
       isPrimary: !!m.isPrimary,
     })));
+
+  /* ---------- close-up photo upload ---------- */
+  app.post("/api/items/:id/media", enforcePause(), async (req, res) => {
+    if (await denyUnlessAllowed(req, res, "uploadPhotos")) return;
+    try {
+      const itemId = Number(req.params.id);
+      const session = await storage.getSession();
+      const body = z
+        .object({
+          dataUrl: z.string(),
+          label: z.string().optional().default(""),
+          role: z.string().optional().default("closeup"),
+        })
+        .parse(req.body);
+
+      const m = /^data:(image\/[a-zA-Z+]+);base64,(.*)$/.exec(body.dataUrl);
+      if (!m) return res.status(400).json({ message: "Invalid image data URL." });
+
+      const ext = m[1].split("/")[1] === "jpeg" ? "jpg" : m[1].split("/")[1];
+      const file = `${randomUUID()}.${ext}`;
+      fs.writeFileSync(path.join(UPLOAD_DIR, file), Buffer.from(m[2], "base64"));
+      const url = `/uploads/${file}`;
+
+      const row = db
+        .insert(itemMedia)
+        .values({
+          sessionId: session.id,
+          itemId,
+          kind: "photo",
+          role: body.role,
+          label: body.label,
+          mimeType: m[1],
+          url,
+          isPrimary: false,
+          createdAt: Date.now(),
+        })
+        .returning()
+        .get();
+
+      // Bump the photo count on the item
+      db.update(items)
+        .set({ photoCount: sql`${items.photoCount} + 1` })
+        .where(eq(items.id, itemId))
+        .run();
+
+      res.json({
+        id: row.id,
+        kind: row.kind,
+        url: row.url,
+        label: row.label,
+        isPrimary: !!row.isPrimary,
+      });
+    } catch (e) {
+      fail(res, e);
+    }
+  });
+
+  /* ---------- delete close-up photo ---------- */
+  app.delete("/api/items/:id/media/:mediaId", enforcePause(), async (req, res) => {
+    if (await denyUnlessAllowed(req, res, "uploadPhotos")) return;
+    try {
+      const mediaId = Number(req.params.mediaId);
+      const row = db.select().from(itemMedia).where(eq(itemMedia.id, mediaId)).get();
+      if (!row) return res.status(404).json({ message: "Media not found." });
+      if (row.isPrimary) return res.status(400).json({ message: "Cannot delete primary photo." });
+
+      // Delete file from disk
+      if (row.url?.startsWith("/uploads/")) {
+        const filePath = path.resolve(UPLOAD_DIR, row.url.replace(/^\/uploads\//, ""));
+        try { fs.unlinkSync(filePath); } catch {}
+      }
+
+      db.delete(itemMedia).where(eq(itemMedia.id, mediaId)).run();
+
+      // Decrement photo count on the item
+      db.update(items)
+        .set({ photoCount: sql`MAX(${items.photoCount} - 1, 0)` })
+        .where(eq(items.id, Number(req.params.id)))
+        .run();
+
+      res.json({ ok: true });
+    } catch (e) {
+      fail(res, e);
+    }
+  });
+
   });
 
   /**

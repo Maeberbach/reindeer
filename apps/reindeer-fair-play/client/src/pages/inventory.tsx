@@ -4,7 +4,7 @@ import { Link } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAppState, useUser, STATE_KEY, money , useCanSeeValues } from "@/lib/app";
 import { AppShell, PageHeader, LoadingRows } from "@/components/shell";
@@ -59,6 +59,7 @@ import {
   Search,
   Sparkles,
   Trash2,
+  ZoomIn,
 } from "lucide-react";
 
 const itemSchema = z.object({
@@ -117,6 +118,56 @@ function usePrintReport() {
   });
 }
 
+
+function CloseupGallery({ itemId }: { itemId: number }) {
+  const { data: media, isLoading } = useQuery({
+    queryKey: ["item-media", itemId],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/items/${itemId}/media`);
+      return res.json() as Promise<Array<{
+        id: number;
+        kind: string;
+        url: string;
+        label: string;
+        isPrimary: boolean;
+      }>>;
+    },
+  });
+  const closeups = (media ?? []).filter((m) => m.kind === "photo" && !m.isPrimary);
+
+  if (isLoading) return <p className="text-xs text-muted-foreground">Loading close-ups…</p>;
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-2" data-testid={`closeup-gallery-${itemId}`}>
+      {closeups.map((c) => (
+        <div key={c.id} className="group relative">
+          <img
+            src={c.url}
+            alt={c.label || "Close-up"}
+            className="h-16 w-16 rounded-sm border object-cover"
+            data-testid={`img-closeup-${itemId}-${c.id}`}
+          />
+          <button
+            className="absolute -right-1 -top-1 hidden rounded-full bg-destructive p-0.5 text-destructive-foreground group-hover:block"
+            data-testid={`button-delete-closeup-${itemId}-${c.id}`}
+            onClick={() => (async () => {
+              await apiRequest("DELETE", `/api/items/${itemId}/media/${c.id}`);
+              queryClient.invalidateQueries({ queryKey: ["item-media", itemId] });
+              queryClient.invalidateQueries({ queryKey: STATE_KEY });
+            })()}
+            title="Remove close-up"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        </div>
+      ))}
+      {closeups.length === 0 && (
+        <p className="text-xs text-muted-foreground">No close-ups yet. Capture hallmarks, maker&rsquo;s marks, signatures, or condition details.</p>
+      )}
+    </div>
+  );
+}
+
 export default function InventoryPage() {
   const { data, isLoading } = useAppState();
   const { userId } = useUser();
@@ -159,6 +210,9 @@ export default function InventoryPage() {
   const [draftNotes, setDraftNotes] = useState("");
   const [photoForId, setPhotoForId] = useState<number | null>(null);
   const photoRef = useRef<HTMLInputElement>(null);
+  const [closeupForId, setCloseupForId] = useState<number | null>(null);
+  const closeupRef = useRef<HTMLInputElement>(null);
+  const [expandedCloseups, setExpandedCloseups] = useState<number | null>(null);
   const [voiceMemoForItem, setVoiceMemoForItem] = useState<Item | null>(null);
   const [voiceMemos, setVoiceMemos] = useState<Array<{ id: number; kind: string; url: string; label: string; durationMs: number | null; transcript: string }>>([]);
   const [loadingMemos, setLoadingMemos] = useState(false);
@@ -361,6 +415,41 @@ export default function InventoryPage() {
     },
     onError: (e: Error) =>
       toast({ title: "Not permitted", description: e.message, variant: "destructive" }),
+  });
+
+  const addCloseup = useMutation({
+    mutationFn: async ({ itemId, file }: { itemId: number; file: File }) => {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      return (
+        await apiRequest("POST", `/api/items/${itemId}/media`, {
+          dataUrl,
+          label: "Close-up",
+        })
+      ).json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: STATE_KEY });
+      queryClient.invalidateQueries({ queryKey: ["item-media", closeupForId] });
+      toast({ title: "Close-up photo saved" });
+    },
+    onError: (e: Error) =>
+      toast({ title: "Upload failed", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteCloseup = useMutation({
+    mutationFn: async ({ itemId, mediaId }: { itemId: number; mediaId: number }) => {
+      return (await apiRequest("DELETE", `/api/items/${itemId}/media/${mediaId}`)).json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: STATE_KEY });
+      queryClient.invalidateQueries({ queryKey: ["item-media", closeupForId] });
+      toast({ title: "Close-up removed" });
+    },
   });
 
   const removeItem = useMutation({
@@ -1132,6 +1221,22 @@ export default function InventoryPage() {
                         {i.photoUrl ? "Replace photo" : "Add photo"}
                       </Button>
                     )}
+                    {can("uploadPhotos") && i.photoUrl && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        data-testid={`button-closeup-item-${i.id}`}
+                        disabled={addCloseup.isPending && closeupForId === i.id}
+                        onClick={() => {
+                          setCloseupForId(i.id);
+                          setExpandedCloseups(expandedCloseups === i.id ? null : i.id);
+                          closeupRef.current?.click();
+                        }}
+                      >
+                        <ZoomIn className="mr-1.5 h-3.5 w-3.5" />
+                        Add close-up
+                      </Button>
+                    )}
                     {(isCaptain ||
                       (can("deleteOwnItems") && i.createdByParticipantId === userId)) && (
                       <Button
@@ -1145,6 +1250,9 @@ export default function InventoryPage() {
                       </Button>
                     )}
                   </div>
+                  {expandedCloseups === i.id && i.photoUrl && (
+                    <CloseupGallery itemId={i.id} />
+                  )}
                 </CardContent>
               </Card>
             );
@@ -1349,6 +1457,18 @@ export default function InventoryPage() {
         onChange={(e) => {
           const f = e.target.files?.[0];
           if (f && photoForId !== null) setPhoto.mutate({ itemId: photoForId, file: f });
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={closeupRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        data-testid="input-item-closeup-file"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f && closeupForId !== null) addCloseup.mutate({ itemId: closeupForId, file: f });
           e.target.value = "";
         }}
       />
