@@ -1328,3 +1328,11 @@ hr.softrule {
 .ai-extra-input{flex:1;min-width:160px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.9375rem;background:var(--card);color:var(--text)}
 .ai-extra-input:focus{outline:none;border-color:var(--primary)}
 .ai-extra-manual-important{white-space:nowrap}
+
+/* Detail page inline-editable fields */
+.detail-fields{display:flex;flex-direction:column;gap:16px;margin:16px 0}
+.detail-field{display:flex;flex-direction:column;gap:6px}
+.detail-field > label{font-weight:600;font-size:15px;color:#3a3935}
+.detail-field .chips{margin-top:4px}
+.detail-field .important-check{display:flex;align-items:center;gap:8px}
+.detail-field .important-check input{width:20px;height:20px}

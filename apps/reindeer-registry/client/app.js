@@ -1695,13 +1695,12 @@ function showAcceptBar(label, categoryHint) {
   bar.hidden = false;
   const labelText = label
     ? `AI suggests: <strong>${escapeHtml(label)}</strong>${categoryHint ? ` (${escapeHtml(categoryHint)})` : ''}`
-    : 'Type a name for this item, or just save the photo.';
+    : 'Save this photo, or add details first.';
   ($('#capAcceptLabel') || {}).innerHTML = labelText;
-  const input = $('#capAcceptName');
-  if (input && label) input.value = label;
-  if (input) input.placeholder = label ? 'Change the name if this is not right' : 'What is this?';
-  // Focus the accept input so the owner can edit right away
-  if (input) setTimeout(() => input.focus(), 100);
+  // Store the AI label as cap.title so saveItem picks it up
+  if (label) cap.title = label;
+  const mainTitle = $('#capTitle');
+  if (mainTitle && !mainTitle.value.trim()) mainTitle.value = label || '';
   // Hide the full form steps and navrow — the accept bar is the primary
   // save path. "Edit details first" reveals them. Showing both at once
   // is overwhelming for a single item capture.
@@ -1721,13 +1720,7 @@ function showAcceptBar(label, categoryHint) {
 // Accept & Save button — saves the item with the AI label (or edited name)
 // and returns home. Quick path for the "Add your first item" flow.
 $('#capAcceptBtn')?.addEventListener('click', async () => {
-  const acceptInput = $('#capAcceptName');
-  if (acceptInput && acceptInput.value.trim()) {
-    cap.title = acceptInput.value.trim();
-    // Also sync the main title field so saveItem picks it up
-    const mainTitle = $('#capTitle');
-    if (mainTitle && !mainTitle.value.trim()) mainTitle.value = cap.title;
-  }
+  // cap.title is already set from the AI label (or the main title field)
   // Collect minimal fields and save
   cap.story = '';
   cap.recipient = '';
@@ -1736,17 +1729,12 @@ $('#capAcceptBtn')?.addEventListener('click', async () => {
   return saveItem();
 });
 
-// "Edit details" button — hides the accept bar and reveals the full form.
+// "Add details" button — hides the accept bar and reveals the full form.
 // No "save & take another" option here — after saving, go to the item's detail page.
 $('#capEditDetailsBtn')?.addEventListener('click', () => {
   const bar = $('#capAcceptBar');
   if (bar) bar.hidden = true;
-  // Sync any typed name to the main title field
-  const acceptInput = $('#capAcceptName');
-  if (acceptInput && acceptInput.value.trim()) {
-    const mainTitle = $('#capTitle');
-    if (mainTitle && !mainTitle.value.trim()) mainTitle.value = acceptInput.value.trim();
-  }
+  // cap.title is already set from the AI label
   // Reveal the full form steps
   document.querySelectorAll('.step[data-step]').forEach((el) => {
     if (el.dataset.step !== '0') el.hidden = false;
@@ -2261,31 +2249,79 @@ async function openDetail(id) {
   $('#detailBody').innerHTML = `
     ${conflictBanner}
     ${
-      // AI conversion prompt: when the AI flagged this item as high-value
-      // but the owner hasn't marked it important yet, offer a one-tap
-      // conversion that sets owner_high_value=true and requests a close-up.
       (i.high_value_flag && !i.owner_high_value) ? `
     <div class="memo-note ai-convert-note">
       <p class="ai-convert-heading">📌 The app thinks this might be important</p>
-      <p class="ai-convert-text">Based on the photo, this item may be worth special attention. Mark it as important to request a close-up photo.</p>
+      <p class="ai-convert-text">Based on the photo, this item may be worth special attention.</p>
       <button class="primary" id="aiConvertBtn">Mark as important</button>
     </div>` : ''
     }
     <h2>${escapeHtml(i.title)}</h2>
     <div class="thumbs">${(i.photos ?? []).filter((p) => p.photo_id !== i.closeup_photo_id).map((p) => `<img src="${API}/api/photos/${p.photo_id}" alt="">`).join('') || '<div class="noimg">no photo</div>'}</div>
-    <div class="summary">
-      <div><b>Room:</b> ${escapeHtml(i.room?.name ?? '—')}</div>
-      <div><b>Kind:</b> ${escapeHtml(i.category?.name ?? '—')}</div>
-      <div><b>How many:</b> ${i.quantity}</div>
-      <div><b>Story:</b> ${escapeHtml(i.story) || '—'}</div>
-      <div><b>Intended for:</b> ${escapeHtml(i.recipient_hint?.recipient_name ?? '—')}</div>
-      <div><b>Recorded:</b> ${new Date(i.created_at).toLocaleDateString()}</div>
+
+    <div class="detail-fields">
+      <!-- Room — dropdown of existing rooms + custom -->
+      <div class="detail-field">
+        <label>Room</label>
+        <select id="detailRoom" class="bigin">
+          <option value="">— select a room —</option>
+        </select>
+      </div>
+
+      <!-- Kind — dropdown of existing categories + custom -->
+      <div class="detail-field">
+        <label>Kind</label>
+        <select id="detailKind" class="bigin">
+          <option value="">— select a kind —</option>
+        </select>
+      </div>
+
+      <!-- Story — text input -->
+      <div class="detail-field">
+        <label>Story</label>
+        <input type="text" id="detailStory" class="bigin" placeholder="Add a note or story about this item" value="${escapeHtml(i.story || '')}">
+      </div>
+
+      <!-- Intended for — dropdown of heirs -->
+      <div class="detail-field">
+        <label>Intended for</label>
+        <select id="detailHeir" class="bigin" data-item="${escapeHtml(i.item_id)}">
+          <option value="">— nobody in particular —</option>
+        </select>
+      </div>
+
+      <!-- Whose is it — chips -->
+      <div class="detail-field">
+        <label>Whose is it?</label>
+        <div class="chips ownership-chips" id="detailOwnershipChips">
+          <button type="button" class="chip" data-tag="mine" aria-pressed="${i.ownership_tag === 'mine'}">Mine</button>
+          <button type="button" class="chip" data-tag="theirs" aria-pressed="${i.ownership_tag === 'theirs'}">Theirs</button>
+          <button type="button" class="chip" data-tag="ours" aria-pressed="${i.ownership_tag === 'ours'}">Ours</button>
+        </div>
+      </div>
+
+      <!-- Important — checkbox + reason chips -->
+      <div class="detail-field">
+        <label class="important-check">
+          <input type="checkbox" id="detailImportant"${isImportant ? ' checked' : ''}>
+          <span class="important-lbl">This one is important</span>
+        </label>
+        <div class="chips important-chips" id="detailImportantChips"${isImportant ? '' : ' hidden'}>
+          <button type="button" class="chip" data-reason="feeling" aria-pressed="${feelingOn}">It means a lot</button>
+          <button type="button" class="chip" data-reason="money" aria-pressed="${moneyOn}">It is worth money</button>
+        </div>
+      </div>
+
+      <!-- How many — at the bottom -->
+      <div class="detail-field">
+        <label>How many</label>
+        <input type="number" id="detailQty" class="bigin" min="1" value="${i.quantity || 1}">
+      </div>
     </div>
+
     ${commentBlock}
 
     ${
-      // Close-up photo section — shown on important items. Displays the
-      // existing close-up (if any) and offers to take or replace one.
       isImportant ? `
     <div class="closeup-section">
       <h3>Close-up photo</h3>
@@ -2295,8 +2331,6 @@ async function openDetail(id) {
     }
 
     ${
-      // Voice memo section — shown on important items. Plays the existing
-      // recording (if any) and offers to record or replace. Never required.
       isImportant ? `
     <div class="voice-section">
       <h3>Voice memo</h3>
@@ -2308,49 +2342,100 @@ async function openDetail(id) {
     </div>` : ''
     }
 
-    <!--
-      Assign-to-heir row. The item may already carry an assigned_to_heir_id
-      from the capture flow's "Add to my special gifts" toggle, or from
-      the Special gifts screen. The picker shows every person on the
-      Special-gifts roster; "Nobody in particular" unassigns.
-    -->
-    <div class="assign-block">
-      <label class="important-lbl" for="detailHeir">This is a special gift for</label>
-      <select id="detailHeir" class="bigin" data-item="${escapeHtml(i.item_id)}">
-        <option value="">— nobody in particular —</option>
-      </select>
-      <p class="important-hint" id="detailHeirHint">
-        Adds this item to your list of special gifting for that person. Use
-        “Special gifts by name” to add somebody new to the list.
-      </p>
-    </div>
-
-    <div class="important-block">
-      <label class="important-check">
-        <input type="checkbox" id="detailImportant"${isImportant ? ' checked' : ''}>
-        <span class="important-lbl">This one is important</span>
-      </label>
-      <p class="important-hint">It matters, for whatever reason.</p>
-      <div class="chips important-chips" id="detailImportantChips"${isImportant ? '' : ' hidden'}>
-        <button type="button" class="chip" data-reason="feeling" aria-pressed="${feelingOn}">It means a lot</button>
-        <button type="button" class="chip" data-reason="money" aria-pressed="${moneyOn}">It is worth money</button>
-      </div>
-    </div>
-
-    <div class="ownership-block">
-      <label class="fieldlabel">Whose is it?</label>
-      <div class="chips ownership-chips" id="detailOwnershipChips">
-        <button type="button" class="chip" data-tag="mine" aria-pressed="${i.ownership_tag === 'mine'}">Mine</button>
-        <button type="button" class="chip" data-tag="theirs" aria-pressed="${i.ownership_tag === 'theirs'}">Theirs</button>
-        <button type="button" class="chip" data-tag="ours" aria-pressed="${i.ownership_tag === 'ours'}">Ours</button>
-      </div>
-      <p class="important-hint">Guides whose memorandum this item belongs in for assignment.</p>
-    </div>
-
     <div class="detrow">
-      <a class="primary" target="_blank" href="${API}/api/print/item/${i.item_id}?mark=true">Print this sheet</a>
       <button class="ghost" id="delBtn">Remove item</button>
     </div>`;
+
+  // ---- Populate Room dropdown ----
+  (async () => {
+    const sel = $('#detailRoom');
+    if (!sel) return;
+    // Use registry rooms if already loaded, otherwise fetch
+    let rooms = registry.rooms || [];
+    if (!rooms.length) {
+      try { registry = await api('/api/registry'); rooms = registry.rooms || []; } catch {}
+    }
+    const currentRoom = i.room?.name || '';
+    sel.innerHTML = '<option value="">— select a room —</option>' +
+      rooms.map((r) => `<option value="${escapeHtml(r.name)}"${r.name === currentRoom ? ' selected' : ''}>${escapeHtml(r.name)}</option>`).join('') +
+      (currentRoom && !rooms.find((r) => r.name === currentRoom) ? `<option value="${escapeHtml(currentRoom)}" selected>${escapeHtml(currentRoom)}</option>` : '');
+    sel.onchange = async () => {
+      try {
+        await api(`/api/items/${i.item_id}`, {
+          method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ room_name: sel.value || null }),
+        });
+        toast(sel.value ? `Room set to ${sel.value}` : 'Room cleared.');
+      } catch (e) { toast(e.message, true); }
+    };
+  })();
+
+  // ---- Populate Kind dropdown ----
+  (async () => {
+    const sel = $('#detailKind');
+    if (!sel) return;
+    let cats = registry.categories || [];
+    if (!cats.length) {
+      try { registry = await api('/api/registry'); cats = registry.categories || []; } catch {}
+    }
+    const currentCat = i.category?.name || '';
+    sel.innerHTML = '<option value="">— select a kind —</option>' +
+      cats.map((c) => `<option value="${escapeHtml(c.name)}"${c.name === currentCat ? ' selected' : ''}>${escapeHtml(c.name)}</option>`).join('') +
+      (currentCat && !cats.find((c) => c.name === currentCat) ? `<option value="${escapeHtml(currentCat)}" selected>${escapeHtml(currentCat)}</option>` : '');
+    sel.onchange = async () => {
+      try {
+        await api(`/api/items/${i.item_id}`, {
+          method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ category_name: sel.value || null }),
+        });
+        toast(sel.value ? `Kind set to ${sel.value}` : 'Kind cleared.');
+      } catch (e) { toast(e.message, true); }
+    };
+  })();
+
+  // ---- Story — PATCH on blur ----
+  const storyInput = $('#detailStory');
+  if (storyInput) {
+    storyInput.addEventListener('blur', async () => {
+      if (storyInput.value === (i.story || '')) return;
+      try {
+        await api(`/api/items/${i.item_id}`, {
+          method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ story: storyInput.value.trim() }),
+        });
+        toast('Story saved.');
+      } catch (e) { toast(e.message, true); }
+    });
+  }
+
+  // ---- Quantity — PATCH on change ----
+  const qtyInput = $('#detailQty');
+  if (qtyInput) {
+    qtyInput.addEventListener('change', async () => {
+      const qty = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+      try {
+        await api(`/api/items/${i.item_id}`, {
+          method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ quantity: qty }),
+        });
+        toast('Quantity saved.');
+      } catch (e) { toast(e.message, true); }
+    });
+  }
+
+  // ---- Ownership chips — PATCH on click ----
+  $$('#detailOwnershipChips .chip').forEach((chip) => {
+    chip.onclick = async () => {
+      $$('#detailOwnershipChips .chip').forEach((c) => c.setAttribute('aria-pressed', 'false'));
+      chip.setAttribute('aria-pressed', 'true');
+      try {
+        await api(`/api/items/${i.item_id}`, {
+          method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ ownership_tag: chip.dataset.tag }),
+        });
+      } catch (e) { toast(e.message, true); }
+    };
+  });
 
   // Wire the Important control on the detail screen. Each change PATCHes the
   // item so the mark survives without a save button — the owner ticks and
