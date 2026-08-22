@@ -183,6 +183,26 @@ button{font:inherit}
  * only appear when the checkbox is ticked. */
 .important-chips[hidden]{display:none}
 
+/* AI important suggestion — inline spreadsheet row */
+.detail-ai-flag {
+  background: var(--accent-soft);
+  border-radius: 10px;
+  padding: 14px 16px;
+  border: 1px solid #e0d4b8;
+}
+.detail-ai-flag label {
+  font-weight: 650;
+  font-size: 18px;
+  color: var(--accent);
+}
+.detail-ai-text {
+  margin: 6px 0 10px 0;
+  font-size: 15px;
+  color: var(--ink-2);
+  font-style: italic;
+}
+.detail-ai-flag button { margin-top: 4px; }
+
 /* The owner-authored comment on the item detail screen. The comment is meant
  * to read as though the owner is speaking, so it sits in a warm cream card
  * with a small quiet label, printed verbatim. Large body type (20px) for

@@ -2374,14 +2374,7 @@ async function openDetail(id) {
     : '';
   $('#detailBody').innerHTML = `
     ${conflictBanner}
-    ${
-      (i.high_value_flag && !i.owner_high_value) ? `
-    <div class="memo-note ai-convert-note">
-      <p class="ai-convert-heading">📌 The app thinks this might be important</p>
-      <p class="ai-convert-text">Based on the photo, this item may be worth special attention.</p>
-      <button class="primary" id="aiConvertBtn">Mark as important</button>
-    </div>` : ''
-    }
+
     <h2>${escapeHtml(i.title)}</h2>
     <div class="thumbs">${(i.photos ?? []).filter((p) => p.photo_id !== i.closeup_photo_id).map((p) => `<img src="${API}/api/photos/${p.photo_id}" alt="">`).join('') || '<div class="noimg">no photo</div>'}</div>
 
@@ -2426,6 +2419,15 @@ async function openDetail(id) {
         </div>
       </div>
 
+      ${
+        (i.high_value_flag && !i.owner_high_value) ? `
+      <!-- AI suggestion — inline in the spreadsheet -->
+      <div class="detail-field detail-ai-flag">
+        <label>📌 AI suggests important</label>
+        <p class="detail-ai-text">Based on the photo, this may be worth special attention.</p>
+        <button class="primary" id="aiConvertBtn">Mark as important</button>
+      </div>` : ''
+      }
       <!-- Important — checkbox + reason chips -->
       <div class="detail-field">
         <label class="important-check">
