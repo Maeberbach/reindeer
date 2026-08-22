@@ -12,6 +12,7 @@ export function buildEnvelope({
   items,
   rooms,
   categories,
+  sites = [],
   source,
   scopeMedia = [],
   generatedAt = new Date(),
@@ -30,6 +31,10 @@ export function buildEnvelope({
   for (const mem of lockedMemoranda) {
     for (const id of mem.item_ids ?? []) lockedItemIds.add(id);
   }
+  // Build site name lookup so each item carries its site name for the
+  // receiving estate. Sites travel by name (like rooms) because the
+  // receiving estate has its own registry and maps by human-readable label.
+  const siteById = new Map(sites.map((s) => [s.site_id, s]));
   return {
     format: EXCHANGE_FORMAT,
     version: EXCHANGE_VERSION,
@@ -37,6 +42,7 @@ export function buildEnvelope({
     source,
     rooms: rooms.map((r) => ({ id: r.room_id, name: r.name, is_custom: !!r.is_custom })),
     categories: categories.map((c) => ({ id: c.category_id, name: c.name, is_custom: !!c.is_custom })),
+    sites: sites.map((s) => ({ id: s.site_id, name: s.name, kind: s.kind ?? 'other', is_primary: !!s.is_primary, address: s.address ?? '', lat: s.lat ?? null, lon: s.lon ?? null })),
     // Frozen memorandum snapshots \u2014 the item_id lists the deceased
     // owner(s) named in their signed specific-giving addendum. Additive in
     // v1; older importers ignore this field entirely.
@@ -59,6 +65,8 @@ export function buildEnvelope({
       category_name: i.category?.name ?? null,
       room_id: i.room_id,
       room_name: i.room?.name ?? null,
+      site_id: i.site_id ?? null,
+      site_name: siteById.get(i.site_id)?.name ?? null,
       description: i.description,
       story: i.story,
       quantity: i.quantity,

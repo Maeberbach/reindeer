@@ -11,7 +11,7 @@ import { zipSync, unzipSync } from './zip.js';
  * This is the file the owner hands to the estate administrator.
  */
 export async function writeBundle({
-  itemRepo, mediaStore, scopeMediaStore, registry, query, source, ctx,
+  itemRepo, mediaStore, scopeMediaStore, registry, sites, query, source, ctx,
   // Optional: when the Registry export runs on a death-triggered bundle,
   // the caller passes these two repos so the export can freeze the
   // memoranda into the envelope. Older callers (tests, dev exports) omit
@@ -46,6 +46,7 @@ export async function writeBundle({
     items,
     rooms: registry.rooms(ctx),
     categories: registry.categories(ctx),
+    sites: sites ? sites.list(ctx) : [],
     scopeMedia,
     source,
     lockedMemoranda,

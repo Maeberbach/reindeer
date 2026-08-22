@@ -257,7 +257,7 @@ app.get('/api/export/bundle', async (req, res, next) => {
     // carry frozen memoranda (item_ids only, owner name for grouping,
     // never recipient identity). Living owners are silently excluded.
     const { buffer, fileName, manifest } = await writeBundle({
-      itemRepo, mediaStore, scopeMediaStore, registry, ctx,
+      itemRepo, mediaStore, scopeMediaStore, registry, sites, ctx,
       addendumVersions, people,
       query: { review_state: req.query.review_state || 'kept' },
       source: { app: 'reindeer-wishes', app_version: '0.1.0', inventory_id: SCOPE_ID, owner_name: OWNER_NAME },
@@ -273,7 +273,7 @@ app.get('/api/export/csv', async (req, res, next) => {
   try {
     const ctx = resolveScope(req);
     const { envelope } = await writeBundle({
-      itemRepo, mediaStore, registry, ctx,
+      itemRepo, mediaStore, registry, sites, ctx,
       addendumVersions, people,
       query: { review_state: req.query.review_state || 'kept' },
       source: { app: 'reindeer-wishes', app_version: '0.1.0', inventory_id: SCOPE_ID },

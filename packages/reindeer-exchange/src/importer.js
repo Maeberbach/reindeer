@@ -18,7 +18,7 @@ import { readBundle } from './bundle.js';
  *  6. Every branch is written to the hash-chained audit log.
  */
 export async function importBundle(buffer, {
-  itemRepo, mediaStore, scopeMediaStore, registry, duplicates, audit, db, ctx,
+  itemRepo, mediaStore, scopeMediaStore, registry, sites, duplicates, audit, db, ctx,
   autoCreateMissingRegistry = false,
 }) {
   const { envelope, manifest, files, problems } = readBundle(buffer);
@@ -31,7 +31,7 @@ export async function importBundle(buffer, {
     source: envelope.source,
     round_locked: roundLocked,
     created: [], updated: [], queued: [],
-    unmapped_rooms: new Set(), unmapped_categories: new Set(),
+    unmapped_rooms: new Set(), unmapped_categories: new Set(), unmapped_sites: new Set(),
     recipient_suggestions: [], duplicate_groups: [], problems: [...problems],
     recordings_imported: [], scope_media_imported: [],
   };
@@ -52,6 +52,11 @@ export async function importBundle(buffer, {
 
   const roomByName = new Map(registry.rooms(ctx).map((r) => [r.name.toLowerCase(), r]));
   const catByName = new Map(registry.categories(ctx).map((c) => [c.name.toLowerCase(), c]));
+  // Map sites by name, same pattern as rooms. Auto-create missing sites
+  // when autoCreateMissingRegistry is true.
+  const siteByName = new Map(
+    (sites ? sites.list(ctx) : []).map((s) => [s.name.toLowerCase(), s])
+  );
 
   for (const src of envelope.items) {
     // --- registry mapping by name -----------------------------------------
@@ -72,6 +77,16 @@ export async function importBundle(buffer, {
       } else {
         result.unmapped_categories.add(src.category_name);
       }
+    }
+    // Resolve site by name — same pattern as rooms/categories
+    let site = src.site_name ? siteByName.get(src.site_name.toLowerCase()) : null;
+    if (!site && src.site_name && sites && autoCreateMissingRegistry) {
+      // Auto-create the site in the receiving estate
+      site = sites.create(ctx, { name: src.site_name, kind: src.site_kind ?? 'other' });
+      siteByName.set(src.site_name.toLowerCase(), site);
+    }
+    if (src.site_name && !site && !autoCreateMissingRegistry) {
+      result.unmapped_sites.add(src.site_name);
     }
 
     const payload = {
@@ -112,6 +127,7 @@ export async function importBundle(buffer, {
       ai_confidence: src.ai_confidence ?? null,
       room_id: room?.room_id ?? null,
       category_id: cat?.category_id ?? null,
+      site_id: site?.site_id ?? null,
       review_state: REVIEW_STATE.DRAFT,
     };
 
@@ -201,11 +217,13 @@ export async function importBundle(buffer, {
       source: envelope.source, created: result.created.length, updated: result.updated.length,
       queued: result.queued.length, round_locked: roundLocked,
       unmapped_rooms: [...result.unmapped_rooms], unmapped_categories: [...result.unmapped_categories],
+      unmapped_sites: [...result.unmapped_sites],
       duplicate_groups: result.duplicate_groups.length, problems: result.problems.length,
     },
   }, ctx);
 
   result.unmapped_rooms = [...result.unmapped_rooms];
+  result.unmapped_sites = [...result.unmapped_sites];
   result.unmapped_categories = [...result.unmapped_categories];
   return result;
 }
