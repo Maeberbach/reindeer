@@ -2379,96 +2379,118 @@ async function openDetail(id) {
     <div class="thumbs">${(i.photos ?? []).filter((p) => p.photo_id !== i.closeup_photo_id).map((p) => `<img src="${API}/api/photos/${p.photo_id}" alt="">`).join('') || '<div class="noimg">no photo</div>'}</div>
 
     <div class="detail-fields">
-      <!-- Room — dropdown of existing rooms + custom -->
+      <!-- Room -->
       <div class="detail-field">
         <label>Room</label>
-        <select id="detailRoom" class="bigin">
-          <option value="">— select a room —</option>
-        </select>
+        <div class="detail-cell">
+          <select id="detailRoom" class="bigin">
+            <option value="">— select a room —</option>
+          </select>
+        </div>
       </div>
 
-      <!-- Kind — dropdown of existing categories + custom -->
+      <!-- Kind -->
       <div class="detail-field">
         <label>Kind</label>
-        <select id="detailKind" class="bigin">
-          <option value="">— select a kind —</option>
-        </select>
+        <div class="detail-cell">
+          <select id="detailKind" class="bigin">
+            <option value="">— select a kind —</option>
+          </select>
+        </div>
       </div>
 
-      <!-- Story — text input -->
+      <!-- Story -->
       <div class="detail-field">
         <label>Story</label>
-        <input type="text" id="detailStory" class="bigin" placeholder="Add a note or story about this item" value="${escapeHtml(i.story || '')}">
+        <div class="detail-cell">
+          <input type="text" id="detailStory" class="bigin" placeholder="Add a note or story" value="${escapeHtml(i.story || '')}">
+        </div>
       </div>
 
-      <!-- Intended for — dropdown of heirs -->
+      <!-- Intended for -->
       <div class="detail-field">
         <label>Intended for</label>
-        <select id="detailHeir" class="bigin" data-item="${escapeHtml(i.item_id)}">
-          <option value="">— nobody in particular —</option>
-        </select>
+        <div class="detail-cell">
+          <select id="detailHeir" class="bigin" data-item="${escapeHtml(i.item_id)}">
+            <option value="">— nobody in particular —</option>
+          </select>
+        </div>
       </div>
 
-      <!-- Whose is it — chips -->
+      <!-- Whose is it -->
       <div class="detail-field">
         <label>Whose is it?</label>
-        <div class="chips ownership-chips" id="detailOwnershipChips">
-          <button type="button" class="chip" data-tag="mine" aria-pressed="${i.ownership_tag === 'mine'}">Mine</button>
-          <button type="button" class="chip" data-tag="theirs" aria-pressed="${i.ownership_tag === 'theirs'}">Theirs</button>
-          <button type="button" class="chip" data-tag="ours" aria-pressed="${i.ownership_tag === 'ours'}">Ours</button>
+        <div class="detail-cell">
+          <div class="chips ownership-chips" id="detailOwnershipChips">
+            <button type="button" class="chip" data-tag="mine" aria-pressed="${i.ownership_tag === 'mine'}">Mine</button>
+            <button type="button" class="chip" data-tag="theirs" aria-pressed="${i.ownership_tag === 'theirs'}">Theirs</button>
+            <button type="button" class="chip" data-tag="ours" aria-pressed="${i.ownership_tag === 'ours'}">Ours</button>
+          </div>
         </div>
       </div>
 
       ${
         (i.high_value_flag && !i.owner_high_value) ? `
-      <!-- AI suggestion — inline in the spreadsheet -->
+      <!-- AI suggests important -->
       <div class="detail-field detail-ai-flag">
         <label>📌 AI suggests important</label>
-        <p class="detail-ai-text">Based on the photo, this may be worth special attention.</p>
-        <button class="primary" id="aiConvertBtn">Mark as important</button>
+        <div class="detail-cell">
+          <p class="detail-ai-text">Based on the photo, this may be worth special attention.</p>
+          <button class="primary" id="aiConvertBtn">Mark as important</button>
+        </div>
       </div>` : ''
       }
-      <!-- Important — checkbox + reason chips -->
+
+      <!-- Important -->
       <div class="detail-field">
-        <label class="important-check">
-          <input type="checkbox" id="detailImportant"${isImportant ? ' checked' : ''}>
-          <span class="important-lbl">This one is important</span>
-        </label>
-        <div class="chips important-chips" id="detailImportantChips"${isImportant ? '' : ' hidden'}>
-          <button type="button" class="chip" data-reason="feeling" aria-pressed="${feelingOn}">It means a lot</button>
-          <button type="button" class="chip" data-reason="money" aria-pressed="${moneyOn}">It is worth money</button>
+        <label>Important?</label>
+        <div class="detail-cell">
+          <label class="important-check">
+            <input type="checkbox" id="detailImportant"${isImportant ? ' checked' : ''}>
+            <span class="important-lbl">This one is important</span>
+          </label>
+          <div class="chips important-chips" id="detailImportantChips"${isImportant ? '' : ' hidden'}>
+            <button type="button" class="chip" data-reason="feeling" aria-pressed="${feelingOn}">It means a lot</button>
+            <button type="button" class="chip" data-reason="money" aria-pressed="${moneyOn}">It is worth money</button>
+          </div>
         </div>
       </div>
 
-      <!-- How many — at the bottom -->
+      ${
+        isImportant ? `
+      <!-- Close-up photo -->
+      <div class="detail-field">
+        <label>Close-up photo</label>
+        <div class="detail-cell detail-closeup-cell">
+          ${i.closeup_photo_id ? `<img src="${API}/api/photos/${i.closeup_photo_id}" alt="Close-up">` : '<span style="font-size:14px;color:var(--ink-2)">No close-up yet.</span>'}
+          <br>
+          <button class="ghost" id="detailCloseupBtn">${i.closeup_photo_id ? 'Replace' : 'Take a close-up'}</button>
+        </div>
+      </div>
+
+      <!-- Voice memo -->
+      <div class="detail-field">
+        <label>Voice memo</label>
+        <div class="detail-cell detail-voice-cell">
+          ${(i.recordings || []).filter((r) => r.media_kind === 'audio').map((r) =>
+            `<audio src="${API}/api/photos/${r.photo_id}" controls></audio>`
+          ).join('') || '<span style="font-size:14px;color:var(--ink-2)">No voice memo yet.</span>'}
+          <br>
+          <button class="ghost" id="detailVoiceBtn">🎙 ${i.recordings?.some((r) => r.media_kind === 'audio') ? 'Record again' : 'Record a voice memo'}</button>
+        </div>
+      </div>` : ''
+      }
+
+      <!-- How many -->
       <div class="detail-field">
         <label>How many</label>
-        <input type="number" id="detailQty" class="bigin" min="1" value="${i.quantity || 1}">
+        <div class="detail-cell">
+          <input type="number" id="detailQty" class="bigin" min="1" value="${i.quantity || 1}" style="max-width:100px">
+        </div>
       </div>
     </div>
 
     ${commentBlock}
-
-    ${
-      isImportant ? `
-    <div class="closeup-section">
-      <h3>Close-up photo</h3>
-      ${i.closeup_photo_id ? `<img class="closeup-img" src="${API}/api/photos/${i.closeup_photo_id}" alt="Close-up of ${escapeHtml(i.title)}">` : '<p class="important-hint">No close-up yet. This helps make the item unmistakable.</p>'}
-      <button class="ghost wide" id="detailCloseupBtn">${i.closeup_photo_id ? 'Replace close-up' : 'Take a close-up'}</button>
-    </div>` : ''
-    }
-
-    ${
-      isImportant ? `
-    <div class="voice-section">
-      <h3>Voice memo</h3>
-      ${(i.recordings || []).filter((r) => r.media_kind === 'audio').map((r) =>
-        `<audio class="voice-player" src="${API}/api/photos/${r.photo_id}" controls></audio>`
-      ).join('') || '<p class="important-hint">No voice memo yet.</p>'}
-      <button class="ghost wide" id="detailVoiceBtn">🎙 ${i.recordings?.some((r) => r.media_kind === 'audio') ? 'Record again' : 'Record a voice memo'}</button>
-      <audio id="detailVoicePlayer" controls hidden></audio>
-    </div>` : ''
-    }
 
     <div class="detrow">
       <button class="primary" id="detailSaveBtn">Save</button>

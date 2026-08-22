@@ -1350,12 +1350,56 @@ hr.softrule {
 .ai-extra-manual-important{white-space:nowrap}
 
 /* Detail page inline-editable fields */
-.detail-fields{display:flex;flex-direction:column;gap:16px;margin:16px 0}
-.detail-field{display:flex;flex-direction:column;gap:6px}
-.detail-field > label{font-weight:600;font-size:15px;color:#3a3935}
-.detail-field .chips{margin-top:4px}
-.detail-field .important-check{display:flex;align-items:center;gap:8px}
-.detail-field .important-check input{width:20px;height:20px}
+/* Detail page — spreadsheet/table style */
+.detail-fields{
+  display:table; width:100%; border-collapse:collapse;
+  margin:16px 0; border:1px solid var(--line); border-radius:10px;
+  overflow:hidden; background:var(--card);
+}
+.detail-field{
+  display:table-row;
+}
+.detail-field > label,
+.detail-field > .detail-cell{
+  display:table-cell; padding:12px 14px; vertical-align:middle;
+  border-bottom:1px solid var(--line);
+}
+.detail-field > label{
+  font-weight:600; font-size:15px; color:#3a3935;
+  width:42%; white-space:nowrap;
+  background:#f8f5ee;
+}
+.detail-field > .detail-cell{
+  background:var(--card);
+}
+.detail-field:last-child > label,
+.detail-field:last-child > .detail-cell{
+  border-bottom:none;
+}
+/* Inputs fill the cell */
+.detail-cell select,
+.detail-cell input[type="text"],
+.detail-cell input[type="number"],
+.detail-cell input.bigin{
+  width:100%; border:1px solid var(--line); border-radius:8px;
+  padding:10px 12px; font-size:16px; background:#fff;
+}
+.detail-cell .chips{display:flex;flex-wrap:wrap;gap:8px}
+.detail-cell .chip{padding:8px 16px;font-size:16px;min-height:42px}
+.detail-cell .important-check{display:flex;align-items:center;gap:8px}
+.detail-cell .important-check input{width:20px;height:20px}
+.detail-cell .important-chips{margin-top:8px}
+.detail-cell .important-chips[hidden]{display:none}
+/* AI flag row — tinted */
+.detail-field.detail-ai-flag > label{background:var(--accent-soft);color:var(--accent)}
+.detail-field.detail-ai-flag > .detail-cell{background:var(--accent-soft)}
+.detail-ai-text{margin:0 0 8px 0;font-size:14px;color:var(--ink-2);font-style:italic}
+/* Voice memo row */
+.detail-voice-cell audio{width:100%;max-width:300px}
+.detail-voice-cell button{margin-top:6px}
+/* Close-up row */
+.detail-closeup-cell img{max-width:120px;border-radius:8px;border:1px solid var(--line)}
+.detail-closeup-cell button{margin-top:6px}
 
 /* Duplicate review */
 .dup-group{background:#fff;border:2px solid var(--line);border-radius:var(--radius);padding:16px;margin:16px 0}
