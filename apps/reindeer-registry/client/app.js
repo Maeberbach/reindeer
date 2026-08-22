@@ -2378,6 +2378,7 @@ async function openDetail(id) {
     <h2>${escapeHtml(i.title)}</h2>
     <div class="thumbs">${(i.photos ?? []).filter((p) => p.photo_id !== i.closeup_photo_id).map((p) => `<img src="${API}/api/photos/${p.photo_id}" alt="">`).join('') || '<div class="noimg">no photo</div>'}</div>
 
+    <p class="detail-hint">Not every item needs details — you can skip this part and come back later.</p>
     <div class="detail-fields">
       <!-- Room -->
       <div class="detail-field">
@@ -2494,7 +2495,8 @@ async function openDetail(id) {
 
     <div class="detrow">
       <button class="primary" id="detailSaveBtn">Save</button>
-      <button class="ghost" id="delBtn">Remove item</button>
+      <button class="ghost" id="detailSkipBtn">Skip — back to my items</button>
+      <button class="ghost" id="delBtn" style="flex-basis:100%">Remove item</button>
     </div>`;
 
   // ---- Populate Room dropdown ----

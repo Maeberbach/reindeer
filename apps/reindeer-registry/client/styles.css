@@ -1350,6 +1350,7 @@ hr.softrule {
 .ai-extra-manual-important{white-space:nowrap}
 
 /* Detail page inline-editable fields */
+.detail-hint{margin:12px 0 6px;font-size:15px;color:var(--ink-2);font-style:italic}
 /* Detail page — spreadsheet/table style */
 .detail-fields{
   display:table; width:100%; border-collapse:collapse;
