@@ -2566,7 +2566,7 @@ async function runFinishActions({ email }) {
 
 ${ownerName} has put together an inventory of their possessions and their wishes about who should receive each item. The attached file contains everything — the full list, every photo, and every story.
 
-To open it, go to ${window.location.origin.replace('registry', 'fair-play')} and use the "Import from Reindeer Wishes" option. You will also need a license key from ${ownerName} — they will share it with you separately.
+To open it, go to ${window.location.origin.replace('wishes', 'fair-play')} and use the "Import from Reindeer Wishes" option. You will also need a license key from ${ownerName} — they will share it with you separately.
 
 Keep this file with the estate planning documents. It is the personal property memorandum referenced by the will.
 
@@ -2616,7 +2616,7 @@ This package was prepared on ${new Date().toLocaleDateString('en-US', { dateStyl
 
   if ($('#optDiscovery').checked) {
     triggerDownload(`${API}/api/export/bundle`);
-    const discoveryUrl = window.location.origin.replace('registry', 'discovery');
+    const discoveryUrl = window.location.origin.replace('wishes', 'discovery');
     done.push(`Your inventory is ready in <a href="${discoveryUrl}" style="color:var(--primary);font-weight:600">Reindeer: Discovery</a> — open it to invite your family. They'll be able to browse the collection and privately mark what matters to them.`);
   }
 

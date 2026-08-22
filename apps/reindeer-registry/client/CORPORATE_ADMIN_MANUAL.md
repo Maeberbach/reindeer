@@ -31,7 +31,7 @@ This is the **data access** key. It allows:
 The corporate admin dashboard is served from each app. The primary access point:
 
 ```
-https://reindeer-registry.onrender.com/corporate-admin.html
+https://reindeer-wishes.onrender.com/corporate-admin.html
 ```
 
 You can also access it from FairPlay or Discovery:
@@ -42,7 +42,7 @@ https://reindeer-discovery.onrender.com/corporate-admin.html (if deployed there)
 
 ### Quick-access with key in URL
 ```
-https://reindeer-registry.onrender.com/corporate-admin.html?key=YOUR_ADMIN_KEY
+https://reindeer-wishes.onrender.com/corporate-admin.html?key=YOUR_ADMIN_KEY
 ```
 
 ### How to Use
@@ -195,17 +195,17 @@ Returns 403 if REINDEER_SUPPORT_KEY is not configured.
 
 ```bash
 # Check estate status
-curl -H "x-admin-key: YOUR_KEY" https://reindeer-registry.onrender.com/api/admin/status
+curl -H "x-admin-key: YOUR_KEY" https://reindeer-wishes.onrender.com/api/admin/status
 
 # Toggle subscription gate ON
 curl -X POST -H "Content-Type: application/json" \
   -H "x-admin-key: YOUR_KEY" \
   -d '{"subscriptionGate": true}' \
-  https://reindeer-registry.onrender.com/api/admin/feature-flags
+  https://reindeer-wishes.onrender.com/api/admin/feature-flags
 
 # Reset estate
 curl -X POST -H "x-admin-key: YOUR_KEY" \
-  https://reindeer-registry.onrender.com/api/admin/reset
+  https://reindeer-wishes.onrender.com/api/admin/reset
 ```
 
 ## Selling Apps Independently
@@ -281,7 +281,7 @@ The admin key is incorrect or not set. Verify `REINDEER_ADMIN_KEY` is set on Ren
 ### Connection failed in dashboard
 Check that the Render service is running:
 ```bash
-curl https://reindeer-registry.onrender.com/api/health
+curl https://reindeer-wishes.onrender.com/api/health
 ```
 If it returns a health response, the app is up but may not have `REINDEER_ADMIN_KEY` set.
 

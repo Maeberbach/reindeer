@@ -25,7 +25,7 @@ const ADMIN_KEY = process.env.REINDEER_ADMIN_KEY || '';
 const SUPPORT_KEY = process.env.REINDEER_SUPPORT_KEY || '';
 
 const APPS = {
-  registry:  { url: 'https://reindeer-registry.onrender.com',    name: 'Registry',  desc: 'Estate inventory & item capture' },
+  registry:  { url: 'https://reindeer-wishes.onrender.com',    name: 'Wishes',  desc: 'Estate inventory & item capture' },
   fairplay:  { url: 'https://reindeer-fair-play.onrender.com',   name: 'FairPlay',  desc: 'Estate distribution & fair division' },
   discovery: { url: 'https://reindeer-discovery.onrender.com',   name: 'Discovery', desc: 'Heir interest & early discovery' },
 };
