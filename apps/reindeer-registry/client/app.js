@@ -2548,6 +2548,14 @@ async function openDetail(id) {
 
     ${commentBlock}
 
+    <!-- What is it? — editable item name, positioned above Save -->
+    <div class="detail-field">
+      <label>What is it?</label>
+      <div class="detail-cell">
+        <input type="text" id="detailTitle" class="bigin" value="${escapeHtml(i.title || '')}" placeholder="Item name">
+      </div>
+    </div>
+
     <div class="detrow">
       <button class="primary" id="detailSaveBtn">Save</button>
       <button class="primary" id="detailAddAnotherBtn">+ Add another</button>
@@ -2981,12 +2989,14 @@ async function openDetail(id) {
 
   $('#detailSaveBtn').onclick = async () => {
     const patch = {};
+    const titleInput = $('#detailTitle');
     const roomSel = $('#detailRoom');
     const kindSel = $('#detailKind');
     const storyInput = $('#detailStory');
     const heirSel = $('#detailHeir');
     const qtyInput = $('#detailQty');
     const importantCb = $('#detailImportant');
+    if (titleInput && titleInput.value.trim() && titleInput.value.trim() !== i.title) patch.title = titleInput.value.trim();
     if (roomSel && roomSel.value) patch.room_name = roomSel.value;
     if (kindSel && kindSel.value) patch.category_name = kindSel.value;
     if (storyInput && storyInput.value.trim()) patch.story = storyInput.value.trim();
