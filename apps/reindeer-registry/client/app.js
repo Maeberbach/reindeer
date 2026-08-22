@@ -641,26 +641,21 @@ function resetCapture() {
 
 // Show the details section after a photo is taken
 function showCapDetails() {
-  // Unhide the step divs (Name through Save) so the owner can fill in
-  // details while AI thinks. Previously this tried to show a #capDetails
-  // container that no longer exists — the steps stayed hidden and the
-  // AI note, name field, and everything else were invisible.
+  // Only show the Name step — photo + name + save. Everything else
+  // (room, kind, story, maker, important toggle) lives on the detail
+  // page spreadsheet, which opens immediately after save.
   document.querySelectorAll('.step[data-step]').forEach((el) => {
-    if (el.dataset.step !== '0') el.hidden = false;
+    el.hidden = (el.dataset.step !== '1');
   });
-  // Skip the retired "Worth" step — the owner sets value, not the camera.
+  // Keep all other steps in the DOM but hidden (JS references their fields).
   document.querySelectorAll('.step[data-retired]').forEach((el) => {
     el.hidden = true;
   });
-  // Hide Maker and Story — these only appear when the owner marks the item
-  // as important. For general inventory they are unnecessary friction.
   document.querySelectorAll('.cap-important-only').forEach((el) => {
     el.hidden = true;
   });
-  // Show "Save & take another" when a room is locked — lets the owner rapid-fire
-  // through items in the same room without going through the post-save screen.
-  const anotherBtn = $('#stepNextAnother');
-  if (anotherBtn) anotherBtn.hidden = !cap.room;
+  // Show the navrow with the Save button.
+  ($('.navrow') || {}).hidden = false;
   // Populate person and room chips now that the detail area is visible
   renderPersonChips();
   renderRoomChips();
@@ -1337,7 +1332,7 @@ $('#capPhoto').onchange = async (e) => {
   // name themselves without waiting. The full form (room, kind, story)
   // appears when they click "Edit details first" from the accept bar.
   document.querySelectorAll('.step[data-step]').forEach((el) => {
-    el.hidden = (el.dataset.step !== '0' && el.dataset.step !== '1');
+    el.hidden = (el.dataset.step !== '1');
   });
   document.querySelectorAll('.step[data-retired]').forEach((el) => {
     el.hidden = true;
@@ -1345,7 +1340,7 @@ $('#capPhoto').onchange = async (e) => {
   document.querySelectorAll('.cap-important-only').forEach((el) => {
     el.hidden = true;
   });
-  ($('.navrow') || {}).hidden = true;
+  ($('.navrow') || {}).hidden = false;
 
   // Recognition can take most of a minute. Saying so, on the screen and not in
   // a toast that vanishes, is the difference between waiting and concluding the
@@ -1894,7 +1889,7 @@ function showAcceptBar(label, categoryHint) {
   // save path. "Edit details first" reveals them. Showing both at once
   // is overwhelming for a single item capture.
   document.querySelectorAll('.step[data-step]').forEach((el) => {
-    if (el.dataset.step !== '0' && el.dataset.step !== '1') el.hidden = true;
+    if (el.dataset.step !== '1') el.hidden = true;
   });
   document.querySelectorAll('.step[data-retired]').forEach((el) => {
     el.hidden = true;
@@ -1923,10 +1918,10 @@ $('#capAcceptBtn')?.addEventListener('click', async () => {
 $('#capEditDetailsBtn')?.addEventListener('click', () => {
   const bar = $('#capAcceptBar');
   if (bar) bar.hidden = true;
-  // cap.title is already set from the AI label
-  // Reveal the full form steps
+  // Only show step 1 (name) + navrow (save) — the full form lives on the
+  // detail page spreadsheet which opens after save.
   document.querySelectorAll('.step[data-step]').forEach((el) => {
-    if (el.dataset.step !== '0') el.hidden = false;
+    el.hidden = (el.dataset.step !== '1');
   });
   document.querySelectorAll('.step[data-retired]').forEach((el) => {
     el.hidden = true;
@@ -1934,9 +1929,7 @@ $('#capEditDetailsBtn')?.addEventListener('click', () => {
   document.querySelectorAll('.cap-important-only').forEach((el) => {
     el.hidden = true;
   });
-  // Show the nav row
   ($('.navrow') || {}).hidden = false;
-  // Focus the name field
   $('#capTitle')?.focus();
 });
 
@@ -2426,22 +2419,37 @@ async function openDetail(id) {
 
     <p class="detail-hint">Not every item needs details — you can skip this part and come back later.</p>
     <div class="detail-fields">
+      <!-- Important — #1 priority -->
+      <div class="detail-field">
+        <label>Important?</label>
+        <div class="detail-cell">
+          <label class="important-check">
+            <input type="checkbox" id="detailImportant"${isImportant ? ' checked' : ''}>
+            <span class="important-lbl">This one is important</span>
+          </label>
+          <div class="chips important-chips" id="detailImportantChips"${isImportant ? '' : ' hidden'}>
+            <button type="button" class="chip" data-reason="feeling" aria-pressed="${feelingOn}">It means a lot</button>
+            <button type="button" class="chip" data-reason="money" aria-pressed="${moneyOn}">It is worth money</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Room — #2 priority -->
+      <div class="detail-field">
+        <label>Room</label>
+        <div class="detail-cell">
+          <select id="detailRoom" class="bigin">
+            <option value="">— select a room —</option>
+          </select>
+        </div>
+      </div>
+
       <!-- Site / Location -->
       <div class="detail-field">
         <label>Location</label>
         <div class="detail-cell">
           <select id="detailSite" class="bigin">
             <option value="">— select a location —</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Room -->
-      <div class="detail-field">
-        <label>Room</label>
-        <div class="detail-cell">
-          <select id="detailRoom" class="bigin">
-            <option value="">— select a room —</option>
           </select>
         </div>
       </div>
@@ -2497,21 +2505,6 @@ async function openDetail(id) {
         </div>
       </div>` : ''
       }
-
-      <!-- Important -->
-      <div class="detail-field">
-        <label>Important?</label>
-        <div class="detail-cell">
-          <label class="important-check">
-            <input type="checkbox" id="detailImportant"${isImportant ? ' checked' : ''}>
-            <span class="important-lbl">This one is important</span>
-          </label>
-          <div class="chips important-chips" id="detailImportantChips"${isImportant ? '' : ' hidden'}>
-            <button type="button" class="chip" data-reason="feeling" aria-pressed="${feelingOn}">It means a lot</button>
-            <button type="button" class="chip" data-reason="money" aria-pressed="${moneyOn}">It is worth money</button>
-          </div>
-        </div>
-      </div>
 
       ${
         isImportant ? `
