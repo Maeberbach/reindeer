@@ -30,7 +30,7 @@ export default function ResultsPage() {
   //      from Reindeer Wishes after the owner’s death. Recipient identity is not
   //      in FC on purpose; heirs see photo/name/room and a preamble note.
   //      Grouped by the deceased owner’s first name.
-  //   2) Owner-assigned via Registry recipient_hint or comment detection
+  //   2) Owner-assigned via Wishes recipient_hint or comment detection
   //      — recipient IS shown here, as it was before commit 4.
   const memorandumLocked = ownerAssigned.filter((i) => i.lockedByMemorandum);
   const otherOwnerAssigned = ownerAssigned.filter((i) => !i.lockedByMemorandum);
@@ -178,7 +178,7 @@ export default function ResultsPage() {
               </h2>
               {/*
                 Preamble note (verbatim from the user’s commit 4 decision):
-                the memorandum snapshot in FC was captured at Registry
+                the memorandum snapshot in FC was captured at Wishes
                 export time. Between then and now the paper document may
                 have moved on. If it has, the paper governs — not this
                 screen. The trustee sees the same list on their delivery
@@ -193,7 +193,7 @@ export default function ResultsPage() {
                 below was captured from Reindeer Wishes when the memorandum was
                 last signed. Between that day and this one, {ownerName} may
                 have signed a newer paper memorandum, added handwritten
-                notes, or made changes their trustee is holding but Registry
+                notes, or made changes their trustee is holding but Wishes
                 never saw. If something here doesn’t match what the trustee
                 has on paper, the paper is what governs. Ask the trustee.
                 We can’t plan for everything.

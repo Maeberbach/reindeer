@@ -1,6 +1,6 @@
 /**
  * v8 — Inventory intake ("import"). captain-only screen for bringing a family
- * member's .reindeer export from Reindeer: Registry into this estate.
+ * member's .reindeer export from Reindeer: Wishes into this estate.
  *
  * Nothing here writes to the live item pool by itself. Every staged item
  * needs an explicit Approve before it becomes a real item — see
@@ -314,7 +314,7 @@ export default function ImportPage() {
       <AppShell>
         <PageHeader
           title="Inventory intake"
-          subtitle="Bringing in items catalogued in Reindeer: Registry."
+          subtitle="Bringing in items catalogued in Reindeer: Wishes."
         />
         <Card className="p-10 text-center" data-testid="text-import-not-captain">
           <p className="font-serif text-lg">This page is for the captain</p>
@@ -331,7 +331,7 @@ export default function ImportPage() {
     <AppShell>
       <PageHeader
         title="Inventory intake"
-        subtitle="Bring in a family member's export from Reindeer: Registry and decide what joins the estate."
+        subtitle="Bring in a family member's export from Reindeer: Wishes and decide what joins the estate."
       />
 
       {/* Upload */}

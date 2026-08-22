@@ -1061,7 +1061,7 @@ export default function InventoryPage() {
                       )}
                     </div>
                     {/* Owner's story and voice memo indicators — these come
-                        from the Registry import and are visible to all
+                        from the Wishes import and are visible to all
                         participants. They surface what the deceased owner
                         said about the item before death. */}
                     {i.inventoryStory && (

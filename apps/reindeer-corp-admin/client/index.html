@@ -223,7 +223,7 @@
 
 <script>
 const APPS = ['registry', 'fairplay', 'discovery'];
-const APP_NAMES = { registry: 'Registry', fairplay: 'FairPlay', discovery: 'Discovery' };
+const APP_NAMES = { registry: 'Wishes', fairplay: 'FairPlay', discovery: 'Discovery' };
 let appData = {};
 let supportData = {};
 let serverStatus = null;
@@ -367,7 +367,7 @@ async function loadApp(appKey) {
     html += `<div class="info-row">Scope: <span class="val">${status.estate.scope_id}</span></div>`;
   }
 
-  // Vision / max_frames (Registry)
+  // Vision / max_frames (Wishes)
   if (status.vision) {
     html += `<div class="info-row">Vision: <span class="val">${status.vision}</span></div>`;
   }
