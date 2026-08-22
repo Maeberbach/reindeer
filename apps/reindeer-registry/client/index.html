@@ -690,20 +690,6 @@
       <p class="reassure">Hold the item so it fills most of the picture.</p>
     </div>
 
-    <!--
-      Accept bar — quick save path for guided intro / practice mode.
-      Shown by showAcceptBar() after the AI identifies the photo (or
-      immediately if AI is unavailable). Lets the owner confirm the name
-      and save in one tap without scrolling through the full form.
-      "Edit details" reveals the full multi-step form below.
-    -->
-    <div class="cap-accept" id="capAcceptBar" hidden>
-      <p id="capAcceptLabel"></p>
-      
-      <button class="primary wide" id="capAcceptBtn">Save this item</button>
-      <button class="ghost wide" id="capEditDetailsBtn">Add details</button>
-    </div>
-
     <div class="step" data-stepname="Name" data-step="1" hidden>
       <h2>What is it?</h2>
       <p class="aiNote" id="aiNote" hidden></p>
@@ -722,6 +708,22 @@
         <p class="important-hint">It matters, for whatever reason. Tap to add its story and who should have it.</p>
         <button class="ghost wide cap-add-details-btn" id="capAddDetailsBtn" hidden>Add details</button>
       </div>
+    </div>
+
+    <!--
+      Accept bar — quick save path for guided intro / practice mode.
+      Shown by showAcceptBar() after the AI identifies the photo (or
+      immediately if AI is unavailable). Lets the owner confirm the name
+      and save in one tap without scrolling through the full form.
+      "Edit details" reveals the full multi-step form below.
+      Positioned after "What is it?" so the name field is always visible
+      above the save button.
+    -->
+    <div class="cap-accept" id="capAcceptBar" hidden>
+      <p id="capAcceptLabel"></p>
+      
+      <button class="primary wide" id="capAcceptBtn">Save this item</button>
+      <button class="ghost wide" id="capEditDetailsBtn">Add details</button>
     </div>
 
     <div class="step" data-stepname="Room" data-step="2" hidden>
