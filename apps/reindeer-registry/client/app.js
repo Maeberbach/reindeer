@@ -2480,6 +2480,7 @@ async function openDetail(id) {
     }
 
     <div class="detrow">
+      <button class="primary" id="detailSaveBtn">Save</button>
       <button class="ghost" id="delBtn">Remove item</button>
     </div>`;
 
@@ -2645,6 +2646,45 @@ async function openDetail(id) {
       };
     } catch { /* the roster is optional \u2014 detail must still open */ }
   })();
+
+  $('#detailSaveBtn').onclick = async () => {
+    const patch = {};
+    const roomSel = $('#detailRoom');
+    const kindSel = $('#detailKind');
+    const storyInput = $('#detailStory');
+    const heirSel = $('#detailHeir');
+    const qtyInput = $('#detailQty');
+    const importantCb = $('#detailImportant');
+    if (roomSel && roomSel.value) patch.room_name = roomSel.value;
+    if (kindSel && kindSel.value) patch.category_name = kindSel.value;
+    if (storyInput && storyInput.value.trim()) patch.story = storyInput.value.trim();
+    if (qtyInput) patch.quantity = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+    if (importantCb) {
+      patch.owner_high_value = importantCb.checked;
+      const feeling = $$('#detailImportantChips .chip').find((c) => c.dataset.reason === 'feeling')?.getAttribute('aria-pressed') === 'true';
+      const money = $$('#detailImportantChips .chip').find((c) => c.dataset.reason === 'money')?.getAttribute('aria-pressed') === 'true';
+      patch.owner_high_value_reason = !importantCb.checked ? '' : (feeling && money ? 'both' : feeling ? 'feeling' : money ? 'money' : '');
+    }
+    if (heirSel && heirSel.value) {
+      try {
+        await api(`/api/items/${i.item_id}/assign`, {
+          method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ heir_id: heirSel.value }),
+        });
+      } catch (e) { console.warn('assign failed:', e.message); }
+    }
+    if (Object.keys(patch).length) {
+      try {
+        await api(`/api/items/${i.item_id}`, {
+          method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(patch),
+        });
+        toast('Saved.');
+      } catch (e) { toast(e.message, true); }
+    } else {
+      toast('Nothing to save.');
+    }
+  };
 
   $('#delBtn').onclick = async () => {
     if (!confirm(`Remove "${i.title}"? The removal is recorded in the history.`)) return;
