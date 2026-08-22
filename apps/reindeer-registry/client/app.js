@@ -896,17 +896,58 @@ function wireSiteControls() {
     // Item will be saved with site_id = null and coordinates captured
   };
 
+  // GPS button in the site form — optional, uses device GPS if available
+  const gpsSiteBtn = $('#capSiteGpsBtn');
+  const geoSiteResult = $('#capSiteGeoResult');
+  let manualSiteLat = null, manualSiteLon = null;
+  if (gpsSiteBtn) {
+    gpsSiteBtn.onclick = () => {
+      if (!navigator.geolocation) { geoSiteResult.textContent = 'GPS not available on this device.'; return; }
+      geoSiteResult.textContent = 'Detecting location…';
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          manualSiteLat = pos.coords.latitude;
+          manualSiteLon = pos.coords.longitude;
+          geoSiteResult.innerHTML = '<span style="color:#2a7">✓ GPS captured (' + manualSiteLat.toFixed(4) + ', ' + manualSiteLon.toFixed(4) + ')</span>';
+        },
+        () => { geoSiteResult.textContent = 'GPS denied — you can still enter the address below.'; },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    };
+  }
+
   if (saveBtn) {
     saveBtn.onclick = async () => {
       const name = $('#capSiteName').value.trim();
       const kind = $('#capSiteKind').value;
       if (!name) return;
       try {
+        // Prefer GPS, then fall back to address geocoding
+        let lat = manualSiteLat ?? cap.capturedLat ?? null;
+        let lon = manualSiteLon ?? cap.capturedLon ?? null;
+        const addr = ($('#capSiteAddr')?.value || '').trim();
+        const zip = ($('#capSiteZip')?.value || '').trim();
+        const fullAddr = zip ? (addr ? addr + ', ' + zip : zip) : addr;
+
+        if (!lat && !lon && fullAddr) {
+          geoSiteResult.textContent = 'Looking up address…';
+          try {
+            const geoResp = await fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(fullAddr + ', USA') + '&limit=1');
+            const geoData = await geoResp.json();
+            if (geoData && geoData[0]) {
+              lat = parseFloat(geoData[0].lat);
+              lon = parseFloat(geoData[0].lon);
+              geoSiteResult.innerHTML = '<span style="color:#2a7">✓ Address found</span>';
+            }
+          } catch (e) { /* keep going without coordinates */ }
+        }
+
         const site = await api('/api/sites', {
           method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({
             name, kind,
-            lat: cap.capturedLat, lon: cap.capturedLon,
+            address: fullAddr || '',
+            lat, lon,
             radius_m: 274,
           }),
         });
@@ -917,6 +958,12 @@ function wireSiteControls() {
         cap.offsite = false;
         form.hidden = true;
         ($('#capOffsiteWarning') || {}).hidden = true;
+        // Clear the form
+        $('#capSiteName').value = '';
+        if ($('#capSiteAddr')) $('#capSiteAddr').value = '';
+        if ($('#capSiteZip')) $('#capSiteZip').value = '';
+        if (geoSiteResult) geoSiteResult.textContent = '';
+        manualSiteLat = null; manualSiteLon = null;
         syncSiteUI();
       } catch (e) {
         alert('Could not save the site: ' + e.message);

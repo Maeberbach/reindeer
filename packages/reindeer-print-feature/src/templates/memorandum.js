@@ -36,6 +36,8 @@ function describe(item) {
   const ident = safeIdentifiers(item);
   if (ident.maker) bits.push(`maker ${ident.maker}`);
   if (ident.marks) bits.push(`marked ${ident.marks}`);
+  const siteName = item.site_name || item.site?.name || '';
+  if (siteName && siteName !== 'Home') bits.push(`at ${siteName}`);
   if (item.room_name) bits.push(`located in the ${String(item.room_name).toLowerCase()}`);
   if (item.quantity > 1) bits.push(`${item.quantity} in the set`);
   // Value estimates are deliberately excluded from the printed memorandum.
@@ -82,6 +84,18 @@ function recipientOf(item) {
 export function renderMemorandum(items, {
   ownerName = '', ownerLocation = '', willDate = '', witnessBlock = true, base = '/api',
 } = {}) {
+  // Group items by site for the location summary
+  const siteOfAll = (item) => item.site_name || item.site?.name || 'Home';
+  const siteMap = new Map();
+  items.forEach((item) => {
+    const site = siteOfAll(item);
+    if (!siteMap.has(site)) siteMap.set(site, 0);
+    siteMap.set(site, siteMap.get(site) + 1);
+  });
+  const locationSummary = [...siteMap.entries()].map(([name, count]) =>
+    `<li>${esc(name)} — ${count} item${count === 1 ? '' : 's'}</li>`
+  ).join('');
+
   const named = items.filter((i) => (recipientOf(i).name || '').trim());
   const unnamed = items.length - named.length;
 
@@ -91,12 +105,29 @@ export function renderMemorandum(items, {
      who knows what was in the house can tell whether anything is missing, and
      because an owner should not have to name a recipient for a toaster in order
      for the toaster to be on the record. Nothing here directs where a thing
-     goes; the columns deliberately offer nowhere to write a name. */
-  const inventoryRows = unnamedItems.map((item, n) => `<tr>
-      <td class="num">${n + 1}</td>
+     goes; the columns deliberately offer nowhere to write a name.
+     Items are grouped by site/location so offsite property (guest house,
+     vacation home, storage shed) is clearly segregated. */
+  const siteOf = (item) => item.site_name || item.site?.name || 'Home';
+  const bySite = new Map();
+  unnamedItems.forEach((item) => {
+    const site = siteOf(item);
+    if (!bySite.has(site)) bySite.set(site, []);
+    bySite.get(site).push(item);
+  });
+  let itemNum = 0;
+  const inventoryRows = [...bySite.entries()].map(([siteName, list]) => {
+    const siteHeader = siteName === 'Home' ? '' : `<tr class="site-sep"><td colspan="3"><strong>${esc(siteName)}</strong></td></tr>`;
+    const rows = list.map((item) => {
+      itemNum += 1;
+      return `<tr>
+      <td class="num">${itemNum}</td>
       <td><strong>${esc(item.title)}</strong><div class="desc">${esc(describe(item))}</div></td>
       <td>${esc(item.room?.name ?? '')}</td>
-    </tr>`).join('\n');
+    </tr>`;
+    }).join('\n');
+    return siteHeader + rows;
+  }).join('\n');
 
   const rows = named.map((item, n) => {
     const h = recipientOf(item);
@@ -139,6 +170,11 @@ export function renderMemorandum(items, {
      operative gift list, or for something the signature below covers. */
   .schedb { page-break-before: always; }
   .schedb .why { font-size: 9.5pt; color: #555; text-align: justify; margin: 6pt 0 0; }
+  .site-sep td { padding-top: 10pt; border-bottom: 2px solid #1a1a1a; background: #f8f8f8; padding: 6pt 7pt 4pt 0; font-size: 10pt; text-transform: uppercase; letter-spacing: .04em; }
+  .loc-summary { font-size: 10pt; margin: 10pt 0 14pt; }
+  .loc-summary h3 { font-size: 10pt; text-transform: uppercase; letter-spacing: .04em; margin: 0 0 4pt; }
+  .loc-summary ul { margin: 0; padding-left: 1em; }
+  .loc-summary li { margin-bottom: 2pt; }
   .desc { font-size: 9.5pt; color: #444; margin-top: 2pt; line-height: 1.35; }
   .attest { margin-top: 18pt; page-break-inside: avoid; }
   .sigrow { display: flex; gap: 34pt; margin-top: 26pt; page-break-inside: avoid; }
@@ -170,6 +206,11 @@ export function renderMemorandum(items, {
 <p class="scope">This memorandum lists only the items left to a particular person &mdash; the things
 meant to pass to someone by name. Everything else in the inventory is not listed here, and is divided
 under the instructions in the Will or Trust.</p>
+
+${siteMap.size > 1 ? `<div class="loc-summary">
+  <h3>Locations covered by this memorandum</h3>
+  <ul>${locationSummary}</ul>
+</div>` : ''}
 
 <p class="rec">I, ${owner ? `<strong>${esc(owner)}</strong>` : '<span class="blankname">&nbsp;</span>'}, of
 ${where ? esc(where) : '<span class="blankname">&nbsp;</span>'}, make this memorandum with reference to my Last Will

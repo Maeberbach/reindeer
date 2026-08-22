@@ -131,7 +131,8 @@ export function renderReport(items, { title = 'Reindeer: Registry', groupBy = 'r
   for (const it of items) {
     const key = groupBy === 'category' ? (it.category?.name ?? 'Uncategorized')
       : groupBy === 'recipient' ? (it.recipient_hint?.recipient_name || 'Not yet assigned')
-        : (it.room?.name ?? 'No room recorded');
+        : groupBy === 'site' ? (it.site_name || it.site?.name || 'Home')
+          : (it.room?.name ?? 'No room recorded');
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(it);
   }

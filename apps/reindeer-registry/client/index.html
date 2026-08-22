@@ -663,7 +663,14 @@
           <option value="vacation">Vacation home</option>
           <option value="garage">Garage / shed</option>
         </select>
-        <button class="primary" id="capSiteSaveBtn">Save location</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px">
+          <button class="ghost small" id="capSiteGpsBtn" type="button">📍 Use GPS here</button>
+          <span style="font-size:13px;color:var(--ink-2)">or enter address:</span>
+        </div>
+        <input type="text" id="capSiteAddr" class="bigin" placeholder="Street address (optional)" style="margin-top:6px">
+        <input type="text" id="capSiteZip" class="bigin" placeholder="ZIP code (optional)" style="max-width:160px;margin-top:6px">
+        <div id="capSiteGeoResult" style="font-size:13px;color:var(--ink-2);min-height:18px;margin-top:4px"></div>
+        <button class="primary" id="capSiteSaveBtn" style="margin-top:6px">Save location</button>
       </div>
     </div>
     <div class="steps" id="stepDots"></div>
