@@ -3423,5 +3423,201 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.send(lines.join("\n"));
   });
 
+  /* ---------- Estate Sale Preparation report (fiduciary only) ---------- */
+  /**
+   * Generates a standalone HTML report of all items that remain unselected
+   * after the distribution is complete — nobody ranked them, nobody was
+   * assigned them. This report is curated for handoff to an estate sale
+   * specialist: item name, category, room, photos, estimated values,
+   * condition, identifiers (maker marks, serial numbers), provenance story,
+   * and quantity. Printable / save-as-PDF.
+   */
+  app.get("/api/print/estate-sale", async (req, res) => {
+    const actor = await actorOf(req);
+    if (!actor?.isAdmin) {
+      res.status(403).json({ message: "The estate sale report is the captain's to run." });
+      return;
+    }
+    const [allItems, allParticipants] = await Promise.all([
+      storage.listItems(),
+      storage.listParticipants(),
+    ]);
+    const realItems = allItems.filter((i) => !i.isPractice);
+    // Estate sale candidates: items NOT awarded, NOT owner_assigned, NOT
+    // duplicate_dismissed. These are items that went through the entire
+    // distribution process and nobody picked them.
+    const estateSaleItems = realItems.filter(
+      (i) => i.status !== "awarded"
+        && i.status !== "owner_assigned"
+        && i.status !== "duplicate_dismissed"
+        && !i.lockedByMemorandum,
+    );
+    const esc = (s: string) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    // Group by room for the specialist's walkthrough convenience.
+    const byRoom: Record<string, typeof estateSaleItems> = {};
+    for (const i of estateSaleItems) {
+      const key = i.room || "Unspecified room";
+      (byRoom[key] ??= []).push(i);
+    }
+    const roomNames = Object.keys(byRoom).sort();
+
+    // Total estimated value for the summary header.
+    const totalEstimated = estateSaleItems.reduce(
+      (sum, i) => sum + (i.estimatedValue ?? i.aiEstimatedValue ?? 0), 0
+    );
+
+    const itemRows = (items: typeof estateSaleItems) => items.map((i) => {
+      const value = i.approvedValue != null
+        ? `$${i.approvedValue.toLocaleString()}`
+        : i.estimatedValue != null
+          ? `$${i.estimatedValue.toLocaleString()}`
+          : i.aiEstimatedValue != null
+            ? `$${i.aiEstimatedValue.toLocaleString()}`
+            : "—";
+      let identifiers = "—";
+      try {
+        const ids = JSON.parse(i.identifiers || "{}");
+        const parts: string[] = [];
+        for (const [k, v] of Object.entries(ids)) {
+          if (v) parts.push(`${esc(k)}: ${esc(String(v))}`);
+        }
+        if (parts.length) identifiers = parts.join("<br>");
+      } catch { /* keep default */ }
+      const photo = i.photoUrl || i.thumbnailUrl
+        ? `<img src="${esc(i.photoUrl || i.thumbnailUrl || "")}" style="max-width:80px;max-height:80px;border-radius:4px;object-fit:cover;">`
+        : '<span style="color:#999;font-size:11px;">No photo</span>';
+      return `<tr>
+        <td>${photo}</td>
+        <td><strong>${esc(i.name)}</strong>${i.quantity > 1 ? ` <span style="color:#666;">(×${i.quantity})</span>` : ""}</td>
+        <td>${esc(i.category || "—")}</td>
+        <td>${esc(i.conditionNote || "—")}</td>
+        <td>${identifiers}</td>
+        <td style="text-align:right;">${value}</td>
+        <td>${i.inventoryStory ? `<span style="font-size:11px;color:#555;">${esc(i.inventoryStory.substring(0, 200))}${i.inventoryStory.length > 200 ? "…" : ""}</span>` : "—"}</td>
+      </tr>`;
+    }).join("\n");
+
+    const roomSections = roomNames.map((room) => `
+      <h2 style="margin-top:32px;border-bottom:1px solid #ddd;padding-bottom:6px;">${esc(room)} <span style="color:#999;font-size:14px;font-weight:normal;">(${byRoom[room].length} items)</span></h2>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="text-align:left;background:#f5f5f0;padding:6px;">
+          <th style="padding:6px 8px;border-bottom:2px solid #ddd;">Photo</th>
+          <th style="padding:6px 8px;border-bottom:2px solid #ddd;">Item</th>
+          <th style="padding:6px 8px;border-bottom:2px solid #ddd;">Category</th>
+          <th style="padding:6px 8px;border-bottom:2px solid #ddd;">Condition</th>
+          <th style="padding:6px 8px;border-bottom:2px solid #ddd;">Identifiers</th>
+          <th style="padding:6px 8px;border-bottom:2px solid #ddd;text-align:right;">Est. Value</th>
+          <th style="padding:6px 8px;border-bottom:2px solid #ddd;">Provenance</th>
+        </tr></thead>
+        <tbody>${itemRows(byRoom[room])}</tbody>
+      </table>
+    `).join("\n");
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estate Sale Preparation Report</title>
+<style>
+  body { font-family: Georgia, serif; max-width: 1100px; margin: 40px auto; padding: 0 20px; color: #222; }
+  h1 { font-size: 24px; border-bottom: 2px solid #5b7c5e; padding-bottom: 8px; }
+  .meta { color: #666; font-size: 14px; margin-bottom: 24px; }
+  .summary { background: #f5f5f0; padding: 16px 20px; border-radius: 8px; margin-bottom: 28px; display: flex; gap: 40px; }
+  .summary div { text-align: center; }
+  .summary .num { font-size: 28px; font-weight: bold; color: #5b7c5e; }
+  .summary .label { font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; background: #f5f5f0; padding: 6px 8px; border-bottom: 2px solid #ddd; font-family: sans-serif; font-size: 12px; }
+  td { padding: 6px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
+  tr:nth-child(even) { background: #fafaf7; }
+  .note { background: #fff9e6; border-left: 3px solid #d4a017; padding: 12px 16px; margin-bottom: 24px; font-size: 13px; }
+  @media print { body { margin: 0; } }
+</style>
+</head>
+<body>
+  <h1>Estate Sale Preparation Report</h1>
+  <div class="meta">Generated ${new Date().toLocaleString("en-US", { dateStyle: "long", timeStyle: "short" })} · Reindeer: FairPlay</div>
+
+  <div class="summary">
+    <div>
+      <div class="num">${estateSaleItems.length}</div>
+      <div class="label">Items for Sale</div>
+    </div>
+    <div>
+      <div class="num">${totalEstimated > 0 ? "$" + totalEstimated.toLocaleString() : "—"}</div>
+      <div class="label">Total Est. Value</div>
+    </div>
+    <div>
+      <div class="num">${roomNames.length}</div>
+      <div class="label">Rooms</div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>For the estate sale specialist:</strong> These items were not selected
+    by any heir during the family distribution process. Each item includes the
+    owner's recorded description, photos, condition notes, and any identifiers
+    (maker marks, serial numbers) captured during cataloging. Estimated values
+    are advisory and not formal appraisals.
+  </div>
+
+  ${roomSections || "<p style=\"color:#666;text-align:center;padding:40px;\">All items were selected by heirs. Nothing requires estate sale preparation.</p>"}
+
+  <div style="margin-top:40px;padding-top:16px;border-top:1px solid #ddd;color:#999;font-size:11px;">
+    Reindeer: FairPlay — Estate Sale Preparation Report · ${new Date().toISOString()}
+  </div>
+</body>
+</html>`;
+    res.setHeader("Content-Type", "text/html");
+    res.send(html);
+  });
+
+  /* ---------- Estate Sale Preparation CSV (fiduciary only) ---------- */
+  /**
+   * CSV export of estate sale items for import into estate sale management
+   * software or a specialist's spreadsheet.
+   */
+  app.get("/api/estate-sale/export.csv", async (req, res) => {
+    const actor = await actorOf(req);
+    if (!actor?.isAdmin) {
+      res.status(403).json({ message: "The estate sale export is the captain's to run." });
+      return;
+    }
+    const allItems = await storage.listItems();
+    const estateSaleItems = allItems.filter(
+      (i) => !i.isPractice
+        && i.status !== "awarded"
+        && i.status !== "owner_assigned"
+        && i.status !== "duplicate_dismissed"
+        && !i.lockedByMemorandum,
+    );
+    const header = ["Item", "Room", "Category", "Quantity", "Condition", "Identifiers", "Estimated Value", "Provenance"];
+    const lines = [header.join(",")];
+    for (const i of estateSaleItems) {
+      let identifiersStr = "";
+      try {
+        const ids = JSON.parse(i.identifiers || "{}");
+        identifiersStr = Object.entries(ids).map(([k, v]) => `${k}: ${v}`).join("; ");
+      } catch { /* empty */ }
+      const value = i.approvedValue ?? i.estimatedValue ?? i.aiEstimatedValue ?? "";
+      lines.push([
+        i.name,
+        i.room,
+        i.category || "",
+        i.quantity,
+        i.conditionNote,
+        identifiersStr,
+        value,
+        i.inventoryStory,
+      ].map(csvCell).join(","));
+    }
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="estate-sale-preparation.csv"');
+    res.send(lines.join("\n"));
+  });
+
+
   return httpServer;
 }

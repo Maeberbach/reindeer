@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, Printer } from "lucide-react";
+import { Download, Printer, FileText, Store } from "lucide-react";
 
 export default function ResultsPage() {
   const { data, isLoading } = useAppState();
@@ -265,25 +265,163 @@ export default function ResultsPage() {
           )}
 
           {leftovers.length > 0 && (
-            <section className="mt-8" data-testid="section-final-leftovers">
-              <h2 className="font-serif text-lg" data-testid="text-leftovers-heading">
-                Final leftovers
-              </h2>
-              <p className="mb-3 mt-1 text-sm text-muted-foreground">
-                No heir ranked these items. The captain records how they will be handled.
-              </p>
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {leftovers.map((i) => (
-                  <Card key={i.id} className="p-3" data-testid={`card-leftover-${i.id}`}>
-                    <div className="text-sm font-medium">{i.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {[i.room, canSeeValues ? money(i.aiEstimatedValue) : null]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </div>
-                  </Card>
-                ))}
+            <section className="mt-12 print-sheet" data-testid="section-estate-sale">
+              <div className="flex items-center gap-2">
+                <Store className="h-5 w-5 text-muted-foreground" />
+                <h2 className="font-serif text-lg" data-testid="text-estate-sale-heading">
+                  Estate sale preparation
+                </h2>
               </div>
+              <p className="mb-3 mt-1 max-w-3xl text-sm text-muted-foreground">
+                {leftovers.length} {leftovers.length === 1 ? "item" : "items"} no heir selected
+                during the distribution. Curated for handoff to an estate sale specialist.
+              </p>
+
+              {/* Summary stats */}
+              <Card className="mb-4">
+                <CardContent className="flex flex-wrap gap-6 p-4">
+                  <div>
+                    <div className="text-2xl font-bold text-primary">{leftovers.length}</div>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wide">Items for sale</div>
+                  </div>
+                  {canSeeValues && (() => {
+                    const totalVal = leftovers.reduce(
+                      (s, i) => s + (i.estimatedValue ?? i.aiEstimatedValue ?? 0), 0
+                    );
+                    return totalVal > 0 ? (
+                      <div>
+                        <div className="text-2xl font-bold text-primary">
+                          {money(totalVal)}
+                        </div>
+                        <div className="text-xs text-muted-foreground uppercase tracking-wide">Total est. value</div>
+                      </div>
+                    ) : null;
+                  })()}
+                  <div>
+                    <div className="text-2xl font-bold text-primary">
+                      {new Set(leftovers.map((i) => i.room || "Unspecified")).size}
+                    </div>
+                    <div className="text-xs text-muted-foreground uppercase tracking-wide">Rooms</div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Captain-only action buttons for estate sale report handoff */}
+              {isCaptain && (
+                <div className="mb-4 flex gap-2 print:hidden">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    data-testid="button-estate-sale-print"
+                    onClick={() =>
+                      window.open("/api/print/estate-sale", "_blank")
+                    }
+                  >
+                    <FileText className="mr-1.5 h-4 w-4" />
+                    Print specialist report
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    data-testid="button-estate-sale-csv"
+                    onClick={async () => {
+                      const res = await fetch("/api/estate-sale/export.csv", { credentials: "include" });
+                      if (!res.ok) return;
+                      const blob = await res.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = "estate-sale-preparation.csv";
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                      URL.revokeObjectURL(url);
+                    }}
+                  >
+                    <Download className="mr-1.5 h-4 w-4" />
+                    Export CSV
+                  </Button>
+                </div>
+              )}
+
+              {/* Items grouped by room */}
+              {Object.entries(
+                leftovers.reduce<Record<string, typeof leftovers>>((acc, i) => {
+                  const key = i.room || "Unspecified room";
+                  (acc[key] ??= []).push(i);
+                  return acc;
+                }, {}),
+              ).sort(([a], [b]) => a.localeCompare(b)).map(([room, items]) => (
+                <div key={room} className="mb-6">
+                  <h3 className="mb-2 font-serif text-base text-muted-foreground">
+                    {room} <span className="text-xs">({items.length})</span>
+                  </h3>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {items.map((i) => {
+                      // Parse identifiers (maker marks, serial numbers)
+                      let idents: string[] = [];
+                      try {
+                        const ids = JSON.parse(i.identifiers || "{}");
+                        idents = Object.entries(ids)
+                          .filter(([, v]) => v)
+                          .map(([k, v]) => `${k}: ${String(v)}`);
+                      } catch { /* empty */ }
+                      return (
+                        <Card
+                          key={i.id}
+                          className="overflow-hidden p-0"
+                          data-testid={`card-estate-sale-${i.id}`}
+                        >
+                          {/* Photo */}
+                          {(i.photoUrl || i.thumbnailUrl) && (
+                            <img
+                              src={(i.photoUrl || i.thumbnailUrl) ?? ""}
+                              alt={i.name}
+                              className="h-32 w-full object-cover"
+                            />
+                          )}
+                          <div className="p-3">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <div className="text-sm font-medium">{i.name}</div>
+                              {i.quantity > 1 && (
+                                <Badge variant="outline" className="shrink-0 text-[10px]">
+                                  ×{i.quantity}
+                                </Badge>
+                              )}
+                            </div>
+                            {i.category && (
+                              <div className="mt-0.5 text-xs text-muted-foreground">
+                                {i.category}
+                              </div>
+                            )}
+                            {i.conditionNote && (
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                <span className="font-medium">Condition:</span> {i.conditionNote}
+                              </div>
+                            )}
+                            {idents.length > 0 && (
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                <span className="font-medium">Identifiers:</span>{" "}
+                                {idents.join(" · ")}
+                              </div>
+                            )}
+                            {canSeeValues && (i.estimatedValue || i.aiEstimatedValue) && (
+                              <div className="mt-1 text-xs font-medium text-primary">
+                                {money(i.estimatedValue ?? i.aiEstimatedValue ?? 0)}
+                              </div>
+                            )}
+                            {i.inventoryStory && (
+                              <div className="mt-2 text-xs italic text-muted-foreground line-clamp-2">
+                                {i.inventoryStory}
+                              </div>
+                            )}
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </section>
           )}
         </div>
