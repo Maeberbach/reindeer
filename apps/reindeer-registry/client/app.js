@@ -2495,7 +2495,8 @@ async function openDetail(id) {
 
     <div class="detrow">
       <button class="primary" id="detailSaveBtn">Save</button>
-      <button class="ghost" id="detailSkipBtn">Skip — back to my items</button>
+      <button class="primary" id="detailAddAnotherBtn">+ Add another</button>
+      <button class="ghost" id="detailSkipBtn">Back to my items</button>
       <button class="ghost" id="delBtn" style="flex-basis:100%">Remove item</button>
     </div>`;
 
