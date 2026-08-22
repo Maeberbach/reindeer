@@ -978,6 +978,9 @@ wireSiteControls();
 function populateSiteSelect() {
   const sel = $('#capSiteSelect');
   if (!sel) return;
+  // Only owners can override the location — hide the selector for assistants
+  const overrideWrap = sel.closest('.site-override-wrap');
+  if (overrideWrap && myRole === 'assistant') overrideWrap.hidden = true;
   // Determine current target site: GPS-detected, or active, or primary
   const targetId = cap.siteId || activeSiteId || sitesList.find(s => s.is_primary)?.site_id;
   sel.innerHTML = sitesList.map(s =>
@@ -2346,7 +2349,6 @@ $('#batchGo').onclick = async () => {
 // -------------------------------------------------------------------- list
 async function loadList() {
   const params = new URLSearchParams();
-  if ($('#filterSite')?.value) params.set('site_id', $('#filterSite').value);
   if ($('#q').value) params.set('search', $('#q').value);
   if ($('#filterRoom').value) params.set('room_id', $('#filterRoom').value);
   if ($('#filterState').value) params.set('review_state', $('#filterState').value);
@@ -2355,7 +2357,7 @@ async function loadList() {
     : '<p class="lede">Nothing here yet. Add your first item from the home screen.</p>';
   $$('#itemList .card').forEach((c) => { c.onclick = () => openDetail(c.dataset.id); });
 }
-['#q', '#filterSite', '#filterRoom', '#filterState'].forEach((s) => { $(s).oninput = loadList; });
+['#q', '#filterRoom', '#filterState'].forEach((s) => { $(s).oninput = loadList; });
 // Search is optional — most owners browse by photo, not by label name.
 $('#searchToggle')?.addEventListener('click', () => {
   const input = $('#q');
@@ -2449,11 +2451,14 @@ async function openDetail(id) {
       <div class="detail-field">
         <label>Location</label>
         <div class="detail-cell">
-          <select id="detailSite" class="bigin">
+          ${myRole === 'assistant'
+            ? `<span class="readonly-site" id="detailSiteText">—</span>`
+            : `<select id="detailSite" class="bigin">
             <option value="">— select a location —</option>
-          </select>
+          </select>`}
         </div>
       </div>
+      <div id="siteWarning" class="site-warning" hidden></div>
 
       <!-- Kind -->
       <div class="detail-field">
@@ -2634,16 +2639,38 @@ async function openDetail(id) {
 
   // ---- Populate Site/Location dropdown ----
   (async () => {
-    const siteSel = $('#detailSite');
-    if (!siteSel) return;
     let sites = [];
     try {
       sites = await api('/api/sites');
     } catch { sites = []; }
     const currentSiteId = i.site_id || sites.find(s => s.is_primary)?.site_id || '';
+    const currentSite = sites.find(s => s.site_id === currentSiteId);
+
+    // For assistants (helpers), show location as read-only text — only owners can change it
+    const siteText = $('#detailSiteText');
+    if (siteText) {
+      siteText.textContent = currentSite ? (currentSite.name + (currentSite.is_primary ? ' (Home)' : '')) : 'Home';
+      // Show warning if item is at a non-primary location
+      const warn = $('#siteWarning');
+      if (warn && currentSite && !currentSite.is_primary) {
+        warn.hidden = false;
+        warn.innerHTML = `⚠ This item is at <b>${escapeHtml(currentSite.name)}</b>, not the primary home. Only the owner can change the location.`;
+      }
+      return;
+    }
+
+    // For owners: populate the dropdown and add warning if non-primary
+    const siteSel = $('#detailSite');
+    if (!siteSel) return;
     siteSel.innerHTML = '<option value="">— Home —</option>' +
       sites.map((s) => `<option value="${s.site_id}"${s.site_id === currentSiteId ? ' selected' : ''}>${escapeHtml(s.name)}${s.is_primary ? ' (Home)' : ''}</option>`).join('') +
       '<option value="__add_new__">+ Add a new location…</option>';
+    // Show warning if item is at a non-primary location
+    const siteWarn = $('#siteWarning');
+    if (siteWarn && currentSite && !currentSite.is_primary) {
+      siteWarn.hidden = false;
+      siteWarn.innerHTML = `⚠ This item is at <b>${escapeHtml(currentSite.name)}</b>, not the primary home. Make sure this is correct.`;
+    }
     const siteCell = siteSel.parentElement;
     siteSel.onchange = async () => {
       if (siteSel.value === '__add_new__') {
@@ -4624,29 +4651,6 @@ $('#adminBackBtn')?.addEventListener('click', () => go('home'));
   $('#filterRoom').innerHTML = '<option value="">All rooms</option>' +
     registry.rooms.map((r) => `<option value="${r.room_id}">${escapeHtml(r.name)}</option>`).join('');
 
-  // ---- Populate Location filter and link to Room filter ----
-  (async () => {
-    const siteSel = $('#filterSite');
-    if (!siteSel) return;
-    let sites = [];
-    try { sites = await api('/api/sites'); } catch { sites = []; }
-    siteSel.innerHTML = '<option value="">All locations</option>' +
-      sites.map((s) => `<option value="${s.site_id}">${escapeHtml(s.name)}${s.is_primary ? ' (Home)' : ''}</option>`).join('');
-
-    // When location changes, re-populate the room dropdown for that site
-    siteSel.onchange = async () => {
-      const siteId = siteSel.value;
-      const roomSel = $('#filterRoom');
-      if (roomSel) {
-        try {
-          const rooms = await api('/api/rooms' + (siteId ? '?site_id=' + siteId : ''));
-          roomSel.innerHTML = '<option value="">All rooms</option>' +
-            rooms.map((r) => `<option value="${r.room_id}">${escapeHtml(r.name)}</option>`).join('');
-        } catch { /* keep existing rooms if fetch fails */ }
-      }
-      loadList();
-    };
-  })();
 
   // The print and download links live in the markup as plain paths so they
   // stay readable; point them at the server wherever it happens to be.

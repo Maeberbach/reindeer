@@ -1487,3 +1487,20 @@ hr.softrule {
   flex-direction: column;
   gap: 8px;
 }
+
+/* Detail page: warning when item is at a non-primary location */
+.site-warning {
+  margin: 8px 0 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #fff7e6;
+  border: 1px solid #c68a2b;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #7a5c18;
+}
+.readonly-site {
+  font-size: 16px;
+  color: var(--ink);
+  padding: 10px 0;
+}
