@@ -216,6 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   $('#dupCheckBtn')?.addEventListener('click', runDuplicateCheck);
   $('#dupReviewDone')?.addEventListener('click', () => go('list'));
+  $('#detailBack')?.addEventListener('click', () => go('list', { back: true }));
 });
 
 async function runDuplicateCheck() {
@@ -1952,8 +1953,8 @@ async function saveItem() {
     // In promise mode the owner is in the middle of emptying a list they already
     // carry in their head. Dropping them back on the menu after each one breaks
     // that thread; asking "anything else you already know?" keeps it.
-    if (promiseMode) { promiseKept += 1; return go('memo'); }
-    if (recipientPracticeMode) { recipientPracticeMode = false; return go('walk'); }
+    if (promiseMode) { promiseKept += 1; return openDetail(item.item_id); }
+    if (recipientPracticeMode) { recipientPracticeMode = false; return openDetail(item.item_id); }
     if (guidedIntroMode) {
       guidedIntroMode = false;
       openDetail(item.item_id);
@@ -1961,24 +1962,7 @@ async function saveItem() {
     }
     if (roomImportantFlow) {
       roomImportantFlow = false;
-      const savedItem = item;
-      const savedRoom = room?.name;
-      go('batch');
-      const intake = $('#batchIntake'); if (intake) intake.hidden = true;
-      $('#batchResults').innerHTML = `
-        <h2>Saved as important</h2>
-        <p class="reassure">${escapeHtml(cap.title || 'That item')} is on your list, flagged as important.</p>
-        <div class="ask">
-          <p class="askq">Should this be assigned to someone?</p>
-          <button class="primary wide" id="assignYes">Yes — assign it</button>
-          <button class="ghost wide" id="assignNo">No — just flag it as important</button>
-        </div>`;
-      $('#assignNo').onclick = async () => {
-        await leaveNaming();
-        renderRoomImportantAsk(savedRoom);
-      };
-      $('#assignYes').onclick = () => renderAssignForm(savedItem, savedRoom);
-      return;
+      return openDetail(item.item_id);
     }
     // After saving, go to the item's detail page so the owner can review
     // what they captured and add more later if needed.
