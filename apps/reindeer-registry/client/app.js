@@ -333,7 +333,7 @@ function go(name, opts = {}) {
     }
     // Trigger geosyncing when entering capture — but show the location
     // notice first so the owner knows why the browser is about to ask.
-    if (!cap.geoChecked) {
+    if (!geoPermissionAsked) {
       const locNotice = $('#locNotice');
       if (locNotice && locNotice.hidden) {
         locNotice.hidden = false;
@@ -341,11 +341,12 @@ function go(name, opts = {}) {
         const locSkip = $('#locNoticeSkip');
         if (locBtn) locBtn.onclick = () => {
           locNotice.hidden = true;
+          geoPermissionAsked = true;
           loadSites().then(() => detectLocation());
         };
         if (locSkip) locSkip.onclick = () => {
           locNotice.hidden = true;
-          cap.geoChecked = true;  // Mark as checked so we don't ask again this session
+          geoPermissionAsked = true;
           syncSiteUI();
         };
       } else {
@@ -478,7 +479,7 @@ function resetCapture() {
           siteId: activeSiteId || null, siteName: activeSite ? activeSite.name : '',
           capturedLat: null, capturedLon: null,
     photoExif: null,
-          geoChecked: false, offsite: false };
+          geoChecked: geoPermissionAsked, offsite: false };
   ['#capTitle', '#capMaker', '#capMarks', '#capStory', '#capValue', '#capRecipient', '#capRelationship', '#capOwnerNote', '#capRoomOther']
     .forEach((s) => { $(s).value = ''; });
   $('#capValueBasis').value = 'unknown';
@@ -647,6 +648,7 @@ async function loadSites() {
 function detectLocation() {
   if (!navigator.geolocation) {
     console.info('Geolocation not available — skipping site detection');
+    geoPermissionAsked = true;
     cap.geoChecked = true;
     syncSiteUI();
     return;
@@ -656,12 +658,14 @@ function detectLocation() {
       cap.capturedLat = pos.coords.latitude;
       cap.capturedLon = pos.coords.longitude;
       cap.geoChecked = true;
+      geoPermissionAsked = true;
       await matchSite();
       syncSiteUI();
     },
     (err) => {
       console.info('Geolocation denied or unavailable:', err.message);
       cap.geoChecked = true;
+      geoPermissionAsked = true;
       syncSiteUI();
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
@@ -1135,8 +1139,19 @@ $('#capPhoto').onchange = async (e) => {
   cap.dataUrl = await downscale(f, 1600);
   $('#capPreview').src = cap.dataUrl; $('#capPreview').hidden = false;
 
-  // Show the details section so the owner can type while AI thinks
-  showCapDetails();
+  // Show only the Name step while AI thinks — the owner can type the
+  // name themselves without waiting. The full form (room, kind, story)
+  // appears when they click "Edit details first" from the accept bar.
+  document.querySelectorAll('.step[data-step]').forEach((el) => {
+    el.hidden = (el.dataset.step !== '0' && el.dataset.step !== '1');
+  });
+  document.querySelectorAll('.step[data-retired]').forEach((el) => {
+    el.hidden = true;
+  });
+  document.querySelectorAll('.cap-important-only').forEach((el) => {
+    el.hidden = true;
+  });
+  ($('.navrow') || {}).hidden = true;
 
   // Recognition can take most of a minute. Saying so, on the screen and not in
   // a toast that vanishes, is the difference between waiting and concluding the
@@ -1173,9 +1188,10 @@ $('#capPhoto').onchange = async (e) => {
         + 'so please type what this is. Nothing has been guessed for you.');
       return;
     }
-    // In guided intro mode, even without AI detection, show the accept bar
-    // so the owner can type a name and save in one go.
-    if (guidedIntroMode) showAcceptBar('', null);
+    // Show the accept bar even without AI detection, so the owner can
+    // type a name and save in one go. This covers both guided intro mode
+    // and the case where AI returns no results.
+    showAcceptBar('', null);
     const sorted = detections.sort((a, b) => b.confidence - a.confidence);
     const best = sorted[0];
     if (best) {
@@ -1701,7 +1717,8 @@ $('#capAcceptBtn')?.addEventListener('click', async () => {
   return saveItem();
 });
 
-// "Edit details" button — hides the accept bar and reveals the full form
+// "Edit details" button — hides the accept bar and reveals the full form.
+// No "save & take another" option here — after saving, go to the item's detail page.
 $('#capEditDetailsBtn')?.addEventListener('click', () => {
   const bar = $('#capAcceptBar');
   if (bar) bar.hidden = true;
@@ -1711,6 +1728,20 @@ $('#capEditDetailsBtn')?.addEventListener('click', () => {
     const mainTitle = $('#capTitle');
     if (mainTitle && !mainTitle.value.trim()) mainTitle.value = acceptInput.value.trim();
   }
+  // Reveal the full form steps
+  document.querySelectorAll('.step[data-step]').forEach((el) => {
+    if (el.dataset.step !== '0') el.hidden = false;
+  });
+  document.querySelectorAll('.step[data-retired]').forEach((el) => {
+    el.hidden = true;
+  });
+  document.querySelectorAll('.cap-important-only').forEach((el) => {
+    el.hidden = true;
+  });
+  // Show the nav row
+  ($('.navrow') || {}).hidden = false;
+  // Focus the name field
+  $('#capTitle')?.focus();
 });
 
 async function saveItem() {
@@ -1805,9 +1836,9 @@ async function saveItem() {
       $('#assignYes').onclick = () => renderAssignForm(savedItem, savedRoom);
       return;
     }
-    // Normal mode: offer to take another photo instead of going home
-    ($('#capNav') || {}).hidden = true;
-    ($('#capAnother') || {}).hidden = false;
+    // After saving, go to the item's detail page so the owner can review
+    // what they captured and add more later if needed.
+    go('detail', { item_id: item.item_id });
   } catch (e) { toast(e.message, true); }
 }
 
@@ -2161,7 +2192,7 @@ $('#searchToggle')?.addEventListener('click', () => {
 
 const cardHtml = (i) => `
   <button class="card" data-id="${i.item_id}">
-    ${i.photos?.[0] ? `<img src="${API}/api/photos/${i.photos[0].photo_id}" alt="">` : '<div class="noimg">no photo</div>'}
+    ${(i.photos ?? []).filter((p) => p.photo_id !== i.closeup_photo_id)[0] ? `<img src="${API}/api/photos/${(i.photos ?? []).filter((p) => p.photo_id !== i.closeup_photo_id)[0].photo_id}" alt="">` : '<div class="noimg">no photo</div>'}
     <div>
       <h3>${escapeHtml(i.title)}</h3>
       <div class="sub">${escapeHtml(i.room?.name ?? 'No room')} · ${escapeHtml(i.category?.name ?? 'No kind')}${i.quantity > 1 ? ` · ${i.quantity}` : ''}</div>
@@ -2222,7 +2253,7 @@ async function openDetail(id) {
     </div>` : ''
     }
     <h2>${escapeHtml(i.title)}</h2>
-    <div class="thumbs">${(i.photos ?? []).map((p) => `<img src="${API}/api/photos/${p.photo_id}" alt="">`).join('') || '<div class="noimg">no photo</div>'}</div>
+    <div class="thumbs">${(i.photos ?? []).filter((p) => p.photo_id !== i.closeup_photo_id).map((p) => `<img src="${API}/api/photos/${p.photo_id}" alt="">`).join('') || '<div class="noimg">no photo</div>'}</div>
     <div class="summary">
       <div><b>Room:</b> ${escapeHtml(i.room?.name ?? '—')}</div>
       <div><b>Kind:</b> ${escapeHtml(i.category?.name ?? '—')}</div>
