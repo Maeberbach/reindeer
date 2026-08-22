@@ -5,8 +5,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { storage, db } from "./storage";
-import { itemMedia } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { itemMedia, items } from "@shared/schema";
+import { eq, sql } from "drizzle-orm";
 import { enforcePause } from "./middleware/enforcePause";
 import { requireLicenseForWrite } from "./middleware/licenseMiddleware";
 import {
@@ -3262,8 +3262,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     } catch (e) {
       fail(res, e);
     }
-  });
-
   });
 
   /**
