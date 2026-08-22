@@ -1336,3 +1336,16 @@ hr.softrule {
 .detail-field .chips{margin-top:4px}
 .detail-field .important-check{display:flex;align-items:center;gap:8px}
 .detail-field .important-check input{width:20px;height:20px}
+
+/* Duplicate review */
+.dup-group{background:#fff;border:2px solid var(--line);border-radius:var(--radius);padding:16px;margin:16px 0}
+.dup-reason{font-size:14px;color:#8a8880;font-weight:600;margin-bottom:12px}
+.dup-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.dup-card{display:flex;flex-direction:column;gap:8px}
+.dup-card img{width:100%;border-radius:8px;object-fit:cover;aspect-ratio:1}
+.dup-card .noimg{width:100%;aspect-ratio:1;background:#f5f3ee;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:14px}
+.dup-card-info h3{font-size:16px;margin:0}
+.dup-card-info .sub{font-size:13px;color:#8a8880;margin:2px 0}
+.dup-story{font-size:13px;color:#6a685f;margin:4px 0;font-style:italic}
+.dup-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.dup-actions button{flex:1;min-width:140px}

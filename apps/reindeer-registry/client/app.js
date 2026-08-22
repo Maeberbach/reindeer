@@ -215,6 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
     toast('Saved. Left as it is.');
   });
   $('#dupCheckBtn')?.addEventListener('click', runDuplicateCheck);
+  $('#dupReviewDone')?.addEventListener('click', () => go('list'));
 });
 
 async function runDuplicateCheck() {
@@ -225,8 +226,144 @@ async function runDuplicateCheck() {
       toast('Nothing looks like a duplicate.');
       return;
     }
-    go('list');
-    toast(`${groups.length} to look at. They are marked in your list.`);
+    // Load all item details for the duplicate groups so we can show photos
+    const allItems = await api('/api/items');
+    const itemMap = {};
+    for (const it of allItems.items) itemMap[it.item_id] = it;
+
+    const container = $('#dupReviewList');
+    if (!container) { go('list'); return; }
+    container.innerHTML = groups.map((g, idx) => {
+      const items = g.item_ids.map((id) => itemMap[id]).filter(Boolean);
+      if (items.length < 2) return '';
+      const [a, b] = items;
+      const reasonText = g.reason === 'identical_photo' ? 'Same photo' : g.reason === 'serial_match' ? 'Matching serial number' : 'Similar name';
+      const cardHtml = (it) => `
+        <div class="dup-card">
+          ${(it.photos ?? []).filter((p) => p.photo_id !== it.closeup_photo_id)[0]
+            ? `<img src="${API}/api/photos/${(it.photos ?? []).filter((p) => p.photo_id !== it.closeup_photo_id)[0].photo_id}" alt="">`
+            : '<div class="noimg">no photo</div>'}
+          <div class="dup-card-info">
+            <h3>${escapeHtml(it.title)}</h3>
+            <p class="sub">${escapeHtml(it.room?.name ?? 'No room')} · ${escapeHtml(it.category?.name ?? 'No kind')}${it.quantity > 1 ? ` · ${it.quantity}` : ''}</p>
+            ${it.story ? `<p class="dup-story">${escapeHtml(it.story.slice(0, 120))}${it.story.length > 120 ? '…' : ''}</p>` : ''}
+            ${it.recipient_hint?.recipient_name ? `<p class="sub">for ${escapeHtml(it.recipient_hint.recipient_name)}</p>` : ''}
+          </div>
+        </div>`;
+      return `
+        <div class="dup-group" data-group-id="${g.group_id}" data-idx="${idx}">
+          <div class="dup-reason">${reasonText}</div>
+          <div class="dup-pair">
+            ${cardHtml(a)}
+            ${cardHtml(b)}
+          </div>
+          <div class="dup-actions">
+            <button class="primary" data-action="merge" data-keep="${a.item_id}" data-remove="${b.item_id}">Keep first (merge details)</button>
+            <button class="primary" data-action="merge" data-keep="${b.item_id}" data-remove="${a.item_id}">Keep second (merge details)</button>
+            <button class="ghost" data-action="keep-both">Keep both</button>
+            <button class="ghost" data-action="delete-both">Delete both</button>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Wire up the action buttons
+    $$('#dupReviewList .dup-group').forEach((grp) => {
+      const groupId = grp.dataset.groupId;
+      $$('button[data-action]', grp).forEach((btn) => {
+        btn.onclick = async () => {
+          const action = btn.dataset.action;
+          if (action === 'merge') {
+            const keepId = btn.dataset.keep;
+            const removeId = btn.dataset.remove;
+            if (!confirm('Merge: the photo and details from both items will be kept on the one you keep, and the other will be removed.')) return;
+            try {
+              // Fetch both items' full details
+              const [keepItem, removeItem] = await Promise.all([
+                api(`/api/items/${keepId}`),
+                api(`/api/items/${removeId}`),
+              ]);
+              // Merge: copy story, recipient, room, category from removed item if missing on kept item
+              const patch = {};
+              if (!keepItem.story && removeItem.story) patch.story = removeItem.story;
+              if (!keepItem.room?.name && removeItem.room?.name) patch.room_name = removeItem.room.name;
+              if (!keepItem.category?.name && removeItem.category?.name) patch.category_name = removeItem.category.name;
+              if (!keepItem.recipient_hint?.recipient_name && removeItem.recipient_hint?.recipient_name) {
+                patch.recipient_hint = {
+                  recipient_name: removeItem.recipient_hint.recipient_name,
+                  relationship: removeItem.recipient_hint.relationship || '',
+                  owner_note: removeItem.recipient_hint.owner_note || '',
+                };
+              }
+              if (!keepItem.owner_high_value && removeItem.owner_high_value) {
+                patch.owner_high_value = true;
+                patch.owner_high_value_reason = removeItem.owner_high_value_reason || '';
+              }
+              if (Object.keys(patch).length) {
+                await api(`/api/items/${keepId}`, {
+                  method: 'PATCH', headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify(patch),
+                });
+              }
+              // Copy photos from removed item to kept item if it has none
+              const removePhotos = (removeItem.photos ?? []).filter((p) => p.photo_id !== removeItem.closeup_photo_id);
+              const keepPhotos = (keepItem.photos ?? []).filter((p) => p.photo_id !== keepItem.closeup_photo_id);
+              if (!keepPhotos.length && removePhotos.length) {
+                // Download the photo and re-upload to the kept item
+                try {
+                  const resp = await fetch(`${API}/api/photos/${removePhotos[0].photo_id}`);
+                  const blob = await resp.blob();
+                  await fetch(`${API}/api/items/${keepId}/photos`, {
+                    method: 'POST', headers: { 'content-type': blob.type || 'image/jpeg' }, body: blob,
+                  });
+                } catch (e) { console.warn('photo copy skipped:', e.message); }
+              }
+              // Delete the removed item
+              await api(`/api/items/${removeId}?reason=merged+duplicate`, { method: 'DELETE' });
+              toast('Merged. Details and photo kept.');
+              grp.remove();
+              refreshCount();
+              if (!$$('#dupReviewList .dup-group').length) {
+                toast('All duplicates resolved.');
+                go('list');
+              }
+            } catch (e) {
+              toast(e.message, true);
+            }
+          } else if (action === 'keep-both') {
+            try {
+              await api(`/api/duplicates/${groupId}/resolve`, {
+                method: 'POST', headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ action: 'keep_both' }),
+              });
+              toast('Keeping both.');
+              grp.remove();
+              if (!$$('#dupReviewList .dup-group').length) {
+                toast('All duplicates resolved.');
+                go('list');
+              }
+            } catch (e) { toast(e.message, true); }
+          } else if (action === 'delete-both') {
+            if (!confirm('Delete both items? This cannot be undone.')) return;
+            try {
+              await api(`/api/duplicates/${groupId}/resolve`, {
+                method: 'POST', headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ action: 'delete_both' }),
+              });
+              toast('Both deleted.');
+              grp.remove();
+              refreshCount();
+              if (!$$('#dupReviewList .dup-group').length) {
+                toast('All duplicates resolved.');
+                go('list');
+              }
+            } catch (e) { toast(e.message, true); }
+          }
+        };
+      });
+    });
+
+    go('dupreview');
+    toast(`${groups.length} ${groups.length === 1 ? 'pair' : 'pairs'} to review.`);
   } catch {
     toast('Could not check just now. Nothing was lost.', true);
   }

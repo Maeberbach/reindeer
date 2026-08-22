@@ -199,8 +199,8 @@
       </button>
       <button class="tile" id="guidedSkipPartner" data-go="guidedphoto">
         <span class="ico">🙋</span>
-        <span class="lbl">I'll do this on my own</span>
-        <span class="hint">No problem — you can add someone later any time.</span>
+        <span class="lbl">I'll start by myself</span>
+        <span class="hint">You can add someone later any time.</span>
       </button>
     </div>
     <p class="reassure">You can add someone any time from the home screen.</p>
@@ -956,6 +956,14 @@
   <!-- ITEM DETAIL -->
   <section class="screen" data-screen="detail" hidden>
     <div id="detailBody"></div>
+  </section>
+
+  <!-- DUPLICATE REVIEW -->
+  <section class="screen" data-screen="dupreview" hidden>
+    <h2 class="bighead">Things listed twice</h2>
+    <p class="lede">These items look like they might be the same thing. Keep the one with the better photo and details, or delete both.</p>
+    <div id="dupReviewList"></div>
+    <button class="ghost wide" id="dupReviewDone" style="margin-top:16px">Back to my items</button>
   </section>
 
   <!--
