@@ -3178,6 +3178,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       transcript: m.transcript,
       isPrimary: !!m.isPrimary,
     })));
+  });
 
   /* ---------- close-up photo upload ---------- */
   app.post("/api/items/:id/media", enforcePause(), async (req, res) => {
