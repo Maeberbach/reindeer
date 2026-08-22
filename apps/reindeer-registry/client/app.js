@@ -3909,10 +3909,52 @@ function renderCatChips() {
 
   const chip = (c) => `<button class="chip${c.is_custom ? ' chip-mine' : ''}" aria-pressed="false"`
     + ` data-cat="${escapeHtml(c.name)}">${escapeHtml(c.name)}</button>`;
-  $('#catChips').innerHTML = [...seeded, ...theirs].map(chip).join('');
+  const otherChip = `<button class="chip chip-other" aria-pressed="false" id="capCatOtherChip">+ Other</button>`;
+  $('#catChips').innerHTML = [...seeded, ...theirs].map(chip).join('') + otherChip;
 
   $$('#catChips .chip').forEach((b) => {
     b.onclick = () => {
+      if (b.id === 'capCatOtherChip') {
+        $$('#catChips .chip').forEach((x) => x.setAttribute('aria-pressed', 'false'));
+        b.setAttribute('aria-pressed', 'true');
+        // Show the catMore dropdown to pick from more categories
+        const wrap = $('#catMoreWrap');
+        if (wrap) wrap.hidden = false;
+        const sel = $('#catMore');
+        if (sel) sel.focus();
+        // Also allow typing a custom kind inline
+        if (sel && !wrap.querySelector('#capCatCustomInput')) {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.id = 'capCatCustomInput';
+          input.className = 'bigin';
+          input.placeholder = 'Type a kind — saved to your list';
+          input.style.cssText = 'margin-top:8px;';
+          input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              const name = input.value.trim();
+              if (!name) return;
+              addCustomCategory(name);
+              input.value = '';
+            }
+          });
+          const addBtn = document.createElement('button');
+          addBtn.className = 'ghost wide';
+          addBtn.textContent = 'Add this kind';
+          addBtn.style.cssText = 'margin-top:8px;';
+          addBtn.onclick = () => {
+            const name = input.value.trim();
+            if (!name) return;
+            addCustomCategory(name);
+            input.value = '';
+          };
+          wrap.insertBefore(input, wrap.firstChild);
+          wrap.insertBefore(addBtn, wrap.firstChild.nextSibling);
+          input.focus();
+        }
+        return;
+      }
       $$('#catChips .chip').forEach((x) => x.setAttribute('aria-pressed', 'false'));
       b.setAttribute('aria-pressed', 'true');
       cap.category = b.dataset.cat;
@@ -3956,6 +3998,35 @@ function renderCatMore() {
     sel.value = '';
     if (name) addOfferedCategory(name);
   };
+}
+
+/** Typed custom category becomes a permanent chip — same pattern as rooms. */
+async function addCustomCategory(name) {
+  const clean = (name ?? '').trim();
+  if (!clean) return;
+  if (registry.categories.some((c) => c.name.toLowerCase() === clean.toLowerCase())) {
+    // Already exists — just select it
+    cap.category = clean;
+    renderCatChips();
+    const made = $$('#catChips .chip').find((c) => c.dataset.cat === clean);
+    if (made) made.setAttribute('aria-pressed', 'true');
+    return;
+  }
+  try {
+    const cat = await api('/api/categories', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: clean, is_custom: true }),
+    });
+    registry.categories.push(cat);
+    renderCatChips();
+    const made = $$('#catChips .chip').find((c) => c.dataset.cat === cat.name);
+    if (made) made.setAttribute('aria-pressed', 'true');
+    cap.category = cat.name;
+    toast(`"${cat.name}" added to your kinds.`);
+  } catch {
+    cap.category = clean;
+    renderCatChips();
+  }
 }
 
 /** Promote a category from the dropdown to a button, and select it. */
@@ -4042,10 +4113,23 @@ function renderRoomChips() {
   const standard = siteRooms.filter((r) => !r.is_custom);
   const chip = (r) => `<button class="chip${r.is_custom ? ' chip-mine' : ''}" aria-pressed="false"`
     + ` data-room="${escapeHtml(r.name)}">${escapeHtml(r.name)}</button>`;
-  $('#roomChips').innerHTML = [...mine, ...standard].map(chip).join('');
+  // Always add an "Other" chip at the end so the owner can type a custom room
+  // name. This opens the panel with the text input and the common-room dropdown.
+  const otherChip = `<button class="chip chip-other" aria-pressed="false" id="capRoomOtherChip">+ Other</button>`;
+  $('#roomChips').innerHTML = [...mine, ...standard].map(chip).join('') + otherChip;
 
   $$('#roomChips .chip').forEach((b) => {
     b.onclick = () => {
+      if (b.id === 'capRoomOtherChip') {
+        // Open the custom room panel
+        $$('#roomChips .chip').forEach((x) => x.setAttribute('aria-pressed', 'false'));
+        b.setAttribute('aria-pressed', 'true');
+        const panel = $('#capRoomOtherPanel');
+        if (panel) panel.hidden = false;
+        const input = $('#capRoomOther');
+        if (input) input.focus();
+        return;
+      }
       $$('#roomChips .chip').forEach((x) => x.setAttribute('aria-pressed', 'false'));
       b.setAttribute('aria-pressed', 'true');
       cap.room = b.dataset.room;
