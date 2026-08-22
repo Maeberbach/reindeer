@@ -1781,7 +1781,7 @@ async function saveItem() {
     if (recipientPracticeMode) { recipientPracticeMode = false; return go('walk'); }
     if (guidedIntroMode) {
       guidedIntroMode = false;
-      go('home');
+      go('detail', { item_id: item.item_id });
       return;
     }
     if (roomImportantFlow) {
@@ -3239,7 +3239,10 @@ function checkNewPerson() {
 
 async function refreshCount() {
   const { items } = await api('/api/items');
-  $('#countPill').textContent = `${items.length} item${items.length === 1 ? '' : 's'}`;
+  const pill = $('#countPill');
+  pill.textContent = `${items.length} item${items.length === 1 ? '' : 's'}`;
+  pill.style.cursor = 'pointer';
+  pill.onclick = () => go('list');
 }
 
 /* ------------------------------------------------------- what you already know
