@@ -935,13 +935,16 @@
   <!-- LIST -->
   <section class="screen" data-screen="list" hidden>
     <div class="filters">
-      <input type="search" id="q" class="bigin" placeholder="Search your items">
-      <select id="filterRoom" class="bigin"><option value="">All rooms</option></select>
-      <select id="filterState" class="bigin">
-        <option value="">Everything</option>
-        <option value="kept">Confirmed</option>
-        <option value="draft">Needs review</option>
-      </select>
+      <div class="filter-row">
+        <select id="filterRoom" class="bigin"><option value="">All rooms</option></select>
+        <select id="filterState" class="bigin">
+          <option value="">Everything</option>
+          <option value="kept">Confirmed</option>
+          <option value="draft">Needs review</option>
+        </select>
+        <button class="ghost" id="searchToggle">🔍 Search</button>
+      </div>
+      <input type="search" id="q" class="bigin" placeholder="Search by name" hidden>
     </div>
     <!-- Optional, owner-initiated, and never nagged about. Nothing in the
          registry requires a duplicate review to be done. -->

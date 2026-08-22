@@ -2152,6 +2152,12 @@ async function loadList() {
   $$('#itemList .card').forEach((c) => { c.onclick = () => openDetail(c.dataset.id); });
 }
 ['#q', '#filterRoom', '#filterState'].forEach((s) => { $(s).oninput = loadList; });
+// Search is optional — most owners browse by photo, not by label name.
+$('#searchToggle')?.addEventListener('click', () => {
+  const input = $('#q');
+  input.hidden = !input.hidden;
+  if (!input.hidden) input.focus();
+});
 
 const cardHtml = (i) => `
   <button class="card" data-id="${i.item_id}">

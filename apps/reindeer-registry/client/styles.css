@@ -107,12 +107,12 @@ button{font:inherit}
 /* Cards */
 .cards{display:grid; gap:12px}
 .card{
-  display:grid; grid-template-columns:92px 1fr; gap:16px; align-items:start;
+  display:grid; grid-template-columns:120px 1fr; gap:16px; align-items:start;
   background:var(--card); border:2px solid var(--line); border-radius:var(--radius);
   padding:14px; cursor:pointer; text-align:left; width:100%; font:inherit;
 }
-.card img{width:92px; height:92px; object-fit:cover; border-radius:10px; background:#f0ece2}
-.card .noimg{width:92px; height:92px; border-radius:10px; background:#f0ece2; display:grid; place-items:center; color:var(--ink-2); font-size:13px; text-align:center}
+.card img{width:120px; height:120px; object-fit:cover; border-radius:10px; background:#f0ece2}
+.card .noimg{width:120px; height:120px; border-radius:10px; background:#f0ece2; display:grid; place-items:center; color:var(--ink-2); font-size:13px; text-align:center}
 .card h3{margin:0 0 4px; font-size:20px}
 .card .sub{color:var(--ink-2); font-size:16px}
 .badge{display:inline-block; font-size:13px; font-weight:700; padding:3px 10px; border-radius:999px; margin:6px 6px 0 0; letter-spacing:.02em}
@@ -192,6 +192,9 @@ button{font:inherit}
 .owner-comment-body{font-size:20px; line-height:1.5; color:#2a2620; font-style:italic; white-space:pre-wrap}
 
 .filters{display:grid; gap:10px; margin-bottom:18px}
+.filter-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.filter-row .bigin{flex:1; min-width:120px}
+.filter-row .ghost{flex-shrink:0; white-space:nowrap}
 .summary,.note{background:#fff; border:2px solid var(--line); border-radius:var(--radius); padding:16px; font-size:18px}
 .note{margin-top:18px; background:var(--accent-soft); border-color:var(--accent)}
 .summary div{padding:7px 0; border-bottom:1px solid #eee9dd}
@@ -216,7 +219,7 @@ button{font:inherit}
 }
 .toast.bad{background:var(--warn)}
 
-@media (min-width:640px){ .tiles{grid-template-columns:1fr 1fr} .filters{grid-template-columns:2fr 1fr 1fr} }
+@media (min-width:640px){ .tiles{grid-template-columns:1fr 1fr} .filter-row{flex-wrap:nowrap} }
 @media (prefers-reduced-motion:no-preference){ .screen{animation:fade .18s ease-out} @keyframes fade{from{opacity:0}to{opacity:1}} }
 
 /* ---- field labels ------------------------------------------------------- */
