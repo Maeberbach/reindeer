@@ -13,7 +13,7 @@ import { createMemorandumRouter } from './routes/memorandum.js';
 import { createRemindersRouter } from './routes/reminders.js';
 import { createSitesRouter } from './routes/sites.js';
 import crypto from 'node:crypto';
-import { createIntakeRouter, createExecutionRouter, createPeopleRouter, legacyErrorHandler, MockVisionProvider, HttpVisionProvider, AnthropicVisionProvider, OpenAIVisionProvider, SimpleDuplicateDetector, GoogleVisionProvider } from '@reindeer-legacy/intake-feature';
+import { createIntakeRouter, createExecutionRouter, createPeopleRouter, legacyErrorHandler, MockVisionProvider, HttpVisionProvider, AnthropicVisionProvider, OpenAIVisionProvider, SimpleDuplicateDetector, GoogleVisionProvider, HybridVisionProvider } from '@reindeer-legacy/intake-feature';
 import { createPrintRouter } from '@reindeer-legacy/print-feature';
 import { writeBundle } from '@reindeer-legacy/exchange';
 import { TrusteeRepository, DeliveryService, createDeliveryRouter, createLinkRouter, mailerFromEnv, TwoOutputsService, createTwoOutputsRouter } from '@reindeer-legacy/delivery';
@@ -61,22 +61,50 @@ registry.ensureScope({
  * shape but is not reachable by accident: it requires REINDEER_VISION_PROTOCOL.
  */
 function createVisionProvider() {
-  // Google Cloud Vision — two-phase: Object Localization (Phase 1) +
-  // Web Detection (Phase 2). This is the "Google Lens" provider.
   const googleKey = process.env.GOOGLE_CLOUD_API_KEY;
-  if (googleKey) return new GoogleVisionProvider({ apiKey: googleKey });
-
-  // Key resolution: check ANTHROPIC_API_KEY (what Mark purchased) alongside
-  // the generic REINDEER_VISION_KEY and OPENAI_API_KEY fallbacks.
   const anthropicKey = process.env.REINDEER_VISION_KEY || process.env.ANTHROPIC_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
+
+  // Hybrid: Google-first, Anthropic-fallback. When both a Google Cloud
+  // Vision key and an LLM key (Anthropic or OpenAI) are present, use the
+  // hybrid provider. Google does Phase 1 (Object Localization) and Phase
+  // 2 (Web Detection — the "Google Lens" exact match). If Google doesn't
+  // find an exact match, the LLM provides descriptive analysis (materials,
+  // condition, value range, maker marks). This saves LLM credits on items
+  // Google already identified exactly, and only calls the LLM where it
+  // actually adds value.
+  const llmKey = anthropicKey || openaiKey;
+  if (googleKey && llmKey) {
+    const hasAnthropicKey = Boolean(anthropicKey);
+    const llmProtocol = process.env.REINDEER_VISION_PROTOCOL
+      || (hasAnthropicKey ? 'anthropic' : 'openai');
+    let llmProvider;
+    if (llmProtocol === 'anthropic') {
+      llmProvider = new AnthropicVisionProvider({
+        endpoint: process.env.REINDEER_VISION_ENDPOINT || undefined,
+        apiKey: anthropicKey || llmKey,
+        model: process.env.REINDEER_VISION_MODEL || undefined,
+      });
+    } else {
+      llmProvider = new OpenAIVisionProvider({
+        apiKey: openaiKey || llmKey,
+        model: process.env.REINDEER_VISION_MODEL || 'gpt-4o',
+        endpoint: process.env.REINDEER_VISION_ENDPOINT || 'https://api.openai.com/v1/chat/completions',
+      });
+    }
+    console.log('[vision] Hybrid provider: Google-first, LLM-fallback');
+    return new HybridVisionProvider({
+      googleProvider: new GoogleVisionProvider({ apiKey: googleKey }),
+      llmProvider,
+    });
+  }
+
+  // Google only — if Google key is set but no LLM key
+  if (googleKey) return new GoogleVisionProvider({ apiKey: googleKey });
+
+  // LLM only — if an LLM key is set but no Google key
   const key = anthropicKey || openaiKey;
   if (!key) return new MockVisionProvider();
-  // Protocol: default to anthropic when an Anthropic key is present and no
-  // explicit REINDEER_VISION_PROTOCOL is set. This matches the key Mark
-  // purchased. OpenAI is still used if only OPENAI_API_KEY is set, or if
-  // REINDEER_VISION_PROTOCOL=openai is explicitly chosen. Google is used
-  // when REINDEER_VISION_PROTOCOL=google (requires GOOGLE_CLOUD_API_KEY).
   const hasAnthropicKey = Boolean(anthropicKey);
   const protocol = process.env.REINDEER_VISION_PROTOCOL
     || (hasAnthropicKey ? 'anthropic' : 'openai');

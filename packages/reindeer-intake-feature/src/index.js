@@ -2,6 +2,7 @@ export { MockVisionProvider, HttpVisionProvider, screenHighValue, groupAcrossFra
 export { AnthropicVisionProvider } from './vision/anthropic.js';
 export { OpenAIVisionProvider } from './vision/openai.js';
 export { GoogleVisionProvider } from './vision/google.js';
+export { HybridVisionProvider } from './vision/hybrid.js';
 export { SimpleDuplicateDetector, titleSimilarity } from './duplicates.js';
 export { createIntakeRouter, legacyErrorHandler } from './server/router.js';
 export { createExecutionRouter } from './server/executionRouter.js';

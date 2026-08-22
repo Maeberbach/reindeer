@@ -12,6 +12,8 @@ services:
         sync: false
       - key: REINDEER_VISION_KEY
         sync: false
+      - key: GOOGLE_CLOUD_API_KEY
+        sync: false
       - key: REINDEER_INVENTORY_DIR
         value: /var/data
     disk:

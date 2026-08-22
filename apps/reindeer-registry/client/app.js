@@ -1494,6 +1494,7 @@ $('#capPhoto').onchange = async (e) => {
             saveAllBtn.textContent = 'Saving…';
             const rows = $$('#aiNote .ai-extra-row');
             let saved = 0;
+            let firstSavedId = null;
             for (const row of rows) {
               if (row.style.opacity === '0.5') continue; // already saved
               const idx = Number(row.dataset.extraIdx);
@@ -1503,7 +1504,7 @@ $('#capPhoto').onchange = async (e) => {
               const isImportant = importantBox?.checked === true;
               try {
                 const crop = d.bbox ? await cropTo(cap.dataUrl, d.bbox) : cap.dataUrl;
-                await api('/api/intake/commit', {
+                const saveRes = await api('/api/intake/commit', {
                   method: 'POST', headers: { 'content-type': 'application/json' },
                   body: JSON.stringify({ detections: [{
                     ...d, crop_data_url: crop, room: cap.room || null,
@@ -1512,6 +1513,7 @@ $('#capPhoto').onchange = async (e) => {
                     site_id: cap.siteId || activeSiteId || null,
                   }] }),
                 });
+                if (!firstSavedId && saveRes?.created?.[0]) firstSavedId = saveRes.created[0];
                 row.style.opacity = '0.5';
                 const btn = row.querySelector('[data-save-extra]');
                 if (btn) { btn.disabled = true; btn.textContent = 'Saved ✓'; }
@@ -1523,6 +1525,10 @@ $('#capPhoto').onchange = async (e) => {
             refreshCount();
             saveAllBtn.textContent = `Saved ${saved} items ✓`;
             toast(`${saved} items saved from this photo.`);
+            // Open the detail page for the first saved item so the owner
+            // can add room, location, and importance. They can navigate
+            // to the others from the item list.
+            if (firstSavedId) openDetail(firstSavedId);
           };
         }
         // Manual "Add another item from this photo" — lets the owner type a
@@ -1621,7 +1627,7 @@ $('#capPhoto').onchange = async (e) => {
                 console.warn('extra-item identification failed, saving with original detection:', e.message);
               }
               btn.textContent = 'Saving…';
-              await api('/api/intake/commit', {
+              const commitRes = await api('/api/intake/commit', {
                 method: 'POST', headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ detections: [{
                   ...enriched, crop_data_url: crop, room: cap.room || null,
@@ -1639,6 +1645,10 @@ $('#capPhoto').onchange = async (e) => {
               btn.textContent = 'Saved ✓';
               row.style.opacity = '0.5';
               refreshCount();
+              // Open the detail page so the owner can set room, location,
+              // and importance — these fields are never set by bulk commit.
+              const newItemId = commitRes?.created?.[0];
+              if (newItemId) openDetail(newItemId);
             } catch (e) {
               btn.disabled = false;
               btn.textContent = 'Save this too';
