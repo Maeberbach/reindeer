@@ -1016,4 +1016,19 @@ export const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_items_site ON items(scope_id, site_id);
     `,
   },
+  {
+    id: 29,
+    name: 'rooms_linked_to_sites',
+    sql: `
+      -- Link rooms to sites so each location has its own set of rooms.
+      -- Existing rooms (created before multi-site) default to the primary site.
+      ALTER TABLE rooms ADD COLUMN site_id TEXT REFERENCES sites(site_id);
+      CREATE INDEX IF NOT EXISTS idx_rooms_site ON rooms(scope_id, site_id);
+      
+      -- Backfill: set all existing rooms to the primary site for their scope.
+      UPDATE rooms SET site_id = (
+        SELECT site_id FROM sites WHERE sites.scope_id = rooms.scope_id AND sites.is_primary = 1
+      ) WHERE site_id IS NULL;
+    `,
+  },
 ];

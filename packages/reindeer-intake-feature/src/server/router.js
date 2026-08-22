@@ -38,7 +38,7 @@ export function createIntakeRouter(deps) {
     const ctx = ctxOf(req);
     // `is_custom: false` marks a room taken off the offered list rather than
     // invented, so it is not shown back to the owner as one of theirs.
-    res.json(registry.resolveRoom(req.body.name, ctx, { isCustom: req.body.is_custom !== false }));
+    res.json(registry.resolveRoom(req.body.name, ctx, { isCustom: req.body.is_custom !== false, siteId: req.body.site_id || null }));
   }));
 
   r.post('/categories', wrap(async (req, res) => {
@@ -53,6 +53,20 @@ export function createIntakeRouter(deps) {
   // whole of it: where am I, this room is finished, I want back into that room.
   r.get('/walkthrough', wrap(async (req, res) => {
     res.json(registry.walkthrough(ctxOf(req)));
+  }));
+
+  // Rooms for a specific site (or all rooms if no site_id)
+  r.get('/rooms', wrap(async (req, res) => {
+    const ctx = ctxOf(req);
+    const siteId = req.query.site_id || null;
+    res.json(registry.rooms(ctx, siteId));
+  }));
+
+  // More rooms available to add for a specific site
+  r.get('/more-rooms', wrap(async (req, res) => {
+    const ctx = ctxOf(req);
+    const siteId = req.query.site_id || null;
+    res.json(registry.moreRooms(ctx, siteId));
   }));
 
   r.post('/rooms/:roomId/state', wrap(async (req, res) => {
@@ -103,7 +117,7 @@ export function createIntakeRouter(deps) {
     if (req.participant?.role === 'assistant' && body.recipient_hint) {
       delete body.recipient_hint;
     }
-    if (body.room_name) body.room_id = registry.resolveRoom(body.room_name, ctx)?.room_id;
+    if (body.room_name) body.room_id = registry.resolveRoom(body.room_name, ctx, { siteId: body.site_id })?.room_id;
     if (body.category_name) body.category_id = registry.resolveCategory(body.category_name, ctx)?.category_id;
     // The registry captures value estimates to help owners understand their
     // here by design — FairPlay sets it from its own AI estimate against the
@@ -130,7 +144,7 @@ export function createIntakeRouter(deps) {
   r.patch('/items/:id', wrap(async (req, res) => {
     const ctx = ctxOf(req);
     const patch = { ...req.body };
-    if (patch.room_name !== undefined) patch.room_id = registry.resolveRoom(patch.room_name, ctx)?.room_id ?? null;
+    if (patch.room_name !== undefined) patch.room_id = registry.resolveRoom(patch.room_name, ctx, { siteId: patch.site_id })?.room_id ?? null;
     if (patch.category_name !== undefined) patch.category_id = registry.resolveCategory(patch.category_name, ctx)?.category_id ?? null;
     res.json(await itemRepo.update(req.params.id, patch, ctx));
   }));

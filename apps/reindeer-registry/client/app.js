@@ -2513,10 +2513,16 @@ async function openDetail(id) {
   (async () => {
     const sel = $('#detailRoom');
     if (!sel) return;
-    // Use registry rooms if already loaded, otherwise fetch
-    let rooms = registry.rooms || [];
-    if (!rooms.length) {
-      try { registry = await api('/api/registry'); rooms = registry.rooms || []; } catch {}
+    // Fetch rooms for the item's site (or all if no site)
+    let rooms = [];
+    try {
+      rooms = await api('/api/rooms' + (i.site_id ? '?site_id=' + i.site_id : ''));
+    } catch {
+      // Fallback to registry rooms
+      rooms = registry.rooms || [];
+      if (!rooms.length) {
+        try { registry = await api('/api/registry'); rooms = registry.rooms || []; } catch {}
+      }
     }
     const currentRoom = i.room?.name || '';
     sel.innerHTML = '<option value="">— select a room —</option>' +
@@ -2545,9 +2551,11 @@ async function openDetail(id) {
           const name = input.value.trim();
           if (!name) return;
           try {
+            // Pass the current site_id so the room is linked to this location
+            const currentSiteId = $('#detailSite')?.value || i.site_id || null;
             const room = await api('/api/rooms', {
               method: 'POST', headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ name }),
+              body: JSON.stringify({ name, site_id: currentSiteId }),
             });
             if (!registry.rooms.some((r) => r.name.toLowerCase() === room.name.toLowerCase())) {
               registry.rooms.push(room);
@@ -2610,6 +2618,13 @@ async function openDetail(id) {
           + '<option value="vacation">Vacation home</option>'
           + '<option value="garage">Garage / shed</option>'
           + '</select>'
+          + '<div class="detail-site-geo" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+          + '<button class="ghost" id="detailSiteGpsBtn" type="button" style="font-size:13px;white-space:nowrap">📍 Use my GPS</button>'
+          + '<span style="font-size:13px;color:var(--ink-2)">or enter address:</span>'
+          + '</div>'
+          + '<input type="text" class="bigin" placeholder="Street address (e.g. 123 Main St)" id="detailNewSiteAddr" style="width:100%">'
+          + '<input type="text" class="bigin" placeholder="ZIP code" id="detailNewSiteZip" style="max-width:140px">'
+          + '<div id="detailSiteGeoResult" style="font-size:13px;color:var(--ink-2);min-height:18px"></div>'
           + '<div style="display:flex;gap:8px">'
           + '<button class="primary" id="detailNewSiteBtn" style="white-space:nowrap">Add</button>'
           + '<button class="ghost" id="detailNewSiteCancel">Cancel</button>'
@@ -2618,14 +2633,59 @@ async function openDetail(id) {
         siteCell.appendChild(wrap);
         const input = wrap.querySelector('#detailNewSiteInput');
         input.focus();
+
+        // GPS button
+        let capturedLat = null, capturedLon = null;
+        const gpsBtn = wrap.querySelector('#detailSiteGpsBtn');
+        const geoResult = wrap.querySelector('#detailSiteGeoResult');
+        gpsBtn.onclick = () => {
+          if (!navigator.geolocation) { geoResult.textContent = 'GPS not available on this device.'; return; }
+          geoResult.textContent = 'Detecting location…';
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              capturedLat = pos.coords.latitude;
+              capturedLon = pos.coords.longitude;
+              geoResult.innerHTML = '<span style="color:#2a7">✓ GPS captured (' + capturedLat.toFixed(4) + ', ' + capturedLon.toFixed(4) + ')</span>';
+            },
+            (err) => {
+              geoResult.textContent = 'GPS denied — you can still enter the address below.';
+              capturedLat = null; capturedLon = null;
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+          );
+        };
+
         const doAdd = async () => {
           const name = input.value.trim();
           if (!name) return;
           try {
             const kind = wrap.querySelector('#detailNewSiteKind').value;
+            const address = wrap.querySelector('#detailNewSiteAddr').value.trim();
+            const zip = wrap.querySelector('#detailNewSiteZip').value.trim();
+            const fullAddress = zip ? (address ? address + ', ' + zip : zip) : address;
+
+            // If we have GPS, geocode is direct. If we have address+ZIP, geocode it.
+            let lat = capturedLat, lon = capturedLon;
+            if (!lat && !lon && fullAddress) {
+              // Try to geocode the address via a free geocoding service
+              try {
+                const geoResp = await fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(fullAddress + ', USA') + '&limit=1');
+                const geoData = await geoResp.json();
+                if (geoData && geoData[0]) {
+                  lat = parseFloat(geoData[0].lat);
+                  lon = parseFloat(geoData[0].lon);
+                  geoResult.innerHTML = '<span style="color:#2a7">✓ Address found (' + lat.toFixed(4) + ', ' + lon.toFixed(4) + ')</span>';
+                } else {
+                  geoResult.textContent = 'Address not found — site will be saved without coordinates.';
+                }
+              } catch (e) {
+                geoResult.textContent = 'Could not geocode address — site will be saved without coordinates.';
+              }
+            }
+
             const site = await api('/api/sites', {
               method: 'POST', headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ name, kind }),
+              body: JSON.stringify({ name, kind, address: fullAddress, lat, lon }),
             });
             sites.push(site);
             // Set the item's site
@@ -2654,6 +2714,18 @@ async function openDetail(id) {
         });
         const siteName = sites.find((s) => s.site_id === siteSel.value);
         toast(siteName ? `Location set to ${siteName.name}` : 'Location set to Home.');
+        // Re-populate the room dropdown for this site
+        const roomSel = $('#detailRoom');
+        if (roomSel) {
+          try {
+            const siteRooms = await api('/api/rooms' + (siteSel.value ? '?site_id=' + siteSel.value : ''));
+            const currentItemRoom = i.room?.name || '';
+            roomSel.innerHTML = '<option value="">— select a room —</option>' +
+              siteRooms.map((r) => `<option value="${escapeHtml(r.name)}"${r.name === currentItemRoom ? ' selected' : ''}>${escapeHtml(r.name)}</option>`).join('') +
+              (currentItemRoom && !siteRooms.find((r) => r.name === currentItemRoom) ? `<option value="${escapeHtml(currentItemRoom)}" selected>${escapeHtml(currentItemRoom)}</option>` : '') +
+              '<option value="__add_new__">+ Add a new room…</option>';
+          } catch (e) { /* keep existing rooms if fetch fails */ }
+        }
       } catch (e) { toast(e.message, true); }
     };
   })();

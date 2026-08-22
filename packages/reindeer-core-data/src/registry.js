@@ -119,7 +119,8 @@ export class Registry {
     const haveCat = new Set(this.db.prepare('SELECT LOWER(name) n FROM categories WHERE scope_id = ?')
       .all(scopeId).map((r) => r.n));
 
-    const room = this.db.prepare('INSERT INTO rooms (room_id, scope_id, name, is_custom, sort_order) VALUES (?,?,?,0,?)');
+    const primarySiteId = this.db.prepare('SELECT site_id FROM sites WHERE scope_id = ? AND is_primary = 1').get(scopeId)?.site_id ?? null;
+    const room = this.db.prepare('INSERT INTO rooms (room_id, scope_id, name, is_custom, sort_order, site_id) VALUES (?,?,?,0,?,?)');
     const cat = this.db.prepare('INSERT INTO categories (category_id, scope_id, name, is_custom, sort_order) VALUES (?,?,?,0,?)');
     let added = 0;
     const tx = this.db.transaction(() => {
@@ -134,7 +135,7 @@ export class Registry {
       }
       DEFAULT_ROOMS.forEach((n, i) => {
         if (haveRoom.has(n.toLowerCase())) return;
-        room.run(ulid(), scopeId, n, i);
+        room.run(ulid(), scopeId, n, i, primarySiteId);
         added += 1;
       });
       DEFAULT_CATEGORIES.forEach((n, i) => {
@@ -154,8 +155,8 @@ export class Registry {
    * Kept out of the seeded set so the buttons on the capture screen describe
    * the house in front of the owner rather than every house.
    */
-  moreRooms(ctx) {
-    const have = new Set(this.rooms(ctx).map((r) => r.name.toLowerCase()));
+  moreRooms(ctx, siteId) {
+    const have = new Set(this.rooms(ctx, siteId).map((r) => r.name.toLowerCase()));
     return MORE_ROOMS.filter((n) => !have.has(n.toLowerCase()));
   }
 
@@ -168,17 +169,20 @@ export class Registry {
     return MORE_CATEGORIES.filter((n) => !have.has(n.toLowerCase()));
   }
 
-  seedDefaults(scopeId) {
-    const room = this.db.prepare('INSERT OR IGNORE INTO rooms (room_id, scope_id, name, is_custom, sort_order) VALUES (?,?,?,0,?)');
+  seedDefaults(scopeId, primarySiteId = null) {
+    const room = this.db.prepare('INSERT OR IGNORE INTO rooms (room_id, scope_id, name, is_custom, sort_order, site_id) VALUES (?,?,?,0,?,?)');
     const cat = this.db.prepare('INSERT OR IGNORE INTO categories (category_id, scope_id, name, is_custom, sort_order) VALUES (?,?,?,0,?)');
     const tx = this.db.transaction(() => {
-      DEFAULT_ROOMS.forEach((n, i) => room.run(ulid(), scopeId, n, i));
+      DEFAULT_ROOMS.forEach((n, i) => room.run(ulid(), scopeId, n, i, primarySiteId));
       DEFAULT_CATEGORIES.forEach((n, i) => cat.run(ulid(), scopeId, n, i));
     });
     tx();
   }
 
-  rooms(ctx) {
+  rooms(ctx, siteId) {
+    if (siteId) {
+      return this.db.prepare('SELECT * FROM rooms WHERE scope_id = ? AND site_id = ? ORDER BY sort_order, name').all(ctx.scopeId, siteId);
+    }
     return this.db.prepare('SELECT * FROM rooms WHERE scope_id = ? ORDER BY sort_order, name').all(ctx.scopeId);
   }
 
@@ -270,8 +274,20 @@ export class Registry {
    * otherwise "Attic" would be presented back to them as though they had
    * thought of it.
    */
-  resolveRoom(name, ctx, { createIfMissing = true, isCustom = true } = {}) {
+  resolveRoom(name, ctx, { createIfMissing = true, isCustom = true, siteId = null } = {}) {
     if (!name) return null;
+    // If siteId is provided, look for a room matching that site
+    if (siteId) {
+      const found = this.db.prepare('SELECT * FROM rooms WHERE scope_id = ? AND name = ? AND site_id = ? COLLATE NOCASE').get(ctx.scopeId, name, siteId);
+      if (found) return found;
+      if (!createIfMissing) return null;
+      const id = ulid();
+      const custom = isCustom && !MORE_ROOMS.some((n) => n.toLowerCase() === name.toLowerCase()) ? 1 : 0;
+      this.db.prepare('INSERT INTO rooms (room_id, scope_id, name, is_custom, sort_order, site_id) VALUES (?,?,?,?,?,?)')
+        .run(id, ctx.scopeId, name, custom, custom ? 999 : 500, siteId);
+      return this.db.prepare('SELECT * FROM rooms WHERE room_id = ?').get(id);
+    }
+    // No site filter — original behavior (backward compatible)
     const found = this.db.prepare('SELECT * FROM rooms WHERE scope_id = ? AND name = ? COLLATE NOCASE').get(ctx.scopeId, name);
     if (found) return found;
     if (!createIfMissing) return null;
