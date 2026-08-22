@@ -635,20 +635,35 @@
   <!-- GUIDED CAPTURE -->
   <section class="screen" data-screen="capture" hidden>
     <!--
-      Location permission notice — shown before the browser's geolocation
-      prompt so the owner understands why we need location and which
-      permission level to choose. Only shown once (first capture session).
+      Site indicator — shows the detected location silently in the
+      background. The owner can override and tag items to any
+      registered site. No popup, no permission gate — GPS detection
+      runs automatically when the owner enters capture. If it fails
+      or is denied, items default to the active site (or Home).
     -->
-    <div class="loc-notice" id="locNotice" hidden>
-      <div class="loc-notice-box">
-        <h3>📍 Help us track where things are</h3>
-        <p>Reindeer can use your location to keep track of where items are — especially helpful if you have things at more than one place (storage, a second home).</p>
-        <p>When your browser asks, we recommend <strong>"Only while using the site."</strong></p>
-        <p style="font-size:13px;color:#888;margin-top:12px;">This is optional — you can skip it and add items without location data any time.</p>
-        <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;">
-          <button class="primary" id="locNoticeContinue">Allow location</button>
-          <button class="secondary" id="locNoticeSkip" style="background:none;border:1px solid #ccc;padding:10px 18px;border-radius:8px;cursor:pointer;font-size:15px;">Not now</button>
-        </div>
+    <div class="cap-site-bar" id="capSiteBar">
+      <span class="site-badge" id="capSiteBadge">Checking location…</span>
+      <label class="site-override-wrap">
+        <span class="site-override-lbl">Tag to:</span>
+        <select id="capSiteSelect" class="site-select"></select>
+      </label>
+    </div>
+    <div class="cap-offsite-warning" id="capOffsiteWarning" hidden>
+      <p class="offsite-msg"></p>
+      <div class="offsite-actions">
+        <button class="ghost small" id="capAddSiteBtn">Register this location</button>
+        <button class="ghost small" id="capSkipGeoBtn">Add here anyway</button>
+      </div>
+      <div class="cap-add-site-form" id="capAddSiteForm" hidden>
+        <input type="text" id="capSiteName" class="bigin" placeholder="Name this place (e.g. Storage unit, Lake house)">
+        <select id="capSiteKind" class="bigin">
+          <option value="other">Other location</option>
+          <option value="storage">Storage unit</option>
+          <option value="second_home">Second home</option>
+          <option value="vacation">Vacation home</option>
+          <option value="garage">Garage / shed</option>
+        </select>
+        <button class="primary" id="capSiteSaveBtn">Save location</button>
       </div>
     </div>
     <div class="steps" id="stepDots"></div>

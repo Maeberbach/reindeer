@@ -21,6 +21,8 @@ export const CSV_COLUMNS = [
   // AI advisory value range (low/high in USD). Appended at end for backwards
   // compat. Never printed on the memorandum — for owner and fiduciary use only.
   'ai_value_low_usd', 'ai_value_high_usd', 'ai_value_unknown_reason',
+  // Which location/property the item is at (Home, Storage, Second home, etc.)
+  'site',
 ];
 
 const cell = (v) => {
@@ -45,6 +47,7 @@ export function toCsv(envelope) {
       i.ai_value_suggestion?.low_cents == null ? '' : (i.ai_value_suggestion.low_cents / 100).toFixed(2),
       i.ai_value_suggestion?.high_cents == null ? '' : (i.ai_value_suggestion.high_cents / 100).toFixed(2),
       i.ai_value_unknown_reason ?? '',
+      i.site_name ?? '',
     ].map(cell).join(','));
   }
   // Trailing note so a printed or emailed CSV carries the disclaimer too.

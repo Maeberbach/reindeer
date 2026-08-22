@@ -1,0 +1,73 @@
+
+/* Site indicator bar — sits at top of capture screen, shows detected
+   location silently with an override dropdown. No popup, no blocking. */
+.cap-site-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  margin: 8px 0;
+  background: var(--card, #f5f0e8);
+  border-radius: 10px;
+  font-size: 14px;
+}
+.site-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: #e8dcc8;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.site-badge.site-unknown {
+  background: #f0e0d0;
+  color: #8a7050;
+}
+.site-override-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.site-override-lbl {
+  font-size: 13px;
+  color: #888;
+  white-space: nowrap;
+}
+.site-select {
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background: white;
+  cursor: pointer;
+}
+.cap-offsite-warning {
+  padding: 10px 14px;
+  margin: 8px 0;
+  background: #fff8e8;
+  border: 1px solid #e8d8a8;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.cap-offsite-warning .offsite-msg { margin: 0 0 8px; }
+.cap-offsite-warning .offsite-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cap-offsite-warning .offsite-actions button {
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.cap-add-site-form {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

@@ -466,36 +466,22 @@ function go(name, opts = {}) {
   }
   if (name === 'people') loadPeople();
   if (name === 'capture') {
-    // Trigger geosyncing when entering capture — detect the device's
-    // location and warn if the owner is adding items to a site they're
-    // not physically at. Owners can override; helpers are blocked from
-    // adding to a site they're not at.
+    // Background location detection — silent, no popup. GPS runs
+    // automatically; if denied or unavailable, items default to the
+    // active site (or Home). The owner can override via the site
+    // selector at the top of the capture screen.
     if (currentSite && currentSite.site_id !== activeSiteId) {
       activeSiteId = currentSite.site_id;
     }
-    // Trigger geosyncing when entering capture — but show the location
-    // notice first so the owner knows why the browser is about to ask.
     if (!geoPermissionAsked) {
-      const locNotice = $('#locNotice');
-      if (locNotice && locNotice.hidden) {
-        locNotice.hidden = false;
-        const locBtn = $('#locNoticeContinue');
-        const locSkip = $('#locNoticeSkip');
-        if (locBtn) locBtn.onclick = () => {
-          locNotice.hidden = true;
-          geoPermissionAsked = true;
-          loadSites().then(() => detectLocation());
-        };
-        if (locSkip) locSkip.onclick = () => {
-          locNotice.hidden = true;
-          geoPermissionAsked = true;
-          syncSiteUI();
-        };
-      } else {
-        loadSites().then(() => detectLocation());
-      }
+      geoPermissionAsked = true;
+      loadSites().then(() => {
+        detectLocation();
+        populateSiteSelect();
+      });
+    } else {
+      populateSiteSelect();
     }
-    // Always update the site UI — breadcrumb shows even before geo check
     syncSiteUI();
   }
   if (name === 'handoff') {
@@ -853,56 +839,42 @@ async function matchSite() {
 }
 
 function syncSiteUI() {
-  const section = $('#capSiteSection');
-  const display = $('#capSiteDisplay');
+  const badge = $('#capSiteBadge');
   const warning = $('#capOffsiteWarning');
-  if (!section || !display) return;
-  // Update the site breadcrumb at the top of the capture screen
-  const crumb = $('#capSiteBreadcrumb');
-  if (crumb) {
-    const site = sitesList.find((s) => s.site_id === (cap.siteId || activeSiteId));
-    if (site && !site.is_primary) {
-      crumb.hidden = false;
-      crumb.textContent = `Adding to ${site.name}`;
-    } else {
-      crumb.hidden = true;
-    }
+  if (!badge) return;
+
+  // Show the detected or selected site in the badge
+  const activeSite = sitesList.find((s) => s.site_id === (cap.siteId || activeSiteId));
+  if (activeSite) {
+    badge.textContent = activeSite.name + (activeSite.is_primary ? ' (Home)' : '');
+    badge.className = 'site-badge';
+  } else if (currentSite) {
+    badge.textContent = currentSite.name;
+    badge.className = 'site-badge';
+  } else if (cap.offsite) {
+    badge.textContent = 'Unknown location';
+    badge.className = 'site-badge site-unknown';
+  } else {
+    badge.textContent = cap.geoChecked ? 'Home' : 'Checking location…';
+    badge.className = cap.geoChecked ? 'site-badge' : 'site-badge site-unknown';
   }
 
-  // Show the site section
-  section.hidden = false;
-
-  if (currentSite) {
-    display.innerHTML = `<span class="site-badge">${escapeHtml(currentSite.name)}</span>`;
-    // Warn if the owner is physically at a different site than the
-    // one they're adding items to. Owners can override; the warning
-    // is advisory. Helpers are blocked from adding to a site they're
-    // not at (handled in the save flow).
-    if (activeSiteId && currentSite.site_id !== activeSiteId) {
-      const activeSite = sitesList.find((s) => s.site_id === activeSiteId);
-      const activeName = activeSite ? activeSite.name : 'the selected site';
-      warning.hidden = false;
-      const warnEl = warning.querySelector('.offsite-msg');
-      if (warnEl) {
-        warnEl.innerHTML = `You appear to be at <b>${escapeHtml(currentSite.name)}</b>, but you're adding items to <b>${escapeHtml(activeName)}</b>. Items should be captured at the location where they are.`;
-      }
-    } else {
-      warning.hidden = true;
-    }
-  } else if (cap.offsite) {
-    display.innerHTML = '<span class="site-badge site-unknown">Unknown location</span>';
+  // Show advisory warning if GPS says different site than selected
+  if (currentSite && activeSiteId && currentSite.site_id !== activeSiteId) {
+    const selectedSite = sitesList.find((s) => s.site_id === (cap.siteId || activeSiteId));
+    const selectedName = selectedSite ? selectedSite.name : 'the selected site';
     warning.hidden = false;
     const warnEl = warning.querySelector('.offsite-msg');
     if (warnEl) {
-      let msg = 'You are not at a registered location. You can still add items, but they will be tagged with your GPS coordinates.';
-      if (cap.nearestSiteName && cap.nearestDistanceYards) {
-        msg = `You are about <b>${cap.nearestDistanceYards} yards</b> from <b>${escapeHtml(cap.nearestSiteName)}</b> — this looks like a different location. Register it to group items by site, or add items here anyway.`;
-      }
-      warnEl.innerHTML = msg;
+      warnEl.innerHTML = `You appear to be at <b>${escapeHtml(currentSite.name)}</b>, but you're tagging items to <b>${escapeHtml(selectedName)}</b>. That's fine — items will be saved to ${escapeHtml(selectedName)}.`;
+    }
+  } else if (cap.offsite && cap.nearestSiteName && cap.nearestDistanceYards) {
+    warning.hidden = false;
+    const warnEl = warning.querySelector('.offsite-msg');
+    if (warnEl) {
+      warnEl.innerHTML = `You're about <b>${cap.nearestDistanceYards} yards</b> from <b>${escapeHtml(cap.nearestSiteName)}</b> — this looks like a different location. Register it to group items by site, or add items here anyway.`;
     }
   } else {
-    // Geo not available or denied — don't block, just tag as unknown
-    display.innerHTML = '<span class="site-badge site-unknown">Location not detected</span>';
     warning.hidden = true;
   }
 }
@@ -953,6 +925,33 @@ function wireSiteControls() {
   }
 }
 wireSiteControls();
+
+/*
+ * Site selector — populates the dropdown with all registered sites
+ * and lets the owner override the GPS-detected location. The owner
+ * can tag items to any site regardless of where they physically are.
+ * GPS detection still runs in the background for advisory purposes,
+ * but the selected site is what gets saved with the item.
+ */
+function populateSiteSelect() {
+  const sel = $('#capSiteSelect');
+  if (!sel) return;
+  // Determine current target site: GPS-detected, or active, or primary
+  const targetId = cap.siteId || activeSiteId || sitesList.find(s => s.is_primary)?.site_id;
+  sel.innerHTML = sitesList.map(s =>
+    `<option value="${s.site_id}" ${s.site_id === targetId ? 'selected' : ''}>${escapeHtml(s.name)}${s.is_primary ? ' (Home)' : ''}</option>`
+  ).join('');
+  sel.onchange = () => {
+    const site = sitesList.find(s => s.site_id === sel.value);
+    if (site) {
+      cap.siteId = site.site_id;
+      cap.siteName = site.name;
+      cap.offsite = false;
+      activeSiteId = site.site_id;
+      syncSiteUI();
+    }
+  };
+}
 
 /*
  * Home screen site tiles.
