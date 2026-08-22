@@ -1,5 +1,5 @@
 /*
- * Offline shell for Reindeer: Registry.
+ * Offline shell for Reindeer: Wishes.
  *
  * The reason this exists: not every owner has internet where the things are.
  * Someone may walk their house with no signal at all and only reach a connection

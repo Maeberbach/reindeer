@@ -1,4 +1,4 @@
-/* Reindeer: Registry client.
+/* Reindeer: Wishes client.
    Guided, one-decision-per-screen capture. Cropping happens here on a canvas
    so the server needs no image library and raw source photos are never kept. */
 
@@ -415,7 +415,7 @@ function go(name, opts = {}) {
   const fb = $('#floatingBack');
   if (fb) fb.hidden = isLanding;
   $('#appTitle').textContent = {
-    welcome: 'Reindeer: Wishes', recipientwelcome: 'Welcome', helperwelcome: 'Welcome', howto: 'How to use', guidedpartner: 'Add someone', guidedphoto: 'Take a photo', whosdoing: "Who's doing this?", helptype: "Who's helping?", home: 'Reindeer: Wishes', capture: 'Add an item', batch: 'Add several',
+    welcome: 'Reindeer: Wishes', recipientwelcome: 'Welcome', helperwelcome: 'Welcome', howto: 'How to use', quietgift: 'Reindeer: Wishes', guidedpartner: 'Add someone', guidedphoto: 'Take a photo', whosdoing: "Who's doing this?", helptype: "Who's helping?", home: 'Reindeer: Wishes', capture: 'Add an item', batch: 'Add several',
     list: 'My items', detail: 'Item', review: 'Review items', print: 'Print', handoff: 'Finishing up', confirmsend: 'Confirm',
     signing: 'Making it official', people: 'My people',
     walk: 'Room by room', room: 'This room', promise: 'Items already designated to a specific person',
@@ -430,7 +430,7 @@ function go(name, opts = {}) {
     // Ship B \u2014 contested categories.
     contested: 'Things families fight over', reminders: 'Holiday reminders',
     admin: 'Estate license keys',
-  }[name] ?? 'Reindeer: Registry';
+  }[name] ?? 'Reindeer: Wishes';
   window.scrollTo(0, 0);
   if (name === 'walk') { loadWalk(); applyVideoFlag(); }
   if (name === 'batch') { const bi = $('#batchIntake'); if (bi) bi.hidden = false; applyVideoFlag(); }
