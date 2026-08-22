@@ -48,7 +48,7 @@ const people = new PeopleRepo(db);
 
 registry.ensureScope({
   scopeId: SCOPE_ID, scopeType: SCOPE_TYPE.INVENTORY,
-  name: 'Reindeer Registry', ownerName: OWNER_NAME,
+  name: 'Reindeer Wishes', ownerName: OWNER_NAME,
 });
 
 // One-line swap from mock AI to the real vision service.
@@ -512,7 +512,7 @@ app.get('/api/admin/db-stats', async (req, res, next) => {
 
 const PORT = process.env.PORT || 3210;
 app.listen(PORT, () => {
-  console.log(`Reindeer Registry running on http://localhost:${PORT}`);
+  console.log(`Reindeer Wishes running on http://localhost:${PORT}`);
   console.log(`Data: ${DATA_DIR}`);
   console.log(`Vision: ${vision.constructor.name === 'MockVisionProvider' ? 'mock provider (set GOOGLE_CLOUD_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY to enable)' : `live — ${vision.constructor.name}`}`);
   console.log(`Email: ${mailer.describe}`);

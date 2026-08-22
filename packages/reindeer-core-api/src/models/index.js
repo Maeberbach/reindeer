@@ -1,6 +1,6 @@
 /**
  * Canonical domain models for the Legacy product line.
- * Both Reindeer Registry and Reindeer: FairPlay depend on these definitions
+ * Both Reindeer Wishes and Reindeer: FairPlay depend on these definitions
  * so the two apps can never drift apart on what an "item" is.
  */
 

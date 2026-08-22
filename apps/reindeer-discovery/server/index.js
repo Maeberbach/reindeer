@@ -90,7 +90,7 @@ const registry = new Registry(db, null);
 
 registry.ensureScope({
   scopeId: SCOPE_ID, scopeType: SCOPE_TYPE.INVENTORY,
-  name: 'Reindeer Registry', ownerName: '',
+  name: 'Reindeer Wishes', ownerName: '',
 });
 
 const SESSION_SECRET = process.env.REINDEER_DISCOVERY_SESSION_SECRET

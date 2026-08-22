@@ -1,5 +1,5 @@
 /**
- * Cross-suite conflict test: My Legacy Registry -> Legacy: Fair Choice.
+ * Cross-suite conflict test: Reindeer Wishes -> Legacy: Fair Choice.
  *
  * The registry now produces two very different kinds of row, and this test
  * exists to prove Fair Choice can tell them apart and can absorb the same

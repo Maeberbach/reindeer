@@ -1,6 +1,6 @@
 {
-  "name": "My Legacy: Registry",
-  "short_name": "My Legacy",
+  "name": "Reindeer Wishes",
+  "short_name": "Wishes",
   "description": "Record the things that matter, room by room, and say who they are for.",
   "start_url": "./",
   "scope": "./",

@@ -3,7 +3,7 @@
   "version": "1.1.0",
   "type": "module",
   "private": true,
-  "description": "Reindeer Registry \u2014 photograph, document, print, and hand off important belongings.",
+  "description": "Reindeer Wishes \u2014 photograph, document, print, and hand off important belongings.",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js"

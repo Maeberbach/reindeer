@@ -268,10 +268,10 @@ export class TwoOutputsService {
       'and get the paper to whoever holds the will for it to have legal standing. If you would prefer a',
       'fully executed version for your records, please let ' + ownerNameLine + ' know.',
       '',
-      'The attached file is a machine-readable Legacy Registry bundle. If you would like a human-readable',
+      'The attached file is a machine-readable Reindeer Wishes bundle. If you would like a human-readable',
       'PDF instead, ask ' + ownerNameLine + ' to print the memorandum from the app and send you the paper.',
       '',
-      'Sent from Legacy Registry, a preparation tool. Legacy Registry is not a legal or fiduciary service.',
+      'Sent from Reindeer Wishes, a preparation tool. Reindeer Wishes is not a legal or fiduciary service.',
     ].join('\n');
 
     const send = await this.mailer.send({

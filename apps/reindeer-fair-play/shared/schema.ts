@@ -327,7 +327,7 @@ export const items = sqliteTable("items", {
     .notNull()
     .default(false),
   /* ---- v9 inventory import provenance ---- */
-  /** 'reindeer_registry' when the item arrived from Reindeer Registry. */
+  /** 'reindeer_registry' when the item arrived from Reindeer Wishes. */
   originApp: text("origin_app"),
   /** The item's id in the app it came from. Stable across re-imports. */
   originItemId: text("origin_item_id"),

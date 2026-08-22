@@ -1,5 +1,5 @@
 /**
- * Feature flags for Reindeer Registry.
+ * Feature flags for Reindeer Wishes.
  *
  * These control which features are active. During testing, everything
  * is unlimited — no license checks, no password login. When ready

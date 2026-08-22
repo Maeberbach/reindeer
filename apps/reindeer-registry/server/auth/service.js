@@ -71,7 +71,7 @@ export class AuthService {
     if (this.mailer) {
       const result = await this.mailer({
         to: normalized,
-        subject: 'Your sign-in link for Legacy Registry',
+        subject: 'Your sign-in link for Reindeer Wishes',
         text: `Click this link to sign in. It works once and expires in 20 minutes.\n\n${link}\n`,
       });
       // Surface the error instead of silently swallowing it.

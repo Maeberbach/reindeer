@@ -1,5 +1,5 @@
 /**
- * License key middleware for Reindeer Registry.
+ * License key middleware for Reindeer Wishes.
  *
  * TOGGLED OFF — controlled by FEATURE_FLAGS.licenseKeys.
  * When enabled, this middleware validates the user's license key

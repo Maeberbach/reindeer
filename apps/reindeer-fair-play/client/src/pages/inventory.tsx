@@ -1411,7 +1411,7 @@ export default function InventoryPage() {
       </Dialog>
 
       {/* Voice memo playback — heirs can listen to the deceased owner's
-          voice memos that traveled from Registry. These are irreplaceable. */}
+          voice memos that traveled from Reindeer Wishes. These are irreplaceable. */}
       <Dialog open={!!voiceMemoForItem} onOpenChange={(open) => { if (!open) { setVoiceMemoForItem(null); setVoiceMemos([]); } }}>
         <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>

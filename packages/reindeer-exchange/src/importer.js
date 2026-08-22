@@ -216,7 +216,7 @@ export async function applyRecipientSuggestion({ db, audit, ctx, itemId, heirId,
     .run(new Date().toISOString(), itemId, ctx.scopeId);
   await audit.append({
     action: 'exchange.recipient_applied', entity: 'item', entity_id: itemId,
-    payload: { heir_id: heirId, heir_name: heirName, basis: 'owner wish from Reindeer Registry' },
+    payload: { heir_id: heirId, heir_name: heirName, basis: 'owner wish from Reindeer Wishes' },
   }, ctx);
   return { item_id: itemId, heir_id: heirId, applied: true };
 }

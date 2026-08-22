@@ -27,7 +27,7 @@ export default function ResultsPage() {
   const ownerAssigned = (data?.items ?? []).filter((i) => i.status === "owner_assigned");
   // Split the owner-assigned bucket into two visual groups:
   //   1) Memorandum-locked items — travelled with a frozen memorandum
-  //      from Registry after the owner’s death. Recipient identity is not
+  //      from Reindeer Wishes after the owner’s death. Recipient identity is not
   //      in FC on purpose; heirs see photo/name/room and a preamble note.
   //      Grouped by the deceased owner’s first name.
   //   2) Owner-assigned via Registry recipient_hint or comment detection
@@ -190,7 +190,7 @@ export default function ResultsPage() {
                 data-testid={`text-memorandum-preamble-${ownerName}`}
               >
                 A word before we begin. The list of special gifts you’ll see
-                below was captured from Registry when the memorandum was
+                below was captured from Reindeer Wishes when the memorandum was
                 last signed. Between that day and this one, {ownerName} may
                 have signed a newer paper memorandum, added handwritten
                 notes, or made changes their trustee is holding but Registry

@@ -260,7 +260,7 @@ async function main() {
     assert.equal(approved1.item.name, "Grandfather's Hamilton pocket watch");
     assert.equal(approved1.item.originItemId, watch.item_id);
     assert.equal(approved1.item.room, "Primary Bedroom");
-    // Watch carries a structured recipient_hint from Registry, so it
+    // Watch carries a structured recipient_hint from Reindeer Wishes, so it
     // lifts straight into the owner_assigned bucket at approve time.
     // This is the behavior change from v15: recipient_hint used to be
     // advisory-only and the item would sit in `available` for the draft.
@@ -348,7 +348,7 @@ async function main() {
     assert.equal(importFlip!.changedByParticipantId, null, "owner is not a participant — attribution stays null");
     assert.equal(
       importFlip!.reason,
-      "Imported from My Legacy Registry — the owner marked this item Important.",
+      "Imported from Reindeer Wishes — the owner marked this item Important.",
       "the audit trail must say why the flag was set",
     );
     assert.equal(importFlip!.isRevert, false, "the import row is a normal set, not a revert");

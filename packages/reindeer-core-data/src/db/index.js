@@ -24,7 +24,7 @@ export function ulid(now = Date.now()) {
  * Open a database, optionally encrypted with SQLCipher, run pending
  * migrations inside a transaction, and enforce foreign keys.
  *
- * Used identically by Reindeer Registry and Reindeer: FairPlay;
+ * Used identically by Reindeer Wishes and Reindeer: FairPlay;
  * only the file path and scope type differ.
  *
  * @param {string} filePath - Path to the SQLite database file.

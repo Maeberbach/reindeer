@@ -1,7 +1,7 @@
 /**
  * The real work behind an inventory import.
  *
- * A ReindeerExchange bundle from Reindeer Registry never lands
+ * A ReindeerExchange bundle from Reindeer Wishes never lands
  * directly in the live item pool. It lands in staging (`import_batches` +
  * `staged_items` + `staged_media`), and only an explicit Personal
  * Representative approval turns a staged row into a real `items` row.
@@ -190,8 +190,8 @@ function extractMediaFile(
  * Never writes to the live `items` table.
  */
 /**
- * The capture app was called "Reindeer Registry" before it became
- * "Reindeer Registry". Bundles written under the old name must still open —
+ * The capture app was called "Reindeer Registry" before it became "Reindeer Wishes"
+ * "Reindeer Wishes". Bundles written under the old name must still open —
  * a family's export from last year is not a file we get to reject.
  */
 const LEGACY_SOURCE_APP_ALIASES: Record<string, string> = {
@@ -953,7 +953,7 @@ export async function approveStaged(
           newValue: true,
           changedByParticipantId: null,
           changedAt: reviewedAt,
-          reason: "Imported from Reindeer Registry — the owner marked this item Important.",
+          reason: "Imported from Reindeer Wishes — the owner marked this item Important.",
           phase: session.phase,
           isRevert: false,
           removedRankings: "[]",

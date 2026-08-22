@@ -167,7 +167,7 @@ let history = [];
  * Mention possible duplicates once, in plain language, and let the owner walk
  * away from it.
  *
- * The registry never compels a duplicate review. Getting things documented is
+ * Reindeer Wishes never compels a duplicate review. Getting things documented is
  * the whole point, and an owner halfway through a room should not be handed a
  * chore. Three honest choices: look now, look later, or leave it to the person
  * settling the estate — Reindeer: FairPlay runs the same check and shows it
@@ -274,7 +274,7 @@ function go(name, opts = {}) {
   const fb = $('#floatingBack');
   if (fb) fb.hidden = history.length === 0;
   $('#appTitle').textContent = {
-    welcome: 'Reindeer: Registry', recipientwelcome: 'Welcome', helperwelcome: 'Welcome', howto: 'How to use', guidedpartner: 'Add someone', guidedphoto: 'Take a photo', whosdoing: "Who's doing this?", helptype: "Who's helping?", home: 'Reindeer: Registry', capture: 'Add an item', batch: 'Add several',
+    welcome: 'Reindeer: Wishes', recipientwelcome: 'Welcome', helperwelcome: 'Welcome', howto: 'How to use', guidedpartner: 'Add someone', guidedphoto: 'Take a photo', whosdoing: "Who's doing this?", helptype: "Who's helping?", home: 'Reindeer: Wishes', capture: 'Add an item', batch: 'Add several',
     list: 'My items', detail: 'Item', review: 'Review items', print: 'Print', handoff: 'Finishing up', confirmsend: 'Confirm',
     signing: 'Making it official', people: 'My people',
     walk: 'Room by room', room: 'This room', promise: 'Items already designated to a specific person',
@@ -2181,7 +2181,7 @@ async function openDetail(id) {
   const feelingOn = reason === 'feeling' || reason === 'both';
   const moneyOn = reason === 'money' || reason === 'both';
   // The owner-authored comment is rendered verbatim, right below the story.
-  // The registry does not paraphrase, summarize, or interpret the owner's own
+  // Reindeer Wishes does not paraphrase, summarize, or interpret the owner's own
   // words — it prints them and shows them. Owners were previously unable to
   // read back their own comment between recording it and printing the sheet,
   // which broke the app's promise that the owner's authorship is preserved.
@@ -2566,7 +2566,7 @@ async function runFinishActions({ email }) {
 
 ${ownerName} has put together an inventory of their possessions and their wishes about who should receive each item. The attached file contains everything — the full list, every photo, and every story.
 
-To open it, go to ${window.location.origin.replace('registry', 'fair-play')} and use the "Import from Registry" option. You will also need a license key from ${ownerName} — they will share it with you separately.
+To open it, go to ${window.location.origin.replace('registry', 'fair-play')} and use the "Import from Reindeer Wishes" option. You will also need a license key from ${ownerName} — they will share it with you separately.
 
 Keep this file with the estate planning documents. It is the personal property memorandum referenced by the will.
 
@@ -4341,7 +4341,7 @@ async function autoDetectRoomPhotos(key) {
  * What happens after a room has been read.
  *
  * The owner is not asked to approve the camera's work item by item. The purpose
- * of this registry is to document that things EXIST, so a lower standard of
+ * of Reindeer Wishes is to document that things EXIST, so a lower standard of
  * precision is the right one here: everything found goes straight onto the list,
  * confirmed, and a wrong entry costs nothing because the scrutiny happens later
  * in Reindeer: FairPlay, where it matters and where the tools for it live.
@@ -5961,7 +5961,7 @@ async function loadHelperInvite() {
       if (out.link) {
         openEmailApp({
           to: email,
-          subject: 'Your sign-in link for Reindeer Registry',
+          subject: 'Your sign-in link for Reindeer Wishes',
           body: `You have been invited to participate with an Estate Inventory.\n\nClick the link to join.\n${out.link}\n`,
         });
         box.innerHTML = `<p class="reassure">Choose how to send the invitation to ${escapeHtml(email)}. Send it and ask them to check their inbox; the link expires in twenty minutes.</p>`;
@@ -6058,7 +6058,7 @@ async function loadHouseholdLink() {
         if (out.link) {
           openEmailApp({
             to: email,
-            subject: 'Your sign-in link for Reindeer Registry',
+            subject: 'Your sign-in link for Reindeer Wishes',
             body: `You have been invited to participate with an Estate Inventory.\n\nClick the link to join.\n${out.link}\n`,
           });
           box.innerHTML = `<p class="reassure">Choose how to send the invitation to ${escapeHtml(email)}. Send it and ask them to check their inbox; the link expires in twenty minutes.</p>`;
@@ -6112,7 +6112,7 @@ async function loadHouseholdLink() {
   if (!isOwner) {
     body.innerHTML = `
       <h2>Not yet linked</h2>
-      <p class="lede">Only the account owner can invite a co-owner. Ask them to open Reindeer Registry and send you the invitation email.</p>
+      <p class="lede">Only the account owner can invite a co-owner. Ask them to open Reindeer Wishes and send you the invitation email.</p>
     `;
     return;
   }
@@ -6193,7 +6193,7 @@ async function loadHouseholdLink() {
       if (out.link) {
         openEmailApp({
           to: email,
-          subject: 'Your co-owner sign-in link for Reindeer Registry',
+          subject: 'Your co-owner sign-in link for Reindeer Wishes',
           body: `You have been invited to participate with an Estate Inventory.\n\nClick the link to join.\n${out.link}\n`,
         });
         box.innerHTML = `<p class="reassure">Choose how to send the co-owner invitation to ${escapeHtml(email)}. Send it and ask them to check their inbox; the link expires in twenty minutes.</p>`;
@@ -6222,7 +6222,7 @@ async function loadHouseholdLink() {
       if (out.link) {
         openEmailApp({
           to: email,
-          subject: 'Your sign-in link for Reindeer Registry',
+          subject: 'Your sign-in link for Reindeer Wishes',
           body: `You have been invited to participate with an Estate Inventory.\n\nClick the link to join.\n${out.link}\n`,
         });
         box.innerHTML = `<p class="reassure">Choose how to send the invitation to ${escapeHtml(email)}. Send it and ask them to check their inbox; the link expires in twenty minutes.</p>`;
