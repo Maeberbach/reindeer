@@ -304,6 +304,7 @@ function go(name, opts = {}) {
     applyVideoFlag();
   }
 
+  if (name === 'detail' && opts.item_id) openDetail(opts.item_id);
   if (name === 'list') loadList();
   if (name === 'review') loadReview();
   if (name === 'admin') loadFeatureFlags();
@@ -1697,6 +1698,20 @@ function showAcceptBar(label, categoryHint) {
   if (input) input.placeholder = label ? 'Change the name if this is not right' : 'What is this?';
   // Focus the accept input so the owner can edit right away
   if (input) setTimeout(() => input.focus(), 100);
+  // Hide the full form steps and navrow — the accept bar is the primary
+  // save path. "Edit details first" reveals them. Showing both at once
+  // is overwhelming for a single item capture.
+  document.querySelectorAll('.step[data-step]').forEach((el) => {
+    if (el.dataset.step !== '0' && el.dataset.step !== '1') el.hidden = true;
+  });
+  document.querySelectorAll('.step[data-retired]').forEach((el) => {
+    el.hidden = true;
+  });
+  document.querySelectorAll('.cap-important-only').forEach((el) => {
+    el.hidden = true;
+  });
+  const navrow = document.querySelector('.navrow');
+  if (navrow) navrow.hidden = true;
 }
 
 // Accept & Save button — saves the item with the AI label (or edited name)
@@ -1812,7 +1827,7 @@ async function saveItem() {
     if (recipientPracticeMode) { recipientPracticeMode = false; return go('walk'); }
     if (guidedIntroMode) {
       guidedIntroMode = false;
-      go('detail', { item_id: item.item_id });
+      openDetail(item.item_id);
       return;
     }
     if (roomImportantFlow) {
@@ -1838,7 +1853,7 @@ async function saveItem() {
     }
     // After saving, go to the item's detail page so the owner can review
     // what they captured and add more later if needed.
-    go('detail', { item_id: item.item_id });
+    openDetail(item.item_id);
   } catch (e) { toast(e.message, true); }
 }
 
