@@ -97,6 +97,7 @@ export function createIntakeRouter(deps) {
       tentative_high_value_only: req.query.tentative_high_value_only === 'true',
       has_recipient: req.query.has_recipient === undefined ? undefined : req.query.has_recipient === 'true',
       recipient_name: req.query.recipient_name,
+      site_id: req.query.site_id || null,
     };
     res.json(await itemRepo.list(q, ctx));
   }));

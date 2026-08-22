@@ -2346,6 +2346,7 @@ $('#batchGo').onclick = async () => {
 // -------------------------------------------------------------------- list
 async function loadList() {
   const params = new URLSearchParams();
+  if ($('#filterSite')?.value) params.set('site_id', $('#filterSite').value);
   if ($('#q').value) params.set('search', $('#q').value);
   if ($('#filterRoom').value) params.set('room_id', $('#filterRoom').value);
   if ($('#filterState').value) params.set('review_state', $('#filterState').value);
@@ -2354,7 +2355,7 @@ async function loadList() {
     : '<p class="lede">Nothing here yet. Add your first item from the home screen.</p>';
   $$('#itemList .card').forEach((c) => { c.onclick = () => openDetail(c.dataset.id); });
 }
-['#q', '#filterRoom', '#filterState'].forEach((s) => { $(s).oninput = loadList; });
+['#q', '#filterSite', '#filterRoom', '#filterState'].forEach((s) => { $(s).oninput = loadList; });
 // Search is optional — most owners browse by photo, not by label name.
 $('#searchToggle')?.addEventListener('click', () => {
   const input = $('#q');
@@ -4622,6 +4623,30 @@ $('#adminBackBtn')?.addEventListener('click', () => go('home'));
   renderCatChips();
   $('#filterRoom').innerHTML = '<option value="">All rooms</option>' +
     registry.rooms.map((r) => `<option value="${r.room_id}">${escapeHtml(r.name)}</option>`).join('');
+
+  // ---- Populate Location filter and link to Room filter ----
+  (async () => {
+    const siteSel = $('#filterSite');
+    if (!siteSel) return;
+    let sites = [];
+    try { sites = await api('/api/sites'); } catch { sites = []; }
+    siteSel.innerHTML = '<option value="">All locations</option>' +
+      sites.map((s) => `<option value="${s.site_id}">${escapeHtml(s.name)}${s.is_primary ? ' (Home)' : ''}</option>`).join('');
+
+    // When location changes, re-populate the room dropdown for that site
+    siteSel.onchange = async () => {
+      const siteId = siteSel.value;
+      const roomSel = $('#filterRoom');
+      if (roomSel) {
+        try {
+          const rooms = await api('/api/rooms' + (siteId ? '?site_id=' + siteId : ''));
+          roomSel.innerHTML = '<option value="">All rooms</option>' +
+            rooms.map((r) => `<option value="${r.room_id}">${escapeHtml(r.name)}</option>`).join('');
+        } catch { /* keep existing rooms if fetch fails */ }
+      }
+      loadList();
+    };
+  })();
 
   // The print and download links live in the markup as plain paths so they
   // stay readable; point them at the server wherever it happens to be.

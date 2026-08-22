@@ -260,6 +260,7 @@ export class SqliteItemRepository extends ItemRepository {
     const params = { scope_id: ctx.scopeId };
     if (query.review_state) { where.push('i.review_state = @review_state'); params.review_state = query.review_state; }
     if (query.room_id) { where.push('i.room_id = @room_id'); params.room_id = query.room_id; }
+    if (query.site_id) { where.push('i.site_id = @site_id'); params.site_id = query.site_id; }
     if (query.category_id) { where.push('i.category_id = @category_id'); params.category_id = query.category_id; }
     if (query.high_value_only) where.push('i.high_value_flag = 1');
     // Owner's own mark — kept as a separate filter so a FairPlay caller
