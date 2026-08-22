@@ -403,14 +403,17 @@ const effectiveTitle = () =>
 function go(name, opts = {}) {
   if (!opts.back) history.push(currentScreen());
   $$('.screen').forEach((s) => { s.hidden = s.dataset.screen !== name; });
-  $('#backBtn').hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'helperwelcome' || name === 'howto';
-  $('#homeBtn').hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'helperwelcome' || name === 'howto';
-  // Floating nav — Back + Home, visible on every screen except landing pages
+  // Top bar back/home buttons — hidden on home and welcome screens
+  const isLanding = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'helperwelcome' || name === 'howto';
+  $('#backBtn').hidden = isLanding;
+  $('#homeBtn').hidden = isLanding;
+  // Floating nav — visible on every screen except home
   const fn = $('#floatingNav');
-  if (fn) fn.hidden = name === 'home' || name === 'welcome' || name === 'recipientwelcome' || name === 'helperwelcome' || name === 'howto';
-  // Show/hide Back individually — hidden on screens with no back destination
+  if (fn) fn.hidden = (name === 'home');
+  // Back button: on welcome/landing screens, hide Back (only Home shows).
+  // On all other screens, Back always shows — defaults to home if no history.
   const fb = $('#floatingBack');
-  if (fb) fb.hidden = history.length === 0;
+  if (fb) fb.hidden = isLanding;
   $('#appTitle').textContent = {
     welcome: 'Reindeer: Wishes', recipientwelcome: 'Welcome', helperwelcome: 'Welcome', howto: 'How to use', guidedpartner: 'Add someone', guidedphoto: 'Take a photo', whosdoing: "Who's doing this?", helptype: "Who's helping?", home: 'Reindeer: Wishes', capture: 'Add an item', batch: 'Add several',
     list: 'My items', detail: 'Item', review: 'Review items', print: 'Print', handoff: 'Finishing up', confirmsend: 'Confirm',
@@ -547,6 +550,8 @@ function go(name, opts = {}) {
 const currentScreen = () => $$('.screen').find((s) => !s.hidden)?.dataset.screen ?? 'home';
 
 $('#backBtn').onclick = () => go(history.pop() || 'home', { back: true });
+// Floating back button — same behavior as top bar back
+$('#floatingBack')?.addEventListener('click', () => go(history.pop() || 'home', { back: true }));
 $('#homeBtn').onclick = () => go('home');
 // Event delegation for data-go buttons — works for static HTML AND
 // dynamically-inserted buttons (e.g. "Back to home" in invite screens).
