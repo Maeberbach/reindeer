@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: reindeer-registry
+    name: reindeer-wishes
     runtime: node
     plan: starter
     buildCommand: npm install

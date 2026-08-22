@@ -15,7 +15,7 @@
  * false, which it must do anyway for a browser with storage switched off.
  */
 (function () {
-  const QUEUE_DB = 'reindeer-registry-queue';
+  const QUEUE_DB = 'reindeer-wishes-queue';
   const QUEUE_STORE = 'pending';
 
   function idbOpen() {

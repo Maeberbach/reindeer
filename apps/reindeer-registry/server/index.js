@@ -209,7 +209,7 @@ app.get('/api/mailer-status', async (req, res) => {
 
 // Health check stays public so uptime probes work without a cookie.
 app.get('/api/health', (req, res) => res.json({
-  ok: true, app: 'reindeer-registry', scope: SCOPE_ID, data_dir: DATA_DIR,
+  ok: true, app: 'reindeer-wishes', scope: SCOPE_ID, data_dir: DATA_DIR,
   mailer: mailer.describe, base_url: BASE_URL,
   media: mediaStore.tally(resolveScope(req) || { scopeType: SCOPE_TYPE.INVENTORY, scopeId: SCOPE_ID, actorId: 'health' }),
 }));
@@ -260,7 +260,7 @@ app.get('/api/export/bundle', async (req, res, next) => {
       itemRepo, mediaStore, scopeMediaStore, registry, ctx,
       addendumVersions, people,
       query: { review_state: req.query.review_state || 'kept' },
-      source: { app: 'reindeer-registry', app_version: '0.1.0', inventory_id: SCOPE_ID, owner_name: OWNER_NAME },
+      source: { app: 'reindeer-wishes', app_version: '0.1.0', inventory_id: SCOPE_ID, owner_name: OWNER_NAME },
     });
     res.setHeader('content-type', 'application/zip');
     res.setHeader('content-disposition', `attachment; filename="${fileName}"`);
@@ -276,11 +276,11 @@ app.get('/api/export/csv', async (req, res, next) => {
       itemRepo, mediaStore, registry, ctx,
       addendumVersions, people,
       query: { review_state: req.query.review_state || 'kept' },
-      source: { app: 'reindeer-registry', app_version: '0.1.0', inventory_id: SCOPE_ID },
+      source: { app: 'reindeer-wishes', app_version: '0.1.0', inventory_id: SCOPE_ID },
     });
     const { toCsv } = await import('@reindeer-legacy/exchange');
     res.setHeader('content-type', 'text/csv');
-    res.setHeader('content-disposition', 'attachment; filename="reindeer-registry.csv"');
+    res.setHeader('content-disposition', 'attachment; filename="reindeer-wishes.csv"');
     res.send(toCsv(envelope));
   } catch (e) { next(e); }
 });

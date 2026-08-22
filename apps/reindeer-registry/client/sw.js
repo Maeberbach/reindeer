@@ -17,7 +17,7 @@
  *   large and phone data plans are not free; that is the owner's decision.
  */
 
-const CACHE = 'reindeer-registry-shell-v6';
+const CACHE = 'reindeer-wishes-shell-v6';
 
 // The shell only. Enough to open the app, walk the house and queue recordings.
 const SHELL = ['./', './index.html', './app.js', './styles.css', './manifest.webmanifest'];
