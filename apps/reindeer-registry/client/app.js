@@ -2512,14 +2512,64 @@ async function openDetail(id) {
     const currentRoom = i.room?.name || '';
     sel.innerHTML = '<option value="">— select a room —</option>' +
       rooms.map((r) => `<option value="${escapeHtml(r.name)}"${r.name === currentRoom ? ' selected' : ''}>${escapeHtml(r.name)}</option>`).join('') +
-      (currentRoom && !rooms.find((r) => r.name === currentRoom) ? `<option value="${escapeHtml(currentRoom)}" selected>${escapeHtml(currentRoom)}</option>` : '');
+      (currentRoom && !rooms.find((r) => r.name === currentRoom) ? `<option value="${escapeHtml(currentRoom)}" selected>${escapeHtml(currentRoom)}</option>` : '') +
+      '<option value="__add_new__">+ Add a new room…</option>';
+    // Container for the inline new-room input
+    const roomCell = sel.parentElement;
     sel.onchange = async () => {
+      if (sel.value === '__add_new__') {
+        sel.value = '';
+        // Show an inline input to type the new room name
+        const wrap = document.createElement('div');
+        wrap.className = 'detail-new-room';
+        wrap.style.cssText = 'display:flex;gap:8px;margin-top:8px;';
+        wrap.innerHTML = '<input type="text" class="bigin" placeholder="Type a room name" id="detailNewRoomInput" style="flex:1">'
+          + '<button class="primary" id="detailNewRoomBtn" style="white-space:nowrap">Add</button>'
+          + '<button class="ghost" id="detailNewRoomCancel">Cancel</button>';
+        // Remove any existing one
+        roomCell.querySelector('.detail-new-room')?.remove();
+        roomCell.appendChild(wrap);
+        const input = wrap.querySelector('#detailNewRoomInput');
+        input.focus();
+        const addBtn = wrap.querySelector('#detailNewRoomBtn');
+        const doAdd = async () => {
+          const name = input.value.trim();
+          if (!name) return;
+          try {
+            const room = await api('/api/rooms', {
+              method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ name }),
+            });
+            if (!registry.rooms.some((r) => r.name.toLowerCase() === room.name.toLowerCase())) {
+              registry.rooms.push(room);
+            }
+            // Set the item's room
+            await api(`/api/items/${i.item_id}`, {
+              method: 'PATCH', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ room_name: room.name }),
+            });
+            toast(`"${room.name}" added and set as the room.`);
+            wrap.remove();
+            // Re-populate the dropdown with the new room
+            const newRooms = registry.rooms || [];
+            sel.innerHTML = '<option value="">— select a room —</option>' +
+              newRooms.map((r) => `<option value="${escapeHtml(r.name)}"${r.name === room.name ? ' selected' : ''}>${escapeHtml(r.name)}</option>`).join('') +
+              '<option value="__add_new__">+ Add a new room…</option>';
+          } catch (e) { toast(e.message, true); }
+        };
+        addBtn.onclick = doAdd;
+        input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } };
+        wrap.querySelector('#detailNewRoomCancel').onclick = () => wrap.remove();
+        return;
+      }
       try {
         await api(`/api/items/${i.item_id}`, {
           method: 'PATCH', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ room_name: sel.value || null }),
         });
         toast(sel.value ? `Room set to ${sel.value}` : 'Room cleared.');
+        // Clean up any new-room input that might be visible
+        roomCell.querySelector('.detail-new-room')?.remove();
       } catch (e) { toast(e.message, true); }
     };
   })();
@@ -2535,8 +2585,50 @@ async function openDetail(id) {
     const currentCat = i.category?.name || '';
     sel.innerHTML = '<option value="">— select a kind —</option>' +
       cats.map((c) => `<option value="${escapeHtml(c.name)}"${c.name === currentCat ? ' selected' : ''}>${escapeHtml(c.name)}</option>`).join('') +
-      (currentCat && !cats.find((c) => c.name === currentCat) ? `<option value="${escapeHtml(currentCat)}" selected>${escapeHtml(currentCat)}</option>` : '');
+      (currentCat && !cats.find((c) => c.name === currentCat) ? `<option value="${escapeHtml(currentCat)}" selected>${escapeHtml(currentCat)}</option>` : '') +
+      '<option value="__add_new__">+ Add a new kind…</option>';
+    const kindCell = sel.parentElement;
     sel.onchange = async () => {
+      if (sel.value === '__add_new__') {
+        sel.value = '';
+        const wrap = document.createElement('div');
+        wrap.className = 'detail-new-kind';
+        wrap.style.cssText = 'display:flex;gap:8px;margin-top:8px;';
+        wrap.innerHTML = '<input type="text" class="bigin" placeholder="Type a kind name" id="detailNewKindInput" style="flex:1">'
+          + '<button class="primary" id="detailNewKindBtn" style="white-space:nowrap">Add</button>'
+          + '<button class="ghost" id="detailNewKindCancel">Cancel</button>';
+        kindCell.querySelector('.detail-new-kind')?.remove();
+        kindCell.appendChild(wrap);
+        const input = wrap.querySelector('#detailNewKindInput');
+        input.focus();
+        const addBtn = wrap.querySelector('#detailNewKindBtn');
+        const doAdd = async () => {
+          const name = input.value.trim();
+          if (!name) return;
+          try {
+            await api(`/api/items/${i.item_id}`, {
+              method: 'PATCH', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ category_name: name }),
+            });
+            // Add to registry categories if not present
+            if (!registry.categories) registry.categories = [];
+            if (!registry.categories.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
+              registry.categories.push({ name });
+            }
+            toast(`"${name}" added and set as the kind.`);
+            wrap.remove();
+            const newCats = registry.categories || [];
+            sel.innerHTML = '<option value="">— select a kind —</option>' +
+              newCats.map((c) => `<option value="${escapeHtml(c.name)}"${c.name === name ? ' selected' : ''}>${escapeHtml(c.name)}</option>`).join('') +
+              '<option value="__add_new__">+ Add a new kind…</option>';
+          } catch (e) { toast(e.message, true); }
+        };
+        addBtn.onclick = doAdd;
+        input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } };
+        wrap.querySelector('#detailNewKindCancel').onclick = () => wrap.remove();
+        return;
+      }
+      kindCell.querySelector('.detail-new-kind')?.remove();
       try {
         await api(`/api/items/${i.item_id}`, {
           method: 'PATCH', headers: { 'content-type': 'application/json' },
@@ -4001,6 +4093,32 @@ function renderRoomMore() {
     sel.value = '';
     if (name) addOfferedRoom(name);
   };
+  // Wire the "Add this location" button — typed rooms become permanent chips
+  const addBtn = $('#capRoomOtherAdd');
+  if (addBtn && !addBtn._wired) {
+    addBtn._wired = true;
+    addBtn.onclick = () => {
+      const input = $('#capRoomOther');
+      const name = input?.value.trim();
+      if (!name) { toast('Type a room name first.', true); return; }
+      rememberTypedRoom(name);
+      input.value = '';
+    };
+  }
+  // Also submit on Enter in the room name input
+  const roomInput = $('#capRoomOther');
+  if (roomInput && !roomInput._enterWired) {
+    roomInput._enterWired = true;
+    roomInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const name = roomInput.value.trim();
+        if (!name) return;
+        rememberTypedRoom(name);
+        roomInput.value = '';
+      }
+    });
+  }
 }
 
 /*
