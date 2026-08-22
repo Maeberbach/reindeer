@@ -2379,6 +2379,16 @@ async function openDetail(id) {
 
     <p class="detail-hint">Not every item needs details — you can skip this part and come back later.</p>
     <div class="detail-fields">
+      <!-- Site / Location -->
+      <div class="detail-field">
+        <label>Location</label>
+        <div class="detail-cell">
+          <select id="detailSite" class="bigin">
+            <option value="">— select a location —</option>
+          </select>
+        </div>
+      </div>
+
       <!-- Room -->
       <div class="detail-field">
         <label>Room</label>
@@ -2569,6 +2579,81 @@ async function openDetail(id) {
         toast(sel.value ? `Room set to ${sel.value}` : 'Room cleared.');
         // Clean up any new-room input that might be visible
         roomCell.querySelector('.detail-new-room')?.remove();
+      } catch (e) { toast(e.message, true); }
+    };
+  })();
+
+  // ---- Populate Site/Location dropdown ----
+  (async () => {
+    const siteSel = $('#detailSite');
+    if (!siteSel) return;
+    let sites = [];
+    try {
+      sites = await api('/api/sites');
+    } catch { sites = []; }
+    const currentSiteId = i.site_id || sites.find(s => s.is_primary)?.site_id || '';
+    siteSel.innerHTML = '<option value="">— Home —</option>' +
+      sites.map((s) => `<option value="${s.site_id}"${s.site_id === currentSiteId ? ' selected' : ''}>${escapeHtml(s.name)}${s.is_primary ? ' (Home)' : ''}</option>`).join('') +
+      '<option value="__add_new__">+ Add a new location…</option>';
+    const siteCell = siteSel.parentElement;
+    siteSel.onchange = async () => {
+      if (siteSel.value === '__add_new__') {
+        siteSel.value = '';
+        const wrap = document.createElement('div');
+        wrap.className = 'detail-new-site';
+        wrap.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:8px;';
+        wrap.innerHTML = '<input type="text" class="bigin" placeholder="Location name (e.g. Guest house, Storage shed)" id="detailNewSiteInput" style="width:100%">'
+          + '<select class="bigin" id="detailNewSiteKind">'
+          + '<option value="other">Other location</option>'
+          + '<option value="storage">Storage unit</option>'
+          + '<option value="second_home">Second home</option>'
+          + '<option value="vacation">Vacation home</option>'
+          + '<option value="garage">Garage / shed</option>'
+          + '</select>'
+          + '<div style="display:flex;gap:8px">'
+          + '<button class="primary" id="detailNewSiteBtn" style="white-space:nowrap">Add</button>'
+          + '<button class="ghost" id="detailNewSiteCancel">Cancel</button>'
+          + '</div>';
+        siteCell.querySelector('.detail-new-site')?.remove();
+        siteCell.appendChild(wrap);
+        const input = wrap.querySelector('#detailNewSiteInput');
+        input.focus();
+        const doAdd = async () => {
+          const name = input.value.trim();
+          if (!name) return;
+          try {
+            const kind = wrap.querySelector('#detailNewSiteKind').value;
+            const site = await api('/api/sites', {
+              method: 'POST', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ name, kind }),
+            });
+            sites.push(site);
+            // Set the item's site
+            await api(`/api/items/${i.item_id}`, {
+              method: 'PATCH', headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ site_id: site.site_id }),
+            });
+            toast(`"${site.name}" added and set as the location.`);
+            wrap.remove();
+            // Re-populate dropdown
+            siteSel.innerHTML = '<option value="">— Home —</option>' +
+              sites.map((s) => `<option value="${s.site_id}"${s.site_id === site.site_id ? ' selected' : ''}>${escapeHtml(s.name)}${s.is_primary ? ' (Home)' : ''}</option>`).join('') +
+              '<option value="__add_new__">+ Add a new location…</option>';
+          } catch (e) { toast(e.message, true); }
+        };
+        wrap.querySelector('#detailNewSiteBtn').onclick = doAdd;
+        input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } };
+        wrap.querySelector('#detailNewSiteCancel').onclick = () => wrap.remove();
+        return;
+      }
+      // Update the item's site
+      try {
+        await api(`/api/items/${i.item_id}`, {
+          method: 'PATCH', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ site_id: siteSel.value || null }),
+        });
+        const siteName = sites.find((s) => s.site_id === siteSel.value);
+        toast(siteName ? `Location set to ${siteName.name}` : 'Location set to Home.');
       } catch (e) { toast(e.message, true); }
     };
   })();
